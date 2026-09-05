@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Guard self-test
+        run: node scripts/roblox-optimum.mjs --selftest
+
+      - name: MCP server self-test
+        run: node scripts/roblox-mcp.mjs --selftest
+
+      - name: Structural audit
+        run: node scripts/audit.mjs
+
+      - name: Per-agent rule copies match AGENTS.md
+        run: node scripts/sync-rules.mjs --check
+
+      - name: Shipped changes require a version bump
+        if: github.event_name == 'pull_request'
+        run: |
+          base="origin/${{ github.base_ref }}"
+          changed=$(git diff --name-only "$base"...HEAD -- skills agents hooks scripts .claude-plugin AGENTS.md)
+          if [ -z "$changed" ]; then
+            echo "No shipped files changed."
+            exit 0
+          fi
+          old=$(git show "$base:.claude-plugin/plugin.json" | jq -r .version)
+          new=$(jq -r .version .claude-plugin/plugin.json)
+          echo "Changed:"; echo "$changed" | sed 's/^/  /'
+          echo "Version: $old -> $new"
+          if [ "$old" = "$new" ]; then
+            echo "::error::These files ship to users, so plugin.json version must be raised above $old."
+            exit 1
+          fi

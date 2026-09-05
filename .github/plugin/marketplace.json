@@ -1,0 +1,19 @@
+{
+  "name": "andrian-syh",
+  "owner": {
+    "name": "andrian-syh",
+    "url": "https://github.com/andrian-syh"
+  },
+  "metadata": {
+    "description": "Roblox development tooling for AI agents",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "roblox-optimum",
+      "description": "Professional Roblox and Luau standards for AI agents: server-authoritative, leak-free, framework-agnostic, and laid out the same way in every file.",
+      "version": "1.0.0",
+      "source": "./"
+    }
+  ]
+}

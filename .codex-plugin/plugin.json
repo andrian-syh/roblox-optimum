@@ -1,0 +1,29 @@
+{
+  "name": "roblox-optimum",
+  "version": "1.0.0",
+  "description": "Professional Roblox and Luau standards for AI agents: server-authoritative, leak-free, framework-agnostic, and laid out the same way in every file.",
+  "author": {
+    "name": "andrian-syh",
+    "url": "https://github.com/andrian-syh"
+  },
+  "homepage": "https://github.com/andrian-syh/roblox-optimum",
+  "repository": "https://github.com/andrian-syh/roblox-optimum",
+  "license": "MIT",
+  "keywords": ["roblox", "luau", "code-review", "game-development"],
+  "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
+  "interface": {
+    "displayName": "Roblox Dev",
+    "shortDescription": "Roblox and Luau standards, checked on every file you write",
+    "longDescription": "Framework-agnostic Roblox and Luau standards, plus a deterministic checker that reports deprecated APIs and out-of-order section headers back to the agent.",
+    "developerName": "andrian-syh",
+    "category": "Productivity",
+    "capabilities": ["Instructions", "Lifecycle hooks"],
+    "websiteURL": "https://github.com/andrian-syh/roblox-optimum",
+    "defaultPrompt": [
+      "Write this system to the Roblox standards.",
+      "Review this Luau file against the standards.",
+      "Audit this place for exploits and leaks."
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "roblox-optimum",
+  "displayName": "Roblox Dev",
+  "version": "1.0.0",
+  "description": "Skills that hold an AI agent to professional Roblox/Luau standards: framework-agnostic coding conventions, server-authoritative design, and the review gates that keep the work honest.",
+  "author": {
+    "name": "andrian-syh",
+    "url": "https://github.com/andrian-syh"
+  },
+  "homepage": "https://github.com/andrian-syh/roblox-optimum",
+  "repository": "https://github.com/andrian-syh/roblox-optimum.git",
+  "license": "MIT",
+  "keywords": [
+    "roblox",
+    "luau",
+    "best-practices",
+    "code-review",
+    "game-development"
+  ],
+  "mcpServers": {
+    "roblox-optimum": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-mcp.mjs"]
+    }
+  },
+  "userConfig": {
+    "supervision": {
+      "type": "string",
+      "title": "Supervision level",
+      "description": "How much to confirm before acting. ask stops at every decision, bal asks only when a choice is consequential, go runs autonomously and reports its assumptions. Leave as bal if unsure.",
+      "default": "bal"
+    }
+  }
+}

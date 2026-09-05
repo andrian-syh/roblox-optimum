@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing needs a recent npm, and the runner image lags behind.
+      - name: Use an npm that speaks OIDC
+        run: npm install -g npm@latest
+
+      - name: Guard self-test
+        run: node scripts/roblox-optimum.mjs --selftest
+
+      - name: MCP server self-test
+        run: node scripts/roblox-mcp.mjs --selftest
+
+      - name: Structural audit
+        run: node scripts/audit.mjs
+
+      - name: Per-agent rule copies match AGENTS.md
+        run: node scripts/sync-rules.mjs --check
+
+      - name: The tag must be the version being published
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./package.json').version")
+          echo "tag $tag, package.json $pkg"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json v$pkg."
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish

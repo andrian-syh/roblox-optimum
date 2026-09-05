@@ -1,0 +1,40 @@
+{
+  "name": "roblox-optimum",
+  "version": "1.0.0",
+  "description": "Deterministic Roblox and Luau standards checks: deprecated APIs and out-of-order section headers, as an agent hook, a commit hook, or a CI step.",
+  "keywords": [
+    "roblox",
+    "luau",
+    "lint",
+    "linter",
+    "static-analysis",
+    "pre-commit",
+    "game-development",
+    "ai-agent"
+  ],
+  "type": "module",
+  "bin": {
+    "roblox-optimum": "scripts/roblox-optimum.mjs",
+    "roblox-mcp": "scripts/roblox-mcp.mjs"
+  },
+  "files": [
+    "scripts/roblox-optimum.mjs",
+    "scripts/roblox-mcp.mjs",
+    "skills/",
+    "agents/",
+    "AGENTS.md"
+  ],
+  "scripts": {
+    "test": "node scripts/roblox-optimum.mjs --selftest && node scripts/roblox-mcp.mjs --selftest"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/andrian-syh/roblox-optimum",
+  "bugs": "https://github.com/andrian-syh/roblox-optimum/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrian-syh/roblox-optimum.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
