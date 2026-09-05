@@ -199,6 +199,45 @@ function auditLinks() {
 }
 
 /**
+ * Checks that the rules card names no path out of this repository. It is copied verbatim into
+ * other people's projects, where a path that only exists here sends the agent into nothing.
+ */
+function auditRulesPaths() {
+  const path = join(ROOT, "AGENTS.md");
+  if (!existsSync(path)) return problems.push("AGENTS.md is missing");
+
+  for (const [k, line] of readFileSync(path, "utf8").split("\n").entries()) {
+    const found = /`((?:skills|scripts|agents|hooks)\/[^`]*)`/.exec(line);
+    if (found) problems.push(`AGENTS.md:${k + 1}: names ${found[1]}, which ships to projects without it`);
+  }
+
+  notes.push("the rules card names no path of this repository");
+}
+
+/**
+ * Checks that only the currency baseline carries a year. A date copied elsewhere is the one
+ * that gets forgotten, and quietly starts lying. The range stops below 2048, since these
+ * pages size textures in powers of two.
+ */
+function auditDates() {
+  const owner = join(ROOT, "skills", "best-practices", "references", "api-currency.md");
+  let checked = 0;
+
+  for (const path of walk(join(ROOT, "skills"), /\.md$/)) {
+    if (path === owner) continue;
+    checked++;
+    const lines = readFileSync(path, "utf8").split("\n");
+
+    for (const [k, line] of lines.entries()) {
+      const year = /\b20(?:2[0-9]|3[0-9]|4[0-7])\b/.exec(line);
+      if (year) problems.push(`${relative(ROOT, path)}:${k + 1}: carries the year ${year[0]}`);
+    }
+  }
+
+  notes.push(`${checked} pages carry no date of their own`);
+}
+
+/**
  * Checks that every reference page is reachable from a skill. One nothing links to is either
  * dead weight or a page the model will never be told to open.
  */
@@ -324,6 +363,8 @@ function auditBlock(name, lines, at) {
 auditManifest();
 auditSkills();
 auditLinks();
+auditRulesPaths();
+auditDates();
 auditOwnership();
 auditHooks();
 auditComments();

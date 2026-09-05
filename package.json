@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deterministic Roblox and Luau standards checks: deprecated APIs and out-of-order section headers, as an agent hook, a commit hook, or a CI step.",
   "keywords": [
     "roblox",
@@ -26,6 +26,10 @@
   ],
   "scripts": {
     "test": "node scripts/roblox-optimum.mjs --selftest && node scripts/roblox-mcp.mjs --selftest"
+  },
+  "author": {
+    "name": "andrian-syh",
+    "url": "https://github.com/andrian-syh"
   },
   "license": "MIT",
   "homepage": "https://github.com/andrian-syh/roblox-optimum",

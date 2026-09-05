@@ -41,6 +41,13 @@ const HOOKS_SOURCE = "hooks/hooks.json";
 const HOOKS_TARGET = "hooks/codex-hooks.json";
 
 /**
+ * The MCP entry, and the filename Antigravity reads it under. The two files are identical, and
+ * a host is reached by the name it looks for rather than by a second copy kept in step by hand.
+ */
+const MCP_SOURCE = "mcp.json";
+const MCP_TARGET = "mcp_config.json";
+
+/**
  * The agents, and where Copilot reads them. It searches a directory of its own and requires the
  * .agent.md suffix, so the file this repository writes for Claude Code is invisible to it.
  */
@@ -66,6 +73,7 @@ function derive() {
   return [
     ...TARGETS.map(([path, frontMatter]) => [path, render(body, frontMatter)]),
     [HOOKS_TARGET, hooks.replaceAll("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT")],
+    [MCP_TARGET, readFileSync(join(ROOT, MCP_SOURCE), "utf8").replace(/\r\n/g, "\n")],
     ...copilotAgents,
   ];
 }

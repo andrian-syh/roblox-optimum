@@ -54,24 +54,28 @@ ROBLOX LUAU SKILL - INVARIANT CARD
 ## Full standards
 
 This card is the part that must survive a summary. The complete standards, with the reference
-files behind each rule, live in this repository:
+files behind each rule, live in three skills:
 
-| Path | Covers |
+| Skill | Covers |
 |---|---|
-| `skills/best-practices/SKILL.md` | Writing and refactoring Luau |
-| `skills/code-review/SKILL.md` | Reviewing, auditing, and scoring existing code |
-| `skills/studio-ops/SKILL.md` | Studio MCP, sync toolchains, verifying in a running session |
+| `best-practices` | Writing and refactoring Luau |
+| `code-review` | Reviewing, auditing, and scoring existing code |
+| `studio-ops` | Studio MCP, sync toolchains, verifying in a running session |
 
 Read the one whose task matches. Each reference file is self-contained; read one, not the set.
 
+Where they are depends on how they were installed. As a plugin they are invoked by name, such as
+`/roblox-optimum:best-practices`. Copied into the project they are directories named
+`roblox-best-practices`, `roblox-code-review`, and `roblox-studio-ops`, under an `.agents` or
+`.claude` skills directory. If neither is present, `npx roblox-optimum install skills` writes them.
+
 ## The checks run outside you
 
-`scripts/roblox-optimum.mjs` reports deprecated APIs and out-of-order section headers
-deterministically, with no model involved. Run it on the files you touched before you report
-work as done:
+The checker reports deprecated APIs and out-of-order section headers deterministically, with no
+model involved. Run it on the files you touched before you report work as done:
 
 ```
-node scripts/roblox-optimum.mjs --check <files>
+npx roblox-optimum --check <files>
 ```
 
 It exits 1 when a file has findings, and each finding names the line and the replacement.

@@ -55,6 +55,8 @@ jobs:
             echo "PUBLISHED=yes" >> "$GITHUB_ENV"
           fi
 
+      # --provenance signs the tarball against this workflow and commit, so anyone installing it
+      # can verify where it was built. It needs the id-token permission granted above.
       - name: Publish
         if: env.PUBLISHED != 'yes'
-        run: npm publish
+        run: npm publish --provenance

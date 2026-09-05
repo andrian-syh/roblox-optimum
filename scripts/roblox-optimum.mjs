@@ -13,7 +13,10 @@ import {
   readdirSync,
   statSync,
   cpSync,
+  mkdtempSync,
+  rmSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -47,6 +50,13 @@ export const DEPRECATED = [
   [/:connect\s*\(/, ":connect()", ":Connect()"],
   [/[Hh]umanoid[\w.]*:LoadAnimation\s*\(/, "Humanoid:LoadAnimation()", "Animator:LoadAnimation()"],
   [/:SetPrimaryPartCFrame\s*\(/, "SetPrimaryPartCFrame()", "Model:PivotTo()"],
+  [/:GetPrimaryPartCFrame\s*\(/, "GetPrimaryPartCFrame()", "Model:GetPivot()"],
+  [/\.CoordinateFrame\b/, "Camera.CoordinateFrame", "Camera.CFrame"],
+  [
+    /:GetR(?:ank|ole)InGroupAsync\s*\(/,
+    "Player:GetRankInGroupAsync() / GetRoleInGroupAsync()",
+    "GroupService:GetRolesInGroupAsync()",
+  ],
   [
     /\bBody(?:Velocity|Position|Gyro|AngularVelocity|Force|Thrust)\b/,
     "Body* mover",
@@ -497,6 +507,18 @@ const PLUGIN = "roblox-optimum";
 const PREFIX = "roblox-";
 
 /**
+ * The skill directories this package ships. Only these are renamed on the way into a project,
+ * so a link reaching a plain directory such as `../patterns/` is left exactly as it was.
+ */
+const SHIPPED_SKILLS = (() => {
+  try {
+    return new Set(readdirSync(join(PACKAGE_ROOT, "skills")));
+  } catch {
+    return new Set();
+  }
+})();
+
+/**
  * The name a skill or agent takes once copied into a project. A plugin namespaces what it
  * carries; a loose copy is found by its bare name, so it says what it is about instead. A
  * name that already says roblox is left alone rather than saying it twice.
@@ -510,7 +532,7 @@ export function namespaced(name) {
 
 /**
  * Rewrites the names inside a copied file so they match where it landed: its front matter
- * name, and any sibling it names under the plugin namespace, which does not exist for a copy.
+ * name, a sibling it names under the plugin namespace, and a link into a sibling's directory.
  *
  * @param text string -- The file as this package ships it.
  * @return string
@@ -521,7 +543,11 @@ export function retitle(text) {
       /^(---\r?\n(?:[^\n]*\r?\n)*?name:[ \t]*)([^\r\n]+)/,
       (_, head, name) => head + namespaced(name.trim()),
     )
-    .replace(new RegExp(`${PLUGIN}:([a-z0-9-]+)`, "g"), (_, name) => namespaced(name));
+    .replace(new RegExp(`${PLUGIN}:([a-z0-9-]+)`, "g"), (_, name) => namespaced(name))
+    .replace(
+      /(\]\(\.\.\/)([A-Za-z0-9._-]+)(\/)/g,
+      (all, open, dir, close) => (SHIPPED_SKILLS.has(dir) ? open + namespaced(dir) + close : all),
+    );
 }
 
 /**
@@ -850,6 +876,24 @@ Players.PlayerAdded:Connect(greet)
     "task.wait() is not mistaken for wait()",
   );
   ok(
+    inspect(good.replace("Players.PlayerAdded:Connect(greet)", "model:GetPrimaryPartCFrame()")).some(
+      (p) => p.includes("GetPrimaryPartCFrame()"),
+    ),
+    "the reader half of the pivot pair is caught alongside the writer",
+  );
+  ok(
+    inspect(good.replace("Players.PlayerAdded:Connect(greet)", "local c = camera.CoordinateFrame")).some(
+      (p) => p.includes("Camera.CoordinateFrame"),
+    ),
+    "the camera's old CFrame property is caught",
+  );
+  ok(
+    inspect(good.replace("Players.PlayerAdded:Connect(greet)", "player:GetRoleInGroupAsync(1)")).some(
+      (p) => p.includes("GetRoleInGroupAsync()"),
+    ),
+    "either half of the group lookup pair is caught",
+  );
+  ok(
     !inspect(`-- never call wait() here\nlocal x = "spawn("\nreturn { a = 1 }`).some((p) =>
       p.includes("deprecated"),
     ),
@@ -989,6 +1033,46 @@ Players.PlayerAdded:Connect(greet)
   ok(
     !retitle(`---\nname: a\n---\nname: b\n`).includes("name: roblox-b"),
     "only the front matter name is rewritten, not a line of prose that looks like one",
+  );
+  ok(
+    retitle(`[x](../best-practices/references/patterns/data.md) [y](references/own.md)`) ===
+      `[x](../roblox-best-practices/references/patterns/data.md) [y](references/own.md)`,
+    "a link into a sibling skill follows the directory that skill landed in, and one inside this skill is left alone",
+  );
+  ok(
+    retitle(`[a](../patterns/data.md) [b](../cases/combat.md) [c](../../SKILL.md)`) ===
+      `[a](../patterns/data.md) [b](../cases/combat.md) [c](../../SKILL.md)`,
+    "a link reaching a plain directory, or two levels up, is not mistaken for a sibling skill",
+  );
+  ok(
+    (() => {
+      const sandbox = mkdtempSync(join(tmpdir(), "roblox-optimum-"));
+      try {
+        const report = { written: [], kept: [], stale: [], current: [] };
+        const dest = join(sandbox, "skills");
+        copyTree(join(PACKAGE_ROOT, "skills"), dest, false, report);
+
+        const pages = [];
+        const collect = (at) => {
+          if (statSync(at).isDirectory()) return readdirSync(at).forEach((n) => collect(join(at, n)));
+          if (at.endsWith(".md")) pages.push(at);
+        };
+        collect(dest);
+
+        const dead = [];
+        let seen = 0;
+        for (const file of pages) {
+          for (const [, link] of readFileSync(file, "utf8").matchAll(/\]\(([^)#:]+\.md)/g)) {
+            seen++;
+            if (!existsSync(resolve(dirname(file), link))) dead.push(`${relative(dest, file)} -> ${link}`);
+          }
+        }
+        return report.written.length > 0 && seen > 400 && dead.length === 0;
+      } finally {
+        rmSync(sandbox, { recursive: true, force: true });
+      }
+    })(),
+    "every link a real skill copy carries still reaches the file it names",
   );
 
   ok(stampedFrom("no stamp here") === null, "a file this tool did not copy carries no version");

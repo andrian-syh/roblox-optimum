@@ -38,6 +38,13 @@ const VERSION = (() => {
 const HOME_PAGE = "https://github.com/andrian-syh/roblox-optimum";
 
 /**
+ * Where a reference page can be read by a client that has no copy of this package. The server
+ * exists for places with no files on disk, so a bare filename is an answer such a caller
+ * cannot act on.
+ */
+const REFERENCE_BASE = `${HOME_PAGE}/blob/main/skills/best-practices/references`;
+
+/**
  * Why each rule exists and where its full pattern lives, keyed by the name the checker
  * reports. A finding is one line by design, which is enough for an agent carrying the skills
  * and too little for one that is not.
@@ -90,6 +97,29 @@ export const EXPLANATIONS = {
       "It moves every part relative to the primary part, so accumulated float error shows up as " +
       "drift, and it fails outright when the primary part is unset.",
     instead: "Model:PivotTo(), which moves the model by its pivot in one operation.",
+    read: "style-rules.md",
+  },
+  "GetPrimaryPartCFrame()": {
+    why:
+      "It reads a frame that exists only while a primary part is set, so it returns nothing on a " +
+      "model that has none, and it describes the primary part rather than the model.",
+    instead: "Model:GetPivot(), which is defined for every model.",
+    read: "style-rules.md",
+  },
+  "Camera.CoordinateFrame": {
+    why:
+      "It is the camera's original name for the property that became CFrame, kept only so old " +
+      "places keep running.",
+    instead: "Camera.CFrame, which is the same value under the name the rest of the API uses.",
+    read: "style-rules.md",
+  },
+  "Player:GetRankInGroupAsync() / GetRoleInGroupAsync()": {
+    why:
+      "Each is one web call per player per group, and calling both to learn a rank and its name " +
+      "costs two round trips for one answer.",
+    instead:
+      "GroupService:GetRolesInGroupAsync(), which returns every role in one call and lets you " +
+      "cache it.",
     read: "style-rules.md",
   },
   "Body* mover": {
@@ -221,7 +251,7 @@ export function runTool(name, args) {
     const { why, instead, read } = EXPLANATIONS[key];
     return text(
       `${key}\n\nWhy: ${why}\n\nUse instead: ${instead}\n\n` +
-        `Full pattern: skills/best-practices/references/${read} at ${HOME_PAGE}`,
+        `Full pattern: ${read}, in this package under skills/best-practices/references/, or at ${REFERENCE_BASE}/${read}`,
     );
   }
 

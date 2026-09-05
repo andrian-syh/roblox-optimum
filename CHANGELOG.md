@@ -5,6 +5,57 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-05
+
+### Added
+
+- Three more deprecated APIs, each already named by the standards and until now unenforced:
+  `Model:GetPrimaryPartCFrame()` beside the setter that was already caught,
+  `Camera.CoordinateFrame`, and `Player:GetRankInGroupAsync()` / `GetRoleInGroupAsync()`. Each
+  carries its own explanation through `explain_finding`.
+- `mcp_config.json` is derived from `mcp.json` rather than kept in step by hand, and CI fails on
+  drift, the same way the per-agent rule copies already work.
+- CI runs on Windows as well as Linux. Most of what `install` does is paths and directories, and
+  most Roblox developers are on Windows.
+- The audit enforces that only the currency baseline carries a year, which the standards had
+  claimed for a rule nothing checked. A date on any other page now fails the build.
+- The package is published with `npm publish --provenance`, so a release carries a signed
+  attestation tying the tarball to the commit and workflow that built it, and `package.json`
+  names its author.
+
+### Changed
+
+- The currency baseline moves to Luau 0.737 and engine release notes 737. Neither Luau release
+  adds a language feature, syntax, or library function a script author can call, and release
+  notes 737 carry no API change at all; the baseline now says so, so the next maintainer does
+  not read them again looking for a row to add. The `class` row records that upstream prototype
+  work continued without reaching Studio, and `if local` joins it as a prototype nobody should
+  write.
+- `pcall` / `xpcall` inside a user-defined `type function` is promoted from Verify to GA. The
+  baseline's own rule is that an upstream Luau release cannot promote a row on its own; the
+  engine release notes for the week of 10 August 2026 list it Live, which is the evidence that
+  rule asks for.
+- The verification toolbox gains a way to read the pending-changes page. It has no `.md`
+  variant and renders in the browser, so the baseline had recorded it as unreadable; its
+  entries are in fact in the JSON payload the page ships, and the toolbox now says where.
+
+### Fixed
+
+- The rules card sent an agent into three paths and one command that exist only in this
+  repository. `AGENTS.md` ships verbatim into other people's projects, where nothing lives at
+  `skills/best-practices/SKILL.md` and `node scripts/roblox-optimum.mjs` is not a command. It
+  now names the skills rather than their paths here, says where a copy of each actually lands,
+  and gives `npx roblox-optimum --check`, which is true everywhere. The audit fails the build
+  on any repository path appearing there again.
+- `explain_finding` ended by naming a file and the repository's front page, leaving the caller
+  to build the link. It now gives the full URL of the page. The server exists for places with
+  no files on disk, so a bare filename was an answer that audience could not act on.
+- A skill copied into a project could not reach the references it links. `install` renames each
+  skill directory so a loose copy says what it is about, but a link written as
+  `../best-practices/references/...` was left pointing at the old name, leaving 18 dead links
+  across the two skills that read the shared references. The rename now covers those links, and
+  a selftest copies the real skills and follows every link they carry.
+
 ## [1.0.0] - 2026-09-05
 
 The first public release. Everything below has been in use against real Roblox projects through
@@ -37,4 +88,5 @@ its development, and the surface it presents is now settled enough to depend on.
   and the hosts that install themselves each read a manifest of their own. `ROBLOX_OPTIMUM=off`
   silences the checker without uninstalling anything.
 
+[1.1.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/andrian-syh/roblox-optimum/releases/tag/v1.0.0

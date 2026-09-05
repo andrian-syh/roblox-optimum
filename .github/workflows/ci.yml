@@ -7,7 +7,13 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Most of what install does is paths and directories, and most Roblox developers are on
+    # Windows, so the checks run on both rather than on the one that happens to be cheapest.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,7 +36,8 @@ jobs:
         run: node scripts/sync-rules.mjs --check
 
       - name: Shipped changes require a version bump
-        if: github.event_name == 'pull_request'
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        shell: bash
         run: |
           base="origin/${{ github.base_ref }}"
           changed=$(git diff --name-only "$base"...HEAD -- skills agents hooks scripts .claude-plugin AGENTS.md)
