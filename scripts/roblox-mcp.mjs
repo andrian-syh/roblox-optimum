@@ -20,11 +20,15 @@ import { inspect, DEPRECATED } from "./roblox-optimum.mjs";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** The protocol revision this server is written against. */
-const PROTOCOL = "2025-06-18";
+/**
+ * The protocol revision this server is written against: the newest one that still opens with
+ * an `initialize` handshake. The revision after it makes MCP stateless and drops that handshake,
+ * which is a different server rather than a newer one.
+ */
+const PROTOCOL = "2025-11-25";
 
 /** Earlier revisions whose shapes this server still answers correctly. */
-const ALSO_SPOKEN = ["2025-03-26", "2024-11-05"];
+const ALSO_SPOKEN = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /** The version this package ships, which the client reads back in `serverInfo`. */
 const VERSION = (() => {
@@ -40,9 +44,24 @@ const HOME_PAGE = "https://github.com/andrian-syh/roblox-optimum";
 /**
  * Where a reference page can be read by a client that has no copy of this package. The server
  * exists for places with no files on disk, so a bare filename is an answer such a caller
- * cannot act on.
+ * cannot act on. Raw rather than rendered, since what fetches this is an agent.
  */
-const REFERENCE_BASE = `${HOME_PAGE}/blob/main/skills/best-practices/references`;
+const REFERENCE_BASE =
+  "https://raw.githubusercontent.com/andrian-syh/roblox-optimum/main/skills/best-practices/references";
+
+/**
+ * The invariant card, read from the rules file this package ships, and empty when that file
+ * did not ship with it. A Studio-native caller has no skills and no rules file, so without
+ * this the server judges against standards it never states.
+ */
+function invariantCard() {
+  try {
+    const text = readFileSync(join(PACKAGE_ROOT, "AGENTS.md"), "utf8");
+    return /```text\r?\n([\s\S]*?)```/.exec(text)?.[1]?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Why each rule exists and where its full pattern lives, keyed by the name the checker
@@ -149,9 +168,14 @@ const TOOLS = [
     name: "check_luau",
     title: "Check Luau against the Roblox standards",
     description:
-      "Check Luau source for deprecated APIs and out-of-order section headers, and return the " +
-      "findings. Takes the source as text, so it works on a script read out of Studio that was " +
-      "never written to disk. Returns nothing to report when the source is clean.",
+      "Check Luau source for deprecated APIs and out-of-order section headers, and return one " +
+      "finding per rule that matched, each naming its line and the replacement to use. Takes the " +
+      "source as text, so it reaches a script read out of Studio that was never written to disk. " +
+      "The check is deterministic and asks no model anything, so the same source always returns " +
+      "the same findings. It reads comments and string literals as prose, not code, so a rule " +
+      "named in a comment is never reported. It does not judge server authority, connection " +
+      "cleanup, or anything else needing semantics: a clean result means no pattern matched, not " +
+      "that the source meets the standards. Call get_standards for the rules it cannot check.",
     inputSchema: {
       type: "object",
       properties: {
@@ -168,8 +192,13 @@ const TOOLS = [
     name: "explain_finding",
     title: "Explain a finding and how to fix it",
     description:
-      "Given a finding from check_luau, or the name of the API it reported, return why the rule " +
-      "exists, what to use instead, and which reference page carries the full pattern.",
+      "Given a finding from check_luau, or the bare name of the API it reported, return why the " +
+      "rule exists, what to use instead, and where the full pattern is written. Use it when a " +
+      "finding needs justifying to someone, or when the replacement alone is not enough to make " +
+      "the fix. It returns a pointer to the reference page, not the page itself: a filename " +
+      "inside this package and the URL of the same file, either of which you fetch yourself. " +
+      "Only the APIs check_luau reports have an explanation; anything else returns an error " +
+      "listing the names that are known.",
     inputSchema: {
       type: "object",
       properties: {
@@ -181,14 +210,23 @@ const TOOLS = [
       required: ["finding"],
     },
   },
+  {
+    name: "get_standards",
+    title: "The standards this server checks against",
+    description:
+      "Return the invariant card: the section layout, comment rules, server authority, cleanup, " +
+      "data safety, and the rest of the standards every script is held to. Takes no arguments " +
+      "and always returns the same text. Read it before writing or editing Luau in a place that " +
+      "carries no skills of its own, and again after a summary, since these rules do not survive " +
+      "one. It returns the rules themselves, not a judgement of any code, and not the reference " +
+      "pages behind them: check_luau judges source, and explain_finding points at the pages.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
 /**
  * The explanation key a finding refers to, or null when none matches. The longest key wins,
  * so a name that contains a shorter one resolves to itself.
- *
- * @param finding string -- A finding line, or a bare API name.
- * @return string or null
  */
 export function keyFor(finding) {
   const text = String(finding ?? "");
@@ -198,10 +236,8 @@ export function keyFor(finding) {
 }
 
 /**
- * Every name the checker can report has an explanation. Without this a rule could be added to
- * the checker and reported for months with nothing behind it.
- *
- * @return table -- The reported names that no explanation covers.
+ * The reported names that no explanation covers. Without this a rule could be added to the
+ * checker and reported for months with nothing behind it.
  */
 export function uncovered() {
   return DEPRECATED.map(([, name]) => name).filter((name) => keyFor(name) === null);
@@ -209,10 +245,6 @@ export function uncovered() {
 
 /**
  * Runs one tool and returns its result content.
- *
- * @param name string -- The tool named by the caller.
- * @param args table -- Its arguments, which are never trusted.
- * @return table -- An MCP tool result.
  */
 export function runTool(name, args) {
   const given = args ?? {};
@@ -255,15 +287,27 @@ export function runTool(name, args) {
     );
   }
 
+  if (name === "get_standards") {
+    const card = invariantCard();
+    if (card === "") {
+      return fail(`The rules file did not ship with this server. Read them at ${HOME_PAGE}.`);
+    }
+
+    return text(
+      `${card}\n\nThese are the rules check_luau judges against. It catches only the ones a ` +
+        `pattern can settle, so the rest are yours to hold.`,
+    );
+  }
+
   return null;
 }
 
-/** @return table -- A successful tool result carrying one block of text. */
+/** A successful tool result carrying one block of text. */
 function text(body) {
   return { content: [{ type: "text", text: body }], isError: false };
 }
 
-/** @return table -- A tool result reporting a failure the caller can correct. */
+/** A tool result reporting a failure the caller can correct rather than retry blindly. */
 function fail(body) {
   return { content: [{ type: "text", text: body }], isError: true };
 }
@@ -271,9 +315,6 @@ function fail(body) {
 /**
  * Answers one JSON-RPC message. A notification carries no id and is owed no answer, so it
  * returns null and the caller writes nothing.
- *
- * @param message table -- A parsed request or notification.
- * @return table or null -- The response to write, or null when nothing is owed.
  */
 export function handle(message) {
   const { id, method, params } = message ?? {};
@@ -309,12 +350,12 @@ export function handle(message) {
   return error(id, -32601, `Unknown method: ${method}`);
 }
 
-/** @return table -- A JSON-RPC result. */
+/** A JSON-RPC result envelope. */
 function reply(id, result) {
   return { jsonrpc: "2.0", id, result };
 }
 
-/** @return table -- A JSON-RPC error. */
+/** A JSON-RPC error envelope, addressed to nobody when the request carried no id. */
 function error(id, code, message) {
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
 }
@@ -379,14 +420,18 @@ function selftest() {
   );
 
   const list = handle({ id: 2, method: "tools/list" }).result.tools;
-  ok(list.length === 2, "both tools are listed");
+  ok(list.length === TOOLS.length && list.length === 3, "every tool this server carries is listed");
   ok(
     list.every((t) => t.name && t.description && t.inputSchema?.type === "object"),
     "every tool carries a name, a description, and an object schema",
   );
   ok(
-    list.every((t) => t.inputSchema.required.every((r) => r in t.inputSchema.properties)),
+    list.every((t) => (t.inputSchema.required ?? []).every((r) => r in t.inputSchema.properties)),
     "every required argument is one the schema describes",
+  );
+  ok(
+    list.some((t) => t.name === "get_standards" && (t.inputSchema.required ?? []).length === 0),
+    "the standards are readable without arguments",
   );
 
   const bad = handle({ id: 3, method: "tools/call", params: { name: "no_such_tool" } });
@@ -451,6 +496,26 @@ function selftest() {
     .map((e) => e.read)
     .filter((r) => !existsSync(join(PACKAGE_ROOT, "skills", "best-practices", "references", r)));
   ok(missing.length === 0, `every cited reference page exists, missing: ${missing.join(", ")}`);
+
+  const card = invariantCard();
+  ok(
+    card.includes("VARIABLES") && card.includes("FUNCTIONS") && card.includes("INITIALIZATION"),
+    "the card the server serves is the layout card, not an empty read",
+  );
+  ok(
+    /^\s*12\s/m.test(card),
+    "the card runs to its last rule, so the fence was read whole",
+  );
+
+  const served = handle({
+    id: 20,
+    method: "tools/call",
+    params: { name: "get_standards", arguments: {} },
+  });
+  ok(
+    served.result.isError === false && served.result.content[0].text.includes("Server is authoritative"),
+    "get_standards hands back a rule check_luau cannot enforce on its own",
+  );
 
   const multiline = handle({
     id: 12,

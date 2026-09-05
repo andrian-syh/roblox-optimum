@@ -50,7 +50,7 @@ npx roblox-optimum install hook
 | Part | What it writes | Where |
 |---|---|---|
 | `rules` | `AGENTS.md` and a matching file for each agent found | project root and each agent's rule directory |
-| `skills` | the three skills as files | `.claude/skills/` or `.agents/skills/`, see below |
+| `skills` | the four skills as files | `.claude/skills/` or `.agents/skills/`, see below |
 | `agent` | `roblox-auditor` | `.claude/agents/` |
 | `hook` | the commit hook | `.git/hooks/pre-commit` |
 
@@ -135,6 +135,7 @@ Two tools:
 |---|---|
 | `check_luau` | Takes Luau as text and returns the findings. Label them with a data model path if you have one. |
 | `explain_finding` | Takes a finding, returns why the rule exists, what to use instead, and the reference page carrying the full pattern. |
+| `get_standards` | Returns the invariant card. A place edited only in Studio holds no skills and no rules file, so this is where the standards come from. |
 
 It composes with Roblox's own Studio MCP server rather than competing with it. Studio's
 `script_read` pulls a script out of the open place; `check_luau` judges the text it returns.
@@ -260,7 +261,7 @@ curl -O https://raw.githubusercontent.com/andrian-syh/roblox-optimum/main/AGENTS
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           { "type": "command", "command": "roblox-optimum" }
         ]

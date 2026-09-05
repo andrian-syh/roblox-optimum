@@ -1,6 +1,7 @@
 ---
 name: code-review
-description: "Reviews and audits existing Roblox/Luau code instead of writing it. Use when the user asks to review a file, diff, or pull request, to audit a place or system, to score architectural health or maturity, to find leaks, exploits, or data-loss risks in code that already exists, or asks how good or how safe their current implementation is. Reports one severity per finding (Blocker / Correctness / Advisory) behind a confidence gate, and scores a whole project 1-5 across security, lifecycle, performance, and replication. Not for writing or refactoring code — hand that to the best-practices skill; not for Studio tooling, sync, or playtest questions."
+description: "Reviews and audits existing Roblox/Luau code instead of writing it. Use when the user asks to review a file, diff, or pull request, to audit a place or system, to score architectural health or maturity, to find leaks, exploits, or data-loss risks in code that already exists, or asks how good or how safe their current implementation is. Reports one severity per finding (Blocker / Correctness / Advisory) behind a confidence gate, and scores a whole project 1-5 across security, lifecycle, performance, and replication. Not for writing or refactoring code — hand that to the best-practices skill; not for chasing a reported symptom down to its cause when no file has been named yet — that is the diagnose skill; not for Studio tooling, sync, or playtest questions - that is the studio-ops skill."
+license: MIT
 ---
 
 # Roblox Code Review
@@ -110,6 +111,10 @@ loses trust.
 Fixing findings is the **best-practices** skill's job: it owns the layout, the comment rules,
 and the standards the fix has to land inside. Name the findings to fix and hand over; do not
 start editing under this skill.
+
+A review asked to explain a symptom rather than judge a file belongs to the **diagnose** skill.
+This one judges what it is given; that one works out what to look at. Reviewing the first
+plausible file against a reported symptom finds real findings and misses the cause.
 
 Before the fixed work is called done, the finishing gate is
 [review-checklist.md](../best-practices/references/review-checklist.md).

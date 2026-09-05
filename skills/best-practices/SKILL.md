@@ -1,7 +1,8 @@
 ---
 name: best-practices
 argument-hint: "[ask|bal|go]"
-description: "Framework-agnostic Roblox/Luau coding standards. Use when writing, implementing, or refactoring any Luau code (Script, LocalScript, ModuleScript) in a Roblox project, or when the user asks to keep best practices in mind as standing guidance — enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules regardless of framework, folder structure, or genre. Two modes: Default (apply these conventions as-is) and Adaptive (study the project's existing style first, confirm, then apply). Adapts to community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...) and honors supervision levels (!ask / !bal / !go). Not for reviewing or auditing code that already exists (the code-review skill owns that), non-Roblox Lua, Studio UI or asset questions that do not touch code, or game design discussion with no Luau to write."
+description: "Framework-agnostic Roblox/Luau coding standards. Use when writing, implementing, or refactoring any Luau code (Script, LocalScript, ModuleScript) in a Roblox project, or when the user asks to keep best practices in mind as standing guidance — enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules regardless of framework, folder structure, or genre. Two modes: Default (apply these conventions as-is) and Adaptive (study the project's existing style first, confirm, then apply). Adapts to community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...) and honors supervision levels (!ask / !bal / !go). Not for reviewing or auditing code that already exists (the code-review skill owns that), not for finding the cause of a reported symptom when no file has been named yet (the diagnose skill owns that), not for sync toolchains, Studio MCP, or playtests (the studio-ops skill owns those), non-Roblox Lua, or game design with no Luau to write."
+license: MIT
 ---
 
 # Roblox Game Development Best Practices
@@ -49,10 +50,13 @@ ROBLOX LUAU SKILL - INVARIANT CARD
 3  Server is authoritative. Validate every remote arg: type, range, ownership, rate.
 4  Clean up everything created. Every connection has an owner and a teardown path.
 5  No avoidable per-frame garbage. Never poll what has a signal.
+   Cold paths are exempt, and periodic work on a timer is scheduling.
 6  UpdateAsync + backoff. Save on PlayerRemoving. Flush on BindToClose.
 7  Re-validate after every yield: player gone? instance dead? session changed?
+   Only where a yield sits between the check and its use.
 8  Never add --!strict unbidden. Never make a [Beta] feature the production default.
-9  Reuse before writing: project, then stdlib, then engine API. No wrapper or
+9  Reuse before writing: project, then stdlib, then engine API. Search, never
+   assume - no claim about a file you have not opened. No wrapper or
    abstraction without a caller. But brevity has two hard limits:
    - It NEVER reduces what was asked for. Short because it does less = failed.
    - It NEVER costs readability. One statement per line, descriptive names,
@@ -137,7 +141,7 @@ Five decisions govern every later task. Resolve each **once**, cache it, never r
 
 ### Judging code instead of writing it
 
-Reviewing a file, auditing a place, or scoring architectural health belongs to the **code-review** skill. This one applies when the task is to produce or change Luau — including fixing findings a review already reported.
+Reviewing a file, auditing a place, or scoring architectural health belongs to the **code-review** skill. Working out why a reported symptom happens, when no file has been named yet, belongs to the **diagnose** skill — reaching for the first plausible file produces a change that looks like a fix and leaves the defect in place. This one applies when the task is to produce or change Luau — including fixing findings a review or a diagnosis already reported.
 
 While writing, the same guardrails still hold: one severity per observation (**Blocker / Correctness / Advisory**), after the confidence gate, and Advisory is proposed rather than applied. Gate and calibration: [references/workflow.md](references/workflow.md#reviewrefactor-mode). What NOT to flag: [references/false-positives.md](references/false-positives.md).
 

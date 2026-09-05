@@ -1,7 +1,7 @@
 {
   "name": "roblox-optimum",
   "displayName": "Roblox Dev",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Skills that hold an AI agent to professional Roblox/Luau standards: framework-agnostic coding conventions, server-authoritative design, and the review gates that keep the work honest.",
   "author": {
     "name": "andrian-syh",

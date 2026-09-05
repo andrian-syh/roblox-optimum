@@ -20,14 +20,7 @@ const SOURCE = "AGENTS.md";
 // other people. This script keeps the repository's own copies in step with the same map.
 const TARGETS = RULE_TARGETS.map((t) => [t.path, t.frontMatter]);
 
-/**
- * The text one target should hold: its front matter, a line saying not to edit it, then the
- * shared body.
- *
- * @param body string -- AGENTS.md as written.
- * @param frontMatter string -- The host's header, or "" when it needs none.
- * @return string
- */
+/** The text one target should hold: its front matter, a line saying not to edit it, then the shared body. */
 function render(body, frontMatter) {
   return `${frontMatter}${GENERATED}\n\n${body}`;
 }
@@ -54,11 +47,7 @@ const MCP_TARGET = "mcp_config.json";
 const AGENTS_SOURCE = "agents";
 const AGENTS_TARGET = ".github/agents";
 
-/**
- * Every derived file, as the path and the text it should hold.
- *
- * @return table -- One [path, content] pair per file.
- */
+/** Every derived file, as the path and the text it should hold. */
 function derive() {
   const body = readFileSync(join(ROOT, SOURCE), "utf8").replace(/\r\n/g, "\n");
   const hooks = readFileSync(join(ROOT, HOOKS_SOURCE), "utf8").replace(/\r\n/g, "\n");
@@ -78,12 +67,7 @@ function derive() {
   ];
 }
 
-/**
- * Compares or rewrites every derived file.
- *
- * @param check boolean -- True to report drift and change nothing.
- * @return number -- Process exit code.
- */
+/** Compares or rewrites every derived file, and returns the exit code that reports the outcome. */
 function sync(check) {
   const files = derive();
   const drifted = [];

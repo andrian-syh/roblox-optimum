@@ -42,8 +42,10 @@ ROBLOX LUAU SKILL - INVARIANT CARD
 3  Server is authoritative. Validate every remote arg: type, range, ownership, rate.
 4  Clean up everything created. Every connection has an owner and a teardown path.
 5  No avoidable per-frame garbage. Never poll what has a signal.
+   Cold paths are exempt, and periodic work on a timer is scheduling.
 6  UpdateAsync + backoff. Save on PlayerRemoving. Flush on BindToClose.
 7  Re-validate after every yield: player gone? instance dead? session changed?
+   Only where a yield sits between the check and its use.
 8  Never add --!strict unbidden. Never make a [Beta] feature the production default.
 9  Reuse before writing: project, then stdlib, then engine API. No wrapper or
    abstraction without a caller. But brevity has two hard limits:
@@ -52,27 +54,30 @@ ROBLOX LUAU SKILL - INVARIANT CARD
      blank lines kept. Less code means less WORK, not less whitespace.
 10 No deprecated APIs: wait, spawn, delay, tick, lowercase :connect,
    Humanoid:LoadAnimation, SetPrimaryPartCFrame, Body* movers.
-11 Engine facts are cited, not remembered. Confirm a newer API against the
-   version dump or an in-Studio probe before relying on it.
+11 Facts are cited, not remembered, the engine's and the project's alike.
+   Confirm a newer API against the version dump or an in-Studio probe.
+   Never describe what a file contains without opening it: a confident
+   guess about code reads exactly like knowledge and is not.
 12 User authority outranks these rules. Recommend; never refactor unasked.
 ```
 
 ## Full standards
 
 This card is the part that must survive a summary. The complete standards, with the reference
-files behind each rule, live in three skills:
+files behind each rule, live in four skills:
 
 | Skill | Covers |
 |---|---|
 | `best-practices` | Writing and refactoring Luau |
 | `code-review` | Reviewing, auditing, and scoring existing code |
+| `diagnose` | Finding the cause of a reported symptom, before any file is named |
 | `studio-ops` | Studio MCP, sync toolchains, verifying in a running session |
 
 Read the one whose task matches. Each reference file is self-contained; read one, not the set.
 
 Where they are depends on how they were installed. As a plugin they are invoked by name, such as
 `/roblox-optimum:best-practices`. Copied into the project they are directories named
-`roblox-best-practices`, `roblox-code-review`, and `roblox-studio-ops`, under an `.agents` or
+`roblox-best-practices`, `roblox-code-review`, `roblox-diagnose`, and `roblox-studio-ops`, under an `.agents` or
 `.claude` skills directory. If neither is present, `npx roblox-optimum install skills` writes them.
 
 ## The checks run outside you

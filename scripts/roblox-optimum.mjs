@@ -116,7 +116,16 @@ fileMatchPattern: ["**/*.luau", "**/*.lua"]
 `,
   },
   { path: "rules/roblox-optimum.md", marker: "rules", agent: "a plugin rules directory", frontMatter: "" },
-  { path: ".windsurf/rules/roblox-optimum.md", marker: ".windsurf", agent: "Windsurf", frontMatter: "" },
+  {
+    path: ".windsurf/rules/roblox-optimum.md",
+    marker: ".windsurf",
+    agent: "Windsurf",
+    frontMatter: `---
+trigger: model_decision
+description: Roblox and Luau coding standards
+---
+`,
+  },
   { path: ".clinerules/roblox-optimum.md", marker: ".clinerules", agent: "Cline", frontMatter: "" },
   { path: ".qoder/rules/roblox-optimum.md", marker: ".qoder", agent: "Qoder", frontMatter: "" },
   { path: ".agents/rules/roblox-optimum.md", marker: ".agents", agent: "Antigravity", frontMatter: "" },
@@ -149,10 +158,6 @@ Standards: ${HOME_PAGE}
 /**
  * Blanks the prose in a source file so that a rule named in a comment or a string is never
  * mistaken for a use of it. Line and column positions are preserved.
- *
- * @param source string -- Luau source as written to disk.
- * @param keepLineComments boolean -- Leave single-line comments in place, for callers that read them.
- * @return string -- The same source with the selected prose blanked.
  */
 export function stripNonCode(source, keepLineComments = false) {
   const out = source.split("");
@@ -206,9 +211,6 @@ export function stripNonCode(source, keepLineComments = false) {
 /**
  * Whether a file opted into this section layout. A project is entitled to its own scheme and
  * one shared word is not consent, so a file is judged only once it uses most of the names.
- *
- * @param names table -- Section names found in the file, in the order they appear.
- * @return boolean
  */
 function usesThisLayout(names) {
   return new Set(names).size >= 2;
@@ -216,11 +218,8 @@ function usesThisLayout(names) {
 
 /**
  * Returns the standards violations in one Luau source, in reading order rather than pattern
- * order. A module declaring no function is data or types and is exempt from the layout, and a
- * file is judged only on the order of the headers it carries.
- *
- * @param source string -- Luau source as written to disk.
- * @return table -- One string per violation; empty means the file passes.
+ * order, and nothing when it passes. A module with no function is data or types and is exempt
+ * from the layout; a file is judged only on the order of its headers.
  */
 export function inspect(source) {
   const problems = [];
@@ -276,9 +275,6 @@ const PATCH_TARGET = /^\*\*\* (?:Add|Update|Move to) File:\s*(.+?)\s*$/gm;
  * Returns the files a post-write hook payload says were written. Claude Code nests the path,
  * Cursor puts it at the top level, and Codex sends a patch body instead, so all three shapes
  * are read and one hook entry serves any of them.
- *
- * @param payload table -- The parsed hook payload.
- * @return table -- Absolute paths, empty when the payload names no file.
  */
 export function targetsFromPayload(payload) {
   const direct = payload?.tool_input?.file_path ?? payload?.file_path;
@@ -294,9 +290,6 @@ export function targetsFromPayload(payload) {
 /**
  * Checks one path and returns its report, or null when the file is out of scope. A path that
  * is unreadable, not Luau, or not provably Roblox is skipped rather than guessed at.
- *
- * @param path string -- Path to a file the agent wrote.
- * @return table -- `{ path, problems }`, or null when nothing should be said.
  */
 export function checkFile(path) {
   if (typeof path !== "string") return { path: String(path), status: "unreadable", problems: [] };
@@ -323,9 +316,6 @@ export function checkFile(path) {
 /**
  * Renders reports as the text every entry point shares, so a finding reads the same whether it
  * arrived through an agent, a commit hook, or CI, and stands alone wherever it is read.
- *
- * @param reports table -- Reports from checkFile whose status is "problems".
- * @return string
  */
 export function formatReport(reports) {
   const body = reports
@@ -338,8 +328,6 @@ export function formatReport(reports) {
 /**
  * Returns the hook payload the agent sends, or empty when there is none.
  * Synchronous reads are not portable when stdin is a pipe.
- *
- * @return string
  */
 async function readStdin() {
   try {
@@ -354,8 +342,6 @@ async function readStdin() {
 /**
  * Checks the file the agent just wrote and prints what it must fix. Anything unreadable,
  * unrecognized, or outside Roblox passes without comment.
- *
- * @return number -- Process exit code; the failing code is what surfaces the report.
  */
 async function runPostToolUse() {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
@@ -380,9 +366,6 @@ async function runPostToolUse() {
  * Checks paths named on the command line, for a commit hook, CI, or a hand run. Exit 1 is what
  * a build step expects, unlike the exit 2 an agent hook uses. A run that checked nothing names
  * what it passed over, since silence would read as a pass.
- *
- * @param paths table -- File paths to check.
- * @return number -- Process exit code.
  */
 function runCheck(paths) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
@@ -446,9 +429,6 @@ const VERSION = (() => {
  * The version stamped into a copied file, or null when this tool did not write it. A skill
  * carries no other sign of where it came from, so without this an update cannot tell an old
  * copy of its own from a file someone wrote by hand.
- *
- * @param text string -- The file as it stands on disk.
- * @return string or null
  */
 export function stampedFrom(text) {
   return /<!-- Copied by roblox-optimum ([^\s]+) -->/.exec(text)?.[1] ?? null;
@@ -456,9 +436,6 @@ export function stampedFrom(text) {
 
 /**
  * The same text carrying this package's stamp, replacing an older one.
- *
- * @param text string -- The file as this package ships it.
- * @return string
  */
 export function stamped(text) {
   const mark = `<!-- Copied by roblox-optimum ${VERSION} -->`;
@@ -480,9 +457,6 @@ const DERIVED_AGENT = "<!-- Generated from the agent of the same name. Edit that
  * The Copilot form of an agent file: the two keys it documents, then the body unchanged. The
  * rest of the front matter is Claude Code's, and naming a tool Copilot does not have would
  * leave the agent holding none.
- *
- * @param text string -- The agent file as written.
- * @return string -- The same agent, in the front matter Copilot reads.
  */
 export function forCopilot(text) {
   const close = text.startsWith("---") ? text.indexOf("\n---", 3) : -1;
@@ -522,9 +496,6 @@ const SHIPPED_SKILLS = (() => {
  * The name a skill or agent takes once copied into a project. A plugin namespaces what it
  * carries; a loose copy is found by its bare name, so it says what it is about instead. A
  * name that already says roblox is left alone rather than saying it twice.
- *
- * @param name string -- The name as this package ships it.
- * @return string
  */
 export function namespaced(name) {
   return name.startsWith("roblox") ? name : PREFIX + name;
@@ -533,9 +504,6 @@ export function namespaced(name) {
 /**
  * Rewrites the names inside a copied file so they match where it landed: its front matter
  * name, a sibling it names under the plugin namespace, and a link into a sibling's directory.
- *
- * @param text string -- The file as this package ships it.
- * @return string
  */
 export function retitle(text) {
   return text
@@ -550,12 +518,7 @@ export function retitle(text) {
     );
 }
 
-/**
- * Reads the words after `install` into the components and flags they name.
- *
- * @param args table -- Everything after `install`.
- * @return table -- Either { error } naming the first word not understood, or the choice made.
- */
+/** Reads the words after `install` into the components and flags they name, or the first word that names neither. */
 export function parseComponents(args) {
   const named = [];
   const flags = [];
@@ -584,10 +547,6 @@ files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$')
 /**
  * Writes each agent again where Copilot reads one. Without this copy the agent is invisible
  * there, because Copilot searches its own directory and requires the .agent.md suffix.
- *
- * @param cwd string -- The project being installed into.
- * @param force boolean -- True to replace a copy this tool did not write.
- * @param report table -- Where each file written or kept is recorded.
  */
 function copyCopilotAgents(cwd, force, report) {
   const source = join(PACKAGE_ROOT, "agents");
@@ -612,10 +571,6 @@ function copyCopilotAgents(cwd, force, report) {
  * Whether a path may be written: either it is absent, or this tool wrote what is there.
  * Anyone else's file is left alone, because a standards tool that overwrites work silently
  * has already cost more than it saves.
- *
- * @param path string -- Absolute path to consider.
- * @param mark string -- The line this tool stamps into what it writes.
- * @return boolean
  */
 function writable(path, mark) {
   if (!existsSync(path)) return true;
@@ -629,9 +584,6 @@ function writable(path, mark) {
 /**
  * Writes the standards into the current project for every agent it can see, and reports the
  * installs it cannot perform itself.
- *
- * @param args table -- The words after `install`: parts to write, and flags.
- * @return number -- Process exit code.
  */
 function runInstall(args) {
   const choice = parseComponents(args);
@@ -741,11 +693,6 @@ Standards: ${HOME_PAGE}
  * Copies each entry of a directory this package ships into a project, leaving anything
  * already there alone. A skill carries no line saying who wrote it, so a name that exists
  * is kept until someone asks for it to be replaced.
- *
- * @param source string -- The directory inside the package.
- * @param dest string -- Where its entries land in the project.
- * @param force boolean -- Replace what is already there.
- * @param report table -- Collects each path under written, kept, stale, or current.
  */
 function copyTree(source, dest, force, report) {
   if (!existsSync(source)) return;
@@ -777,9 +724,6 @@ function copyTree(source, dest, force, report) {
 /**
  * The one file in a copy that carries its stamp: a skill's `SKILL.md`, or the agent file
  * itself. Stamping every file would put a line of housekeeping in each reference page.
- *
- * @param path string -- A copied skill directory or agent file.
- * @return string
  */
 function stampOf(path) {
   return existsSync(path) && statSync(path).isDirectory() ? join(path, "SKILL.md") : path;
@@ -787,8 +731,6 @@ function stampOf(path) {
 
 /**
  * Applies `retitle` to every Markdown file under a path just copied into a project.
- *
- * @param path string -- A copied file or directory.
  */
 function retitleTree(path) {
   if (statSync(path).isDirectory()) {
@@ -806,8 +748,6 @@ function retitleTree(path) {
 /**
  * Tells the agent to re-read the skill once a summary has dropped the rules, and stays
  * silent outside a Roblox project so unrelated sessions are not disturbed.
- *
- * @return number -- Process exit code.
  */
 async function runCompactReminder() {
   let payload;

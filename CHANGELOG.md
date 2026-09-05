@@ -5,6 +5,66 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-05
+
+### Added
+
+- **`diagnose`**, a fourth skill, owning the step nothing owned: working out why a reported
+  symptom happens, before any file is named. A bug report names a symptom, and reaching for the
+  first plausible file produces a change that looks like a fix, passes review, and leaves the
+  defect in place. The skill classifies the symptom, asks which side owns the state and whether
+  a client could have caused it, narrows the surface one probe at a time, reproduces, and stops
+  at the confirmed cause. The loop, the Studio environments that fake a defect, and the stop
+  conditions are in a new `diagnosis.md`. The other three skills route into it and it hands the
+  fix back, so it is reachable rather than dead weight, and `studio-ops` gains the exclusion
+  clause it never had.
+- The audit checks that every skill's description names every other skill, which is what a host
+  routes on. It found two that did not: `best-practices` and `code-review` each refused Studio
+  tooling and sync questions by topic without ever naming `studio-ops`, telling the agent where
+  not to be but never where to go. Both now name it. This is the cheap half of a trigger eval —
+  no model, no key, no cost — and it fails the build when a fifth skill arrives unwoven.
+- **`get_standards`**, a third MCP tool, returning the invariant card. The server judged Luau
+  against standards it never stated: a place edited entirely inside Studio has no skills and no
+  rules file, and `check_luau` settles only what a pattern can, which is part of two rules out
+  of twelve. The other ten were unreachable from that seat. The card is read from the `AGENTS.md`
+  this package already ships, so there is one source and no copy to fall behind.
+
+### Changed
+
+- The MCP server declares protocol revision `2025-11-25`, and still answers `2025-06-18`,
+  `2025-03-26`, and `2024-11-05`. Nothing in the newer revision changes a stdio server that
+  only exposes tools, and one of its clarifications — that input validation failures are tool
+  errors rather than protocol errors, so the model can correct itself — was already how this
+  server behaved. The revision after it, `2026-07-28`, is not a version bump: it removes the
+  `initialize` handshake entirely and makes MCP stateless, so serving it means a second server
+  rather than a newer one. Its own compatibility matrix says a client of that era fails against
+  a handshake server, which is the trigger for doing that work.
+- The scripts document purpose only. Sixty-nine `@param` and `@return` lines came out, which is
+  what the standards ask of the code they hand out: a tag earns its place by adding what the
+  signature cannot show, and a tag naming a type beside a well-named argument adds nothing while
+  drifting from it silently. Where a tag did carry a contract — that empty means the file passes,
+  that a reader returns nothing when the file did not ship — that clause moved into the
+  description rather than disappearing. The audit enforces it, and the four blocks that were a
+  bare `@return` with no description at all now say what they are for.
+- Every skill declares `license: MIT`. It is an Agent Skills field, required by the packaging
+  path that uploads a skill, and the audit now fails the build when a skill omits it.
+- `explain_finding` now points at the raw reference page rather than its rendered page on
+  GitHub. What follows that link is an agent, and markdown is what it can read.
+- All three MCP tool descriptions are written as contracts rather than summaries. Each now says
+  what the tool does not do: `check_luau` reads comments and strings as prose and judges nothing
+  that needs semantics, so a clean result is not a passing grade; `explain_finding` returns a
+  pointer to a reference page rather than the page; `get_standards` returns the rules and no
+  judgement of any code. A description that understates its tool sends the caller down paths no
+  amount of instruction text can correct.
+- Two invariant rules carry the scope that keeps them from being over-applied, compressed from
+  `runtime-rules.md` into the card itself. Cold paths and timer-driven periodic work are exempt
+  from the per-frame rule, and re-validation applies only where a yield sits between a check and
+  its use. The card is the part that survives a summary, so a rule that only reads as absolute
+  there is the one that gets misapplied.
+- Facts are cited rather than remembered for the project's own code, not only the engine's. The
+  rules now say never to describe what a file contains without opening it, and the `diagnose`
+  card says the same for a hypothesis about unread code.
+
 ## [1.1.0] - 2026-09-05
 
 ### Added
@@ -40,6 +100,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entries are in fact in the JSON payload the page ships, and the toolbox now says where.
 
 ### Fixed
+
+- Luau written through `MultiEdit` was never checked. A hook matcher made only of letters and
+  pipes is a list of exact tool names, not a substring or a pattern, so `Write|Edit` matched
+  neither `MultiEdit` nor anything else ending in Edit. The payload shape was already handled;
+  only the matcher shut the door. The shipped hook, the Codex copy derived from it, and the
+  example in `INSTALL.md` all name it now.
+- The Windsurf rule copy declared no activation mode, leaving its behaviour to an undeclared
+  default while the Cursor and Kiro copies both scope themselves. It now declares
+  `trigger: model_decision` with a description, which loads the standards when Cascade judges
+  them relevant. Windsurf documents a `glob` mode as well, but not how to write more than one
+  pattern, and a single `**/*.luau` would have quietly dropped the `.lua` files an older Rojo
+  project still uses.
 
 - The rules card sent an agent into three paths and one command that exist only in this
   repository. `AGENTS.md` ships verbatim into other people's projects, where nothing lives at
@@ -88,5 +160,6 @@ its development, and the surface it presents is now settled enough to depend on.
   and the hosts that install themselves each read a manifest of their own. `ROBLOX_OPTIMUM=off`
   silences the checker without uninstalling anything.
 
+[1.2.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/andrian-syh/roblox-optimum/releases/tag/v1.0.0

@@ -31,13 +31,7 @@ function frontmatter(path) {
   return { head: m ? m[1] : "", text };
 }
 
-/**
- * Reads one frontmatter value, tolerating a value that runs across several lines.
- *
- * @param head string -- The frontmatter block.
- * @param name string -- The key to read.
- * @return string -- Its value, unquoted, or "" when the key is absent.
- */
+/** Reads one frontmatter value, empty when absent, tolerating one that runs across several lines. */
 function field(head, name) {
   const m = new RegExp(`^${name}:\\s*([\\s\\S]+?)(?=\\n[a-zA-Z-]+:|$)`, "m").exec(head);
   return m ? m[1].trim().replace(/^"|"$/g, "") : "";
@@ -75,8 +69,6 @@ function auditManifest() {
 /**
  * Compares the version every other ecosystem declares against the plugin manifest. A release
  * raises them by hand, and a stale one ships an old plugin under a new number.
- *
- * @param manifest table -- The parsed plugin manifest.
  */
 function auditDeclaredVersions(manifest) {
   const declared = [
@@ -106,8 +98,6 @@ function auditDeclaredVersions(manifest) {
 /**
  * Checks how each host is told to start the MCP server. Both mistakes caught here install
  * cleanly and fail only once the server is asked for.
- *
- * @param manifest table -- The parsed plugin manifest.
  */
 function auditMcpManifests(manifest) {
   for (const file of ["mcp.json", "mcp_config.json"]) {
@@ -139,8 +129,6 @@ function auditMcpManifests(manifest) {
 /**
  * Checks the Copilot marketplace listing, which states the version twice where an installer
  * reads both.
- *
- * @param manifest table -- The parsed plugin manifest.
  */
 function auditMarketplace(manifest) {
   const market = ".github/plugin/marketplace.json";
@@ -171,6 +159,7 @@ function auditSkills() {
     if (/anthropic|claude/i.test(name)) problems.push(`${folder}: name uses a reserved word`);
     if (name !== folder) problems.push(`${folder}: frontmatter name "${name}" does not match its directory`);
     if (!desc) problems.push(`${folder}: description is empty`);
+    if (!field(head, "license")) problems.push(`${folder}: declares no license`);
     if (desc.length > 1024) problems.push(`${folder}: description is ${desc.length} characters, over the limit`);
     if (lines > 500) problems.push(`${folder}: SKILL.md is ${lines} lines, over the limit`);
 
@@ -196,6 +185,30 @@ function auditLinks() {
     }
   }
   notes.push(`${checked} internal links resolved`);
+}
+
+/**
+ * Checks that every skill's description names every other skill. Descriptions are what a host
+ * routes on, and a skill that never says where a neighbouring task belongs sends the agent into
+ * the wrong one, or into none.
+ */
+function auditRouting() {
+  const dir = join(ROOT, "skills");
+  if (!existsSync(dir)) return;
+
+  const names = readdirSync(dir).filter((n) => existsSync(join(dir, n, "SKILL.md")));
+  const described = new Map(
+    names.map((n) => [n, field(frontmatter(join(dir, n, "SKILL.md")).head, "description")]),
+  );
+
+  for (const name of names) {
+    const missing = names.filter((other) => other !== name && !described.get(name).includes(other));
+    if (missing.length > 0) {
+      problems.push(`${name}: its description never names ${missing.join(", ")}`);
+    }
+  }
+
+  notes.push(`${names.length} skills each name every other`);
 }
 
 /**
@@ -324,12 +337,9 @@ function auditComments() {
 }
 
 /**
- * Checks one documentation block against the length rule and against the signature it sits
- * above, since a tag naming an argument that no longer exists is worse than no tag.
- *
- * @param name string -- The file being read, for the message.
- * @param lines table -- Every line of that file.
- * @param at number -- The index of the line the block documents.
+ * Checks one documentation block against the length rule, and that it carries description only.
+ * A tag restating a signature is read on every pass and drifts from it silently, so what the
+ * signature already shows is left to the signature.
  */
 function auditBlock(name, lines, at) {
   let open = at - 1;
@@ -350,19 +360,18 @@ function auditBlock(name, lines, at) {
     problems.push(`${name}:${at + 1}: description is ${said.length} lines, over 3`);
   }
 
-  const takes = /\(([^)]*)\)/.exec(lines[at])?.[1] ?? "";
-  const parameters = takes.split(",").map((a) => a.trim().split(/[=\s]/)[0]);
-
-  for (const [, tagged] of lines.slice(open, at).join("\n").matchAll(/@param (\w+)/g)) {
-    if (!parameters.includes(tagged)) {
-      problems.push(`${name}:${at + 1}: documents @param ${tagged}, which it does not take`);
-    }
+  const tag = /@(param|return)\b/.exec(lines.slice(open, at).join("\n"));
+  if (tag) {
+    problems.push(
+      `${name}:${at + 1}: carries @${tag[1]}; state the purpose and let the signature speak`,
+    );
   }
 }
 
 auditManifest();
 auditSkills();
 auditLinks();
+auditRouting();
 auditRulesPaths();
 auditDates();
 auditOwnership();

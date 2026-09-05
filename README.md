@@ -48,7 +48,7 @@ Take one part on its own by naming it:
 
 ```
 npx roblox-optimum install rules     # AGENTS.md and each agent's rule file
-npx roblox-optimum install skills    # the three skills, for whichever agent the project shows
+npx roblox-optimum install skills    # the four skills, for whichever agent the project shows
 npx roblox-optimum install agent     # roblox-auditor, for Claude Code and Copilot
 npx roblox-optimum install hook      # the commit hook
 ```
@@ -96,6 +96,7 @@ speaks MCP for that case, alongside Roblox's own Studio MCP server rather than i
 |---|---|
 | `check_luau` | Takes Luau as text, returns the findings |
 | `explain_finding` | Takes a finding, returns the rule behind it and the fix |
+| `get_standards` | Returns the standards themselves, for a place that carries no skills |
 
 The agent reads a script with Studio's `script_read`, checks the text with `check_luau`, and
 writes the fix back with `multi_edit`. Installing the plugin is enough on Claude Code, Cursor,
@@ -109,11 +110,13 @@ set up stays exactly as it was. See **[INSTALL.md](INSTALL.md)** for the other h
 |---|---|
 | `best-practices` | Writing, refactoring, or implementing any Luau system |
 | `code-review` | Reviewing a file or diff, auditing a place, scoring architectural health |
+| `diagnose` | A symptom with no file named yet: data resetting, an event firing twice, free items |
 | `studio-ops` | Studio MCP, sync toolchains, and proving a change works in a running session |
 
 The split follows what the task is rather than what it is about: one skill produces code, one
-judges it, one drives the tooling around it. A review that turns into a fix hands control back
-to `best-practices`, which owns the layout and comment rules the fix has to land inside.
+judges it, one works out what is wrong, one drives the tooling around it. Each hands control on
+rather than widening: a diagnosis stops at the cause, and the fix goes back to `best-practices`,
+which owns the layout and comment rules it has to land inside.
 
 In Claude Code these are invoked as `/roblox-optimum:best-practices` and so on. Elsewhere they are
 read as project instructions.
