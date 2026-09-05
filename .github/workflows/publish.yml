@@ -46,5 +46,15 @@ jobs:
             exit 1
           fi
 
+      - name: Skip a version the registry already holds
+        run: |
+          name=$(node -p "require('./package.json').name")
+          ver=$(node -p "require('./package.json').version")
+          if npm view "$name@$ver" version >/dev/null 2>&1; then
+            echo "$name@$ver is already on the registry. Nothing to publish."
+            echo "PUBLISHED=yes" >> "$GITHUB_ENV"
+          fi
+
       - name: Publish
+        if: env.PUBLISHED != 'yes'
         run: npm publish
