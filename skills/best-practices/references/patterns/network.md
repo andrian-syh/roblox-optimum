@@ -29,7 +29,21 @@ end
 
 - A handler that type-checks and early-returns on bad input is already **complete**: the skeleton is the maximum shape, not a mandatory checklist. A harmless, idempotent action needs no rate/ownership layer, and silent rejection is correct (an error reply aids fuzzing). Don't report a lean handler as missing layers — see [false-positives.md](../false-positives.md#security--validation--a-handler-can-already-be-complete).
 - **Every client-triggerable instance is a remote in disguise.** An exploiter can fire a `ProximityPrompt`, `ClickDetector`, or `DragDetector` from anywhere, at any rate, regardless of `Enabled`, `MaxActivationDistance`, or where their character actually is. Treat the resulting server-side event exactly like a `RemoteEvent` handler: re-verify distance, state, and ownership at execution time ([cases/world-interaction.md](../cases/world-interaction.md#interactable-objects-and-prompts)).
-- Prefer `RemoteEvent` + a response event over `RemoteFunction` server→client (a client that never returns hangs your thread). Client→server `RemoteFunction` is acceptable with a server-side timeout mindset.
+- **Never invoke a client from the server.** Roblox documents three ways `RemoteFunction:InvokeClient` fails, and every one of them is the server paying for the client's behaviour: an error thrown on the client is rethrown on the server, a client that disconnects mid-invocation throws, and a client that returns nothing **yields the server thread forever**. Use `RemoteEvent` plus a response event instead. Client→server `RemoteFunction` is acceptable, with a server-side timeout mindset.
+
+### Choosing a remote type
+
+| Need | Use |
+|---|---|
+| An action, a state change, anything gameplay decides on | `RemoteEvent` |
+| Data that is replaced by the next update and worthless once late | `UnreliableRemoteEvent` |
+| A reply the caller cannot proceed without, client to server only | `RemoteFunction` |
+
+`UnreliableRemoteEvent` is documented as **asynchronous, unordered, and unreliable**: a lost message is never resent, and messages do not wait for earlier ones, so they arrive out of order. That has one consequence that decides most of its uses:
+
+**Send absolute values, never deltas.** A dropped delta is a permanent desync, and two deltas arriving swapped corrupt the state even though nothing was lost. A position, a rotation, a health value, a full timer reading — each is correct on arrival regardless of what came before. `+3 damage` is not. The same reasoning rules out anything that must happen exactly once.
+
+Its payload ceiling and the shared client rate limit are in [limits-budgets.md](../limits-budgets.md#network-payload); the ceiling is enforced by silent discard, so it is a design constraint rather than something to handle at runtime.
 - Namespace remotes in one folder (`ReplicatedStorage/Remotes`); create them in one server script or build step so clients can `WaitForChild` deterministically.
 - State that clients merely *display* → replicate via Attributes on the player/character instead of remotes.
 

@@ -43,6 +43,7 @@ Everything below expands these; nothing below overrides them.
 | Edits overwritten, sync setup, which side wins, Rojo / Argon / Script Sync / Azul | [external-editors.md](../best-practices/references/external-editors.md) |
 | An MCP connection is present: which tool, what it costs, what cannot be undone | [studio-mcp.md](../best-practices/references/studio-mcp.md) |
 | Proving a change works: playtests, multi-client sessions, telemetry, testable architecture | [verification.md](../best-practices/references/verification.md) |
+| More than one person on the project: git beside a place file, branch places, tree ownership, the review gate, shipping | [team-workflow.md](../best-practices/references/team-workflow.md) |
 
 Read the one that matches. Each is self-contained.
 

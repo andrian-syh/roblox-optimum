@@ -139,7 +139,18 @@ Layered animation designs (base locomotion + upper body + facial + emote + ...) 
 
 ## Network payload
 
-No single hard cap to design against, but the cost order is fixed: **numbers are cheap; strings and nested tables are not.** For bulk or high-frequency data use `buffer` serialization, send deltas rather than whole states, and prefer attribute/tag replication over custom remotes for state clients merely display ([performance.md](performance.md#network)).
+| Limit | Value |
+|---|---|
+| Client-to-server remote calls | **~500 per second, per client**, shared across every remote of the same type |
+| `UnreliableRemoteEvent` payload | **1000 bytes**; anything larger is **dropped**, with no error |
+| `RemoteEvent` overload | Buffers a large number of events, then throws `Remote event invocation discarded` |
+| `buffer` size | **1 GB**, as above |
+
+**The rate limit is per type, not per object.** Splitting one busy `RemoteEvent` into five raises nothing, because all five draw on the same allowance. The way under the ceiling is fewer calls carrying more each, which is what per-frame batching does ([performance.md](performance.md#network)).
+
+**The unreliable cap has no failure signal.** An oversized payload is discarded silently, and buffers are compressed before the size is judged, so measuring the payload before firing does not prove it will arrive. Design unreliable messages small enough that the question never arises.
+
+Beyond those, the cost order is fixed: **numbers are cheap; strings and nested tables are not.** For bulk or high-frequency data use `buffer` serialization, send deltas rather than whole states, and prefer attribute/tag replication over custom remotes for state clients merely display ([performance.md](performance.md#network)).
 
 ## Server compute
 

@@ -104,7 +104,7 @@ The plugin's live **Two-Way Sync** setting is a separate, long-standing experime
 
 `rojo sourcemap --watch default.project.json --output sourcemap.json` produces the file the language server needs. `rojo build` produces an `.rbxl`/`.rbxm`.
 
-Two documented workflows: **partially managed** (Rojo owns the scripts, Team Create owns everything else — each programmer working in their own place) and **fully managed** (Rojo owns the whole game, enabling hermetic builds and continuous deployment). The partial one is what most existing games adopt first.
+Two documented workflows: **partially managed** (Rojo owns the scripts, Team Create owns everything else — each programmer working in their own place) and **fully managed** (Rojo owns the whole game, enabling hermetic builds and continuous deployment). The partial one is what most existing games adopt first. Both sections of that page are still `TODO`, so the process around either — the daily order, who owns which tree, what merges and what cannot — is in [team-workflow.md](team-workflow.md).
 
 ## Argon
 

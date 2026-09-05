@@ -140,7 +140,20 @@ Contact detection is where a working feature turns into a lagging server, and th
 
 ## Network
 
+**Work the ladder in order.** Each rung costs more to build than the one above it and returns less, and the usual mistake is starting at the bottom.
+
+1. **Do not send it.** State only one side needs never crosses the boundary. Effects, tweens, and UI reactions are computed where they are seen.
+2. **Send it less often.** A value that changes every frame rarely needs to arrive every frame. Fix a send rate and hold to it, independent of framerate.
+3. **Send less of it.** Deltas instead of whole states, ids instead of objects, the fields that changed instead of the table that holds them.
+4. **Pack it.** `buffer` serialization, or a library that does it for you.
+
+Rungs 1 to 3 are free and are where nearly all of the win is. Rung 4 is the one that gets reached for first ([community-libraries.md](community-libraries.md#networking-packet--bytenet--zap--bridgenet)).
+
+**Three mistakes Roblox names in its own performance guidance:** replicating data every frame that does not need replicating, replicating on user input with nothing throttling it, and dispatching more data than the receiver uses. Each is a rung-1-to-3 failure that no amount of packing repairs.
+
 - **Server-authoritative always.** Client sends *intents*, server validates and executes. Validate every remote argument: `typeof` check, range clamp, ownership check, rate limit. Treat all client input as hostile.
+- **Never tween on the server.** `TweenService` running server-side replicates the tweened property **every frame** for the whole tween, which is both the traffic and the reason it looks jittery to the players watching it. Replicate the intent — the target, the duration, the easing — and let each client run the tween itself.
+- **Creating and destroying instances is network traffic.** Every change to the server's data model replicates, so a large hierarchy appearing at once is a spike, and a model cloned on a loop is a sustained cost. Build maps in pieces, and keep purely visual instances client-side where nothing else needs to see them.
 - **RemoteEvent hygiene:**
   - Batch: one `UpdateState` remote with a payload table beats ten tiny remotes per frame.
   - Delta, don't dump: send changed fields, not the whole state table.

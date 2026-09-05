@@ -1,6 +1,6 @@
 # False-Positive Guardrails — What NOT to Flag
 
-The anti-false-positive filter for review/refactor mode. This file collects the carve-outs that are otherwise scattered across the skill (the scoped exceptions in the Non-Negotiable Runtime Rules, "trace before flag" in [verification.md](verification.md), the review-mode softening in [SKILL.md](../SKILL.md#reviewrefactor-mode)) and adds the specific cases that most often produce wrong findings.
+The anti-false-positive filter for review/refactor mode. This file collects the carve-outs that are otherwise scattered across the skill (the scoped exceptions in the Non-Negotiable Runtime Rules, "trace before flag" in [verification.md](verification.md), the review-mode softening in [workflow.md](workflow.md#reviewrefactor-mode)) and adds the specific cases that most often produce wrong findings.
 
 Read this **before reporting any finding**. A rule in this skill says what good code does; every such rule has a matching set of shapes that *look* like violations but are correct. Reporting those erodes trust faster than missing a real issue.
 

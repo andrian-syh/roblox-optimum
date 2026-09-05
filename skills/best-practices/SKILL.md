@@ -109,6 +109,7 @@ Everything below expands these; nothing below overrides them.
 **Process**
 
 - [workflow.md](references/workflow.md) — resolving a session-setup decision, supervision behavior, opening a review, the preflight before a non-trivial system
+- [team-workflow.md](references/team-workflow.md) — more than one person on the project, or one person keeping it tidy: git alongside a place file, branch places, who owns which tree, the review gate, shipping
 - Tooling — a Studio MCP connection, a sync toolchain (Rojo, Argon, Script Sync, Azul), or proving a change works in a running session: the **studio-ops** skill owns all three
 - [false-positives.md](references/false-positives.md) — reviewing code: whether a finding is real, how severe, what NOT to flag
 - [review-checklist.md](references/review-checklist.md) — **finishing any task**: the completion gate before calling work done

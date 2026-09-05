@@ -32,6 +32,20 @@ Skill rules become:
 - Don't mix raw remotes and the library in the same feature; pick one transport per project.
 - **These libraries serialize for you**, so the raw-remote marshalling rules ([patterns/network.md](patterns/network.md#what-survives-a-remote-call)) describe what the *engine* does, not what the library does. Read its own documentation for which types it packs; do not assume either that it fixes the mixed-table problem or that it inherits it.
 
+### Judging one, and judging the claims
+
+New networking libraries appear often, each with a headline multiplier. Four things decide whether one is worth adopting, and none of them is the multiplier.
+
+**Batching is where the win comes from, and it is not exotic.** Every one of these libraries collects the calls made during a frame and sends them as a single message, which cuts per-message overhead and pulls the whole feature under the shared client rate limit ([limits-budgets.md](limits-budgets.md#network-payload)). Buffer packing adds to that; it does not replace it. This is worth knowing before adopting anything, because a project that only needs batching can have it in a small module of its own and keep the rest of its transport unchanged.
+
+**Read what the benchmark measured.** The published figures for this class of library typically fire a message a thousand times per frame and report the frame rate that survives. That measures CPU under a synthetic flood — a real answer to a real question, but not the same question as latency, bandwidth, or how a game with ordinary traffic behaves. A multiplier quoted without its axis is not a number yet: one library's headline figure is a frame-rate ratio, its larger figure is a bandwidth ratio, and neither is a speed.
+
+**Weigh adoption against the claim.** A library carrying a striking benchmark and a handful of repository stars has not been read by many people. The strength of a claim and the number of independent readers who could have falsified it are separate facts, and only the second one protects you.
+
+**Check what the schema costs you.** The libraries split on whether packet shapes are declared up front. A declared schema packs tighter and type-checks at build time; a schemaless one adopts faster but leaves less on the table. Neither is wrong, and the choice is about the team, not the throughput.
+
+Whatever is chosen, the rules above still hold: the transport changes, the server-side validation does not.
+
 ## Cleanup: Trove / Maid / Janitor
 
 Replaces the manual cleanup-bag pattern in [patterns.md](patterns.md).
