@@ -319,7 +319,7 @@ Make the hook executable:
 chmod +x .git/hooks/pre-commit
 ```
 
-Any commit containing deprecated patterns or invalid section ordering will be halted, showing the exact file, line number, and recommended replacement.
+Any commit containing deprecated patterns, invalid section ordering, a non-yielding infinite loop, or a member used on the wrong side of the client-server boundary will be halted, showing the exact file, line number, and recommended replacement.
 
 ---
 
@@ -366,7 +366,7 @@ npx roblox-optimum --check $files
 | Code | Status | Description |
 |---|---|---|
 | `0` | Clean | All checked files adhere to the standards. |
-| `1` | Findings | Deprecated APIs or invalid section orders detected. |
+| `1` | Findings | Deprecated APIs, invalid section orders, a frozen loop, or a wrong-side member detected. |
 | `2` | Feedback / Error | Findings formatted for an agent hook, or invalid command-line usage. |
 
 ### Environment Variables

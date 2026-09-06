@@ -67,6 +67,78 @@ export const DEPRECATED = [
 const SECTIONS = ["VARIABLES", "FUNCTIONS", "INITIALIZATION"];
 
 /**
+ * Members that raise or read nil on one side of the network boundary, keyed by the filename
+ * suffix that states which side a file runs on. Only suffixes every sync tool agrees on are
+ * listed, and only members whose wrong-side use fails outright rather than merely reading oddly.
+ */
+const CONTEXT_ERRORS = [
+  {
+    suffix: /\.server\.luau?$/i,
+    side: "a server Script",
+    members: [
+      [/\.LocalPlayer\b/, "Players.LocalPlayer", "it is nil on the server; take the player from the event that fired"],
+      [/\bUserInputService\b/, "UserInputService", "input is client-only; send the result over a remote instead"],
+    ],
+  },
+  {
+    suffix: /\.client\.luau?$/i,
+    side: "a LocalScript",
+    members: [
+      [/\bDataStoreService\b/, "DataStoreService", "data stores are server-only; go through a remote"],
+      [/\bMessagingService\b/, "MessagingService", "cross-server messaging is server-only"],
+      [/\bServerStorage\b/, "ServerStorage", "it does not replicate, so the client sees nothing"],
+      [/\bServerScriptService\b/, "ServerScriptService", "it does not replicate, so the client sees nothing"],
+    ],
+  },
+];
+
+/**
+ * A service is usually named only inside the string `GetService` takes, which the code strip
+ * blanks along with every other string. Matching that one call shape on the raw line reaches it
+ * without letting any other prose back in.
+ */
+function serviceCall(name) {
+  return new RegExp(`GetService\\s*\\(\\s*["']${name}["']`);
+}
+
+/** Calls that hand the thread back to the scheduler, which is what keeps a loop from freezing it. */
+const YIELDS = /(?:\btask\.wait\b|(?<![.:\w])wait\s*\(|:Wait\s*\(|\bcoroutine\.yield\b|Async\s*\()/;
+
+/** Keywords that open a block, and the ones that close one, for depth counting on stripped code. */
+const OPENS = /\b(?:function|do|then|repeat)\b/g;
+const CLOSES = /\b(?:end|until)\b/g;
+
+/**
+ * Reports every `while true do` that can neither yield nor exit, which freezes its thread. A
+ * loop that can leave, or that gives the scheduler a turn, is left alone, and an ambiguous
+ * read reports nothing.
+ */
+function frozenLoops(lines) {
+  const found = [];
+
+  for (let start = 0; start < lines.length; start++) {
+    if (!/\bwhile\s+(?:\(\s*)?true(?:\s*\))?\s+do\b/.test(lines[start])) continue;
+
+    let depth = 0;
+    let body = "";
+
+    for (let k = start; k < lines.length; k++) {
+      const withoutElseif = lines[k].replace(/\belseif\b(.*?)\bthen\b/g, "$1");
+      depth += (withoutElseif.match(OPENS) || []).length - (withoutElseif.match(CLOSES) || []).length;
+      if (k > start) body += withoutElseif + "\n";
+      if (depth > 0) continue;
+
+      if (depth === 0 && !YIELDS.test(body) && !/\b(?:break|return|error)\b/.test(body)) {
+        found.push(`Line ${start + 1}: this while true do never yields and never exits, which freezes the thread. Add task.wait(), or a condition that breaks.`);
+      }
+      break;
+    }
+  }
+
+  return found;
+}
+
+/**
  * Directories holding code from elsewhere. A package manager rewrites them, so a finding there
  * names a file the reader is not allowed to edit.
  */
@@ -218,10 +290,10 @@ function usesThisLayout(names) {
 
 /**
  * Returns the standards violations in one Luau source, in reading order rather than pattern
- * order, and nothing when it passes. A module with no function is data or types and is exempt
- * from the layout; a file is judged only on the order of its headers.
+ * order, and nothing when it passes. A module with no function is exempt from the layout, and
+ * the optional path adds the checks that turn on which side it runs.
  */
-export function inspect(source) {
+export function inspect(source, path = "") {
   const problems = [];
   const code = stripNonCode(source);
 
@@ -262,8 +334,27 @@ export function inspect(source) {
     }
   }
 
+  const raw = source.split("\n");
+
+  for (const { suffix, side, members } of CONTEXT_ERRORS) {
+    if (!suffix.test(path)) continue;
+    for (const [pattern, name, why] of members) {
+      const call = /^[A-Za-z]+$/.test(name) ? serviceCall(name) : null;
+      for (let k = 0; k < lines.length; k++) {
+        if (pattern.test(lines[k]) || (call && call.test(raw[k] ?? ""))) {
+          deprecated.push({
+            line: k + 1,
+            text: `Line ${k + 1}: ${name} in ${side}. The filename says which side this runs on, and ${why}.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
   deprecated.sort((a, b) => a.line - b.line);
   problems.push(...deprecated.map((d) => d.text));
+  problems.push(...frozenLoops(lines));
 
   return problems;
 }
@@ -309,7 +400,7 @@ export function checkFile(path) {
     return { path, status: "not-roblox", problems: [] };
   }
 
-  const problems = inspect(source);
+  const problems = inspect(source, path);
   return { path, status: problems.length === 0 ? "clean" : "problems", problems };
 }
 
@@ -838,6 +929,48 @@ Players.PlayerAdded:Connect(greet)
       p.includes("deprecated"),
     ),
     "API names inside comments and strings are ignored",
+  );
+
+  const frozen = `-- // INITIALIZATION // --\nwhile true do\n\tlocal n = 1 + 1\nend`;
+  ok(
+    inspect(frozen).some((p) => p.includes("freezes the thread")),
+    "a while true do with no yield and no exit is caught",
+  );
+  ok(
+    inspect(frozen.replace("local n = 1 + 1", "task.wait(1)")).length === 0,
+    "the same loop with a yield is left alone",
+  );
+  ok(
+    inspect(frozen.replace("local n = 1 + 1", "if done then break end")).length === 0,
+    "a loop that can break is not a frozen one",
+  );
+  ok(
+    inspect(frozen.replace("local n = 1 + 1", "local ok = store:GetAsync(key)")).length === 0,
+    "a yielding web call counts as a yield",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nwhile true do\n\tif a then\n\t\tlocal x = 1\n\telseif b then\n\t\tlocal y = 2\n\tend\n\ttask.wait()\nend`).length === 0,
+    "elseif does not throw off the block depth count",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nlocal Players = game:GetService("Players")\nlocal p = Players.LocalPlayer`, "src/Main.server.luau").some((p) =>
+      p.includes("Players.LocalPlayer"),
+    ),
+    "LocalPlayer in a server script is caught",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nlocal Players = game:GetService("Players")\nlocal p = Players.LocalPlayer`, "src/Main.client.luau").length === 0,
+    "the same line in a LocalScript is correct and stays unflagged",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nlocal s = game:GetService("DataStoreService")`, "src/Hud.client.luau").some((p) =>
+      p.includes("DataStoreService"),
+    ),
+    "a server-only service in a LocalScript is caught",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nlocal s = game:GetService("DataStoreService")`, "src/Data.luau").length === 0,
+    "a ModuleScript states no side, so neither context check applies",
   );
   ok(
     inspect(`-- // VARIABLES // --\nlocal ACTIONS = { "show" }\n\n-- // INITIALIZATION // --\nreturn function(registry)\n\tregistry:Register(ACTIONS)\nend`).length === 0,

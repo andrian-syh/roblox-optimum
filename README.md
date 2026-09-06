@@ -146,6 +146,8 @@ Key validation features:
 * Automatically skips third-party packages in `Packages/`, `DevPackages/`, and `node_modules/`.
 * Evaluates pure `.lua` files only when they contain recognized Roblox APIs.
 * Enforces standard section ordering (`VARIABLES` > `FUNCTIONS` > `INITIALIZATION`) on files using those conventions.
+* Catches a `while true do` that can neither yield nor exit, which freezes the thread that reaches it.
+* Reads `.server.luau` and `.client.luau` as the statement of intent they are, and reports members that fail on that side: `LocalPlayer` and `UserInputService` on the server, `DataStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` on the client.
 * Can be temporarily paused across all environments by setting `ROBLOX_OPTIMUM=off`.
 
 ## What the Standards Cover
@@ -154,6 +156,7 @@ Key validation features:
 * **Server Authority**: Remote events validate argument types, ranges, ownership, and invocation rates on the server.
 * **Resource Cleanup**: Every connection, task, and instance includes an explicit owner and teardown path.
 * **Reliable Data Persistence**: Safe session handling using `UpdateAsync` with backoff, `PlayerRemoving` saves, and `BindToClose` flushes.
+* **Correct Side**: Server-only and client-only members stay on the side that can run them, which the file suffix already declares.
 * **Modern APIs**: Replaces deprecated APIs like `wait`, `spawn`, `delay`, `tick`, lowercase `:connect`, and legacy `Body*` movers with modern engine alternatives.
 * **Verified Information**: Recommends validating engine behaviors and APIs against official documentation or running Studio sessions rather than assuming.
 

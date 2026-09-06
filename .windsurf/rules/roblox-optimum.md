@@ -82,8 +82,9 @@ Where they are depends on how they were installed. As a plugin they are invoked 
 
 ## The checks run outside you
 
-The checker reports deprecated APIs and out-of-order section headers deterministically, with no
-model involved. Run it on the files you touched before you report work as done:
+The checker reports deprecated APIs, out-of-order section headers, a `while true do` that can
+neither yield nor exit, and server-only or client-only members used on the wrong side of a
+`.server.luau` / `.client.luau` filename. All deterministic, with no model involved. Run it on the files you touched before you report work as done:
 
 ```
 npx roblox-optimum --check <files>
