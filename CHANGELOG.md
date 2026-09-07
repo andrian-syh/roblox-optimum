@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-09-07
+
+### Fixed
+
+- **Silent exit when the package is reached through a symlink**: Every command printed nothing and exited 0 when `roblox-optimum` or `roblox-mcp` was launched from a symlinked copy, as `npm link`, pnpm, and running `npx roblox-optimum` from inside the package's own directory all produce. The entry-point guard compared `import.meta.url`, which names the link target, against `process.argv[1]`, which names the link, so the CLI decided it had been imported rather than run. Both sides are now resolved to a real path first, in `roblox-optimum.mjs`, `roblox-mcp.mjs`, and `sync-rules.mjs`.
+
 ## [1.5.0] - 2026-09-07
 
 ### Added

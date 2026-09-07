@@ -14,9 +14,9 @@
 import { createInterface } from "node:readline";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-import { inspect, DEPRECATED } from "./roblox-optimum.mjs";
+import { inspect, DEPRECATED, ranAsScript } from "./roblox-optimum.mjs";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -536,7 +536,7 @@ function selftest() {
   process.stderr.write("roblox-mcp selftest: all checks passed\n");
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ranAsScript(import.meta.url)) {
   if (process.argv[2] === "--selftest") selftest();
   else if (process.argv[2] === undefined) serve();
   else {

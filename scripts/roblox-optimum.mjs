@@ -15,6 +15,7 @@ import {
   cpSync,
   mkdtempSync,
   rmSync,
+  realpathSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -1008,6 +1009,23 @@ function runUninstall(args) {
 }
 
 /**
+ * Whether a module is the file the user ran, rather than one imported by it. Both sides are
+ * resolved to a real path, because npx, `npm link`, and pnpm put the package behind a symlink,
+ * where the two names differ and every command silently does nothing.
+ */
+export function ranAsScript(url) {
+  if (!process.argv[1]) return false;
+
+  try {
+    const here = realpathSync(fileURLToPath(url));
+    const ran = realpathSync(process.argv[1]);
+    return process.platform === "win32" ? here.toLowerCase() === ran.toLowerCase() : here === ran;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * How a written path is named in the report: relative while it stays under the working
  * directory, absolute once it leaves, since `../../../Users/...` names a home directory worse
  * than the home directory does.
@@ -1426,6 +1444,15 @@ Players.PlayerAdded:Connect(greet)
   );
 
   ok(
+    ranAsScript(pathToFileURL(process.argv[1]).href),
+    "the file node was told to run is recognised as the one that ran",
+  );
+  ok(
+    !ranAsScript(pathToFileURL(join(ROOT_ABSENT, "other.mjs")).href),
+    "a module that is not the one node ran is not mistaken for it",
+  );
+
+  ok(
     SKILL_TARGETS.every((t) => t.markers.length > 0) &&
       new Set(SKILL_TARGETS.map((t) => t.dir)).size === SKILL_TARGETS.length,
     "every skill directory names a marker, and no two claim the same path",
@@ -1540,8 +1567,7 @@ Players.PlayerAdded:Connect(greet)
   if (!process.exitCode) console.log("roblox-optimum selftest: all checks passed");
 }
 
-const invokedDirectly =
-  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly = ranAsScript(import.meta.url);
 
 if (invokedDirectly) {
   const [mode, ...rest] = process.argv.slice(2);

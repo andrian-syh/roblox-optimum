@@ -9,9 +9,9 @@
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-import { RULE_TARGETS, GENERATED, forCopilot } from "./roblox-optimum.mjs";
+import { RULE_TARGETS, GENERATED, forCopilot, ranAsScript } from "./roblox-optimum.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = "AGENTS.md";
@@ -108,7 +108,7 @@ function sync(check) {
   return 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ranAsScript(import.meta.url)) {
   const mode = process.argv[2];
 
   if (mode !== undefined && mode !== "--check") {
