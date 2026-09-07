@@ -16,7 +16,7 @@ import {
   mkdtempSync,
   rmSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -215,6 +215,15 @@ Usage:
                                      --all writes every agent's rule file whether or not the
                                      project shows a sign of that agent. --force replaces a
                                      skill or agent copy that is already there.
+                                     --global writes the skills and the agent into every agent
+                                     home directory instead, so they load in every project.
+                                     Rules and the hook stay with the project that needs them.
+  roblox-optimum doctor              Report what is installed and how old it is, for this project
+                                     and this machine. --project or --global narrows it to one.
+                                     Reads only; it changes nothing.
+  roblox-optimum uninstall [part...] Remove what this tool wrote, in this project or, with
+                                     --global, on this machine. A file it did not write is
+                                     reported and left. --dry-run lists without removing.
   roblox-optimum --selftest          Run the built-in assertions.
   roblox-optimum                     Read a post-write hook payload on stdin. Exit 2 reports
                                      findings back to the agent.
@@ -496,6 +505,13 @@ export const COMPONENTS = ["rules", "skills", "agent", "hook"];
 const DEFAULT_PARTS = ["rules", "hook"];
 
 /**
+ * What a bare `install --global` writes. Rules and the commit hook are left out because both
+ * belong to a project: a hook lives in its `.git`, and a rules file would speak for every
+ * repository the host opens, Roblox or not.
+ */
+const GLOBAL_PARTS = ["skills", "agent"];
+
+/**
  * Where a project keeps skills, with the directory whose presence says a host that reads them
  * is in use here. `.agents/skills` is the shared location Codex, Cursor, Antigravity, and
  * OpenCode all read; `.claude/skills` is Claude Code's own, which Cursor and OpenCode also
@@ -534,6 +550,22 @@ export function stamped(text) {
     ? `${text.replace(/\s*$/, "")}\n\n${mark}\n`
     : text.replace(/<!-- Copied by roblox-optimum [^\s]+ -->/, mark);
 }
+
+/**
+ * Where each host keeps the skills and agents it reads for every project, under the user's home
+ * directory. Only hosts whose directory is already there are written to, since its presence is
+ * the one honest sign that the host runs on this machine.
+ *
+ * Rules are not listed. A rules file is scoped to a project in every host that reads one, so a
+ * global copy would apply Roblox standards to work that is not Roblox.
+ */
+const GLOBAL_TARGETS = [
+  { host: "Claude Code", home: ".claude", skills: "skills", agents: "agents" },
+  { host: "Cursor", home: ".cursor", skills: "skills", agents: "agents" },
+  { host: "Copilot CLI", home: ".copilot", skills: "skills", agents: "copilot" },
+  { host: "Antigravity", home: join(".gemini", "config"), skills: "skills" },
+  { host: "OpenCode", home: join(".config", "opencode"), skills: "skills" },
+];
 
 /** Where a project keeps agents. Claude Code and Cursor both read this one. */
 const AGENT_HOME = join(".claude", "agents");
@@ -615,15 +647,17 @@ export function parseComponents(args) {
   const flags = [];
   for (const arg of args) (arg.startsWith("--") ? flags : named).push(arg);
 
-  const error =
-    flags.find((f) => f !== "--all" && f !== "--force") ??
-    named.find((n) => !COMPONENTS.includes(n));
+  const known = ["--all", "--force", "--global"];
+  const error = flags.find((f) => !known.includes(f)) ?? named.find((n) => !COMPONENTS.includes(n));
   if (error !== undefined) return { error };
 
+  const global = flags.includes("--global");
+
   return {
-    parts: new Set(named.length > 0 ? named : DEFAULT_PARTS),
+    parts: new Set(named.length > 0 ? named : global ? GLOBAL_PARTS : DEFAULT_PARTS),
     all: flags.includes("--all"),
     force: flags.includes("--force"),
+    global,
     explicit: named.length > 0,
   };
 }
@@ -639,13 +673,13 @@ files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$')
  * Writes each agent again where Copilot reads one. Without this copy the agent is invisible
  * there, because Copilot searches its own directory and requires the .agent.md suffix.
  */
-function copyCopilotAgents(cwd, force, report) {
+function copyCopilotAgents(dir, force, report) {
   const source = join(PACKAGE_ROOT, "agents");
   if (!existsSync(source)) return;
 
   for (const name of readdirSync(source).filter((n) => n.endsWith(".md"))) {
-    const full = join(cwd, COPILOT_AGENTS, namespaced(name).replace(/\.md$/, ".agent.md"));
-    const shown = relative(cwd, full);
+    const full = join(dir, namespaced(name).replace(/\.md$/, ".agent.md"));
+    const shown = shownAs(full);
 
     if (!force && !writable(full, DERIVED_AGENT)) {
       report.kept.push(shown);
@@ -681,15 +715,17 @@ function runInstall(args) {
   if (choice.error !== undefined) {
     process.stderr.write(
       `roblox-optimum install: ${choice.error} is not a component or a flag.\n\n` +
-        `Components: ${COMPONENTS.join(", ")}\nFlags: --all, --force\n`,
+        `Components: ${COMPONENTS.join(", ")}\nFlags: --all, --force, --global\n`,
     );
     return 2;
   }
 
-  const { parts, all, force, explicit } = choice;
+  const { parts, all, force, global, explicit } = choice;
   const cwd = process.cwd();
   const report = { written: [], kept: [], stale: [], current: [] };
   const { written, kept } = report;
+
+  if (global) return runGlobalInstall(parts, all, force, report);
 
   if (parts.has("rules")) {
     const source = join(PACKAGE_ROOT, "AGENTS.md");
@@ -726,7 +762,9 @@ function runInstall(args) {
   }
   if (parts.has("agent")) {
     copyTree(join(PACKAGE_ROOT, "agents"), join(cwd, AGENT_HOME), force, report);
-    if (all || existsSync(join(cwd, ".github"))) copyCopilotAgents(cwd, force, report);
+    if (all || existsSync(join(cwd, ".github"))) {
+      copyCopilotAgents(join(cwd, COPILOT_AGENTS), force, report);
+    }
   }
 
   const hook = join(cwd, ".git", "hooks", "pre-commit");
@@ -781,6 +819,265 @@ Standards: ${HOME_PAGE}
 }
 
 /**
+ * The agent files this package ships, whose copies carry the name they were given on the way in.
+ */
+const SHIPPED_AGENTS = (() => {
+  try {
+    return readdirSync(join(PACKAGE_ROOT, "agents")).filter((n) => n.endsWith(".md"));
+  } catch {
+    return [];
+  }
+})();
+
+/**
+ * Every path this tool writes, with the component it belongs to and the mark proving it wrote
+ * it, or null where a version stamp serves instead. One list, so what install creates is what
+ * doctor finds and uninstall removes.
+ */
+export function places({ global = false, cwd = process.cwd(), home = homedir() } = {}) {
+  const out = [];
+  const add = (part, path, mark) => out.push({ part, path, mark });
+
+  if (global) {
+    for (const target of GLOBAL_TARGETS) {
+      const root = join(home, target.home);
+      for (const name of SHIPPED_SKILLS) add("skills", join(root, target.skills, namespaced(name)), null);
+
+      if (target.agents === "copilot") {
+        for (const name of SHIPPED_AGENTS) {
+          add("agent", join(root, "agents", namespaced(name).replace(/\.md$/, ".agent.md")), DERIVED_AGENT);
+        }
+      } else if (target.agents !== undefined) {
+        for (const name of SHIPPED_AGENTS) add("agent", join(root, target.agents, namespaced(name)), null);
+      }
+    }
+
+    return out;
+  }
+
+  add("rules", join(cwd, "AGENTS.md"), GENERATED);
+  for (const target of RULE_TARGETS) add("rules", join(cwd, target.path), GENERATED);
+
+  for (const target of SKILL_TARGETS) {
+    for (const name of SHIPPED_SKILLS) add("skills", join(cwd, target.dir, namespaced(name)), null);
+  }
+
+  for (const name of SHIPPED_AGENTS) {
+    add("agent", join(cwd, AGENT_HOME, namespaced(name)), null);
+    add("agent", join(cwd, COPILOT_AGENTS, namespaced(name).replace(/\.md$/, ".agent.md")), DERIVED_AGENT);
+  }
+
+  add("hook", join(cwd, ".git", "hooks", "pre-commit"), "roblox-optimum");
+
+  return out;
+}
+
+/**
+ * What is actually at one of those paths: absent, a copy this tool wrote and the version it was
+ * written from, or a file someone else owns. Nothing is ever judged by its name alone.
+ */
+export function condition(place) {
+  if (!existsSync(place.path)) return { state: "absent" };
+
+  if (place.mark !== null) {
+    const text = readFileSync(place.path, "utf8");
+    return text.includes(place.mark) ? { state: "ours" } : { state: "foreign" };
+  }
+
+  const file = stampOf(place.path);
+  if (!existsSync(file)) return { state: "foreign" };
+
+  const was = stampedFrom(readFileSync(file, "utf8"));
+  if (was === null) return { state: "foreign" };
+  return { state: was === VERSION ? "current" : "stale", from: was };
+}
+
+/**
+ * Reports what is installed and how old it is, for the project, this machine, or both. Reads
+ * only; a report that changed anything would be a repair nobody asked for.
+ */
+function runDoctor(args) {
+  const scopes = args.includes("--global")
+    ? [["this machine", true]]
+    : args.includes("--project")
+      ? [["this project", false]]
+      : [
+          ["this project", false],
+          ["this machine", true],
+        ];
+
+  let found = 0;
+  let out = "";
+
+  for (const [label, global] of scopes) {
+    const seen = places({ global })
+      .map((place) => ({ ...place, ...condition(place) }))
+      .filter((place) => place.state !== "absent");
+
+    found += seen.length;
+    out += `\n${label}: ${seen.length === 0 ? "nothing installed" : `${seen.length} item(s)`}\n`;
+
+    for (const place of seen) {
+      const note =
+        place.state === "current"
+          ? `at ${VERSION}`
+          : place.state === "stale"
+            ? `copied from ${place.from}, now ${VERSION}`
+            : place.state === "ours"
+              ? "written by this tool"
+              : "not written by this tool";
+
+      out += `  ${place.part.padEnd(6)} ${shownAs(place.path)} - ${note}\n`;
+    }
+  }
+
+  const stale = scopes.map(([, global]) => [
+    global,
+    places({ global }).filter((place) => condition(place).state === "stale").length,
+  ]);
+  const total = stale.reduce((sum, [, n]) => sum + n, 0);
+
+  process.stdout.write(
+    out +
+      (total > 0
+        ? `\n${total} copy(s) older than ${VERSION}. Bring them across:\n` +
+          stale
+            .filter(([, n]) => n > 0)
+            .map(([global, n]) =>
+              global
+                ? `  roblox-optimum install --global --force   (${n} on this machine)\n`
+                : `  roblox-optimum install skills agent --force   (${n} in this project)\n`,
+            )
+            .join("")
+        : "") +
+      (found === 0 ? `\nNothing to report. Install with roblox-optimum install.\n` : ""),
+  );
+
+  return 0;
+}
+
+/**
+ * Removes what this tool wrote and nothing else. A file carrying no mark of ours is reported and
+ * left, since a standards tool that deletes someone's work has already cost more than it saves.
+ */
+function runUninstall(args) {
+  const named = args.filter((a) => !a.startsWith("--"));
+  const flags = args.filter((a) => a.startsWith("--"));
+
+  const known = ["--global", "--dry-run"];
+  const error = flags.find((f) => !known.includes(f)) ?? named.find((n) => !COMPONENTS.includes(n));
+  if (error !== undefined) {
+    process.stderr.write(
+      `roblox-optimum uninstall: ${error} is not a component or a flag.\n\n` +
+        `Components: ${COMPONENTS.join(", ")}\nFlags: --global, --dry-run\n`,
+    );
+    return 2;
+  }
+
+  const parts = new Set(named.length > 0 ? named : COMPONENTS);
+  const dry = flags.includes("--dry-run");
+  const removed = [];
+  const kept = [];
+
+  for (const place of places({ global: flags.includes("--global") })) {
+    if (!parts.has(place.part)) continue;
+
+    const { state } = condition(place);
+    if (state === "absent") continue;
+    if (state === "foreign") {
+      kept.push(shownAs(place.path));
+      continue;
+    }
+
+    if (!dry) rmSync(place.path, { recursive: true, force: true });
+    removed.push(shownAs(place.path));
+  }
+
+  process.stdout.write(
+    (removed.length > 0
+      ? `roblox-optimum ${dry ? "would remove" : "removed"} ${removed.length} item(s):\n` +
+        removed.map((p) => `  ${p}\n`).join("")
+      : "roblox-optimum found nothing of its own to remove.\n") +
+      (kept.length > 0
+        ? `\nLeft alone, because this tool did not write them:\n` + kept.map((p) => `  ${p}\n`).join("")
+        : "") +
+      (dry && removed.length > 0 ? `\nRun again without --dry-run to remove them.\n` : ""),
+  );
+
+  return 0;
+}
+
+/**
+ * How a written path is named in the report: relative while it stays under the working
+ * directory, absolute once it leaves, since `../../../Users/...` names a home directory worse
+ * than the home directory does.
+ */
+function shownAs(full) {
+  const near = relative(process.cwd(), full);
+  if (!near.startsWith("..")) return near;
+
+  const home = relative(homedir(), full);
+  return home.startsWith("..") ? full : join("~", home);
+}
+
+/**
+ * Writes the skills and the agent into every host on this machine, so one run reaches all of
+ * them instead of one project. A host with no directory of its own is passed over, never
+ * created.
+ */
+function runGlobalInstall(parts, all, force, report) {
+  const home = homedir();
+  const seen = GLOBAL_TARGETS.filter((t) => all || existsSync(join(home, t.home)));
+
+  if (seen.length === 0) {
+    process.stdout.write(
+      `roblox-optimum found no agent home directory under ${home}.\n` +
+        `Looked for: ${GLOBAL_TARGETS.map((t) => t.home).join(", ")}\n` +
+        `Add --all to write them anyway, or install into a project instead.\n`,
+    );
+    return 0;
+  }
+
+  const refused = [...parts].filter((p) => !GLOBAL_PARTS.includes(p));
+
+  for (const target of seen) {
+    const root = join(home, target.home);
+
+    if (parts.has("skills")) {
+      copyTree(join(PACKAGE_ROOT, "skills"), join(root, target.skills), force, report);
+    }
+    if (parts.has("agent") && target.agents === "copilot") {
+      copyCopilotAgents(join(root, "agents"), force, report);
+    } else if (parts.has("agent") && target.agents !== undefined) {
+      copyTree(join(PACKAGE_ROOT, "agents"), join(root, target.agents), force, report);
+    }
+  }
+
+  process.stdout.write(
+    (report.written.length > 0
+      ? `roblox-optimum installed ${report.written.length} file(s) for ${seen.map((t) => t.host).join(", ")}:\n` +
+        report.written.map((p) => `  ${p}\n`).join("")
+      : "roblox-optimum wrote nothing new.\n") +
+      (report.kept.length > 0
+        ? `\nLeft alone, because this tool did not write them:\n` +
+          report.kept.map((p) => `  ${p}\n`).join("")
+        : "") +
+      (report.stale.length > 0
+        ? `\nOlder copies this tool wrote, kept in case you edited them:\n` +
+          report.stale.map((p) => `  ${p}\n`).join("") +
+          `Add --force to bring them to ${VERSION}.\n`
+        : "") +
+      (report.current.length > 0 ? `\n${report.current.length} copy(s) already at ${VERSION}.\n` : "") +
+      (refused.length > 0
+        ? `\n${refused.join(" and ")} belong to a project, so --global skipped them.\n` +
+          `Run roblox-optimum install ${refused.join(" ")} inside the project that needs them.\n`
+        : ""),
+  );
+
+  return 0;
+}
+
+/**
  * Copies each entry of a directory this package ships into a project, leaving anything
  * already there alone. A skill carries no line saying who wrote it, so a name that exists
  * is kept until someone asks for it to be replaced.
@@ -790,7 +1087,7 @@ function copyTree(source, dest, force, report) {
 
   for (const name of readdirSync(source)) {
     const full = join(dest, namespaced(name));
-    const shown = relative(process.cwd(), full);
+    const shown = shownAs(full);
 
     if (existsSync(full) && !force) {
       const was = existsSync(stampOf(full)) ? stampedFrom(readFileSync(stampOf(full), "utf8")) : null;
@@ -1079,6 +1376,56 @@ Players.PlayerAdded:Connect(greet)
   ok(parseComponents(["skills", "--force"]).force, "--force is read alongside a component");
 
   ok(
+    parseComponents(["--global"]).global &&
+      [...parseComponents(["--global"]).parts].join() === GLOBAL_PARTS.join(),
+    "--global on its own writes the skills and the agent, not the project set",
+  );
+  ok(
+    !parseComponents([]).global && parseComponents(["--global", "--force"]).force,
+    "--global is off unless asked for, and reads the other flags alongside it",
+  );
+  ok(
+    [...parseComponents(["--global", "rules"]).parts].join() === "rules",
+    "a component named with --global is honoured, so the refusal can name it",
+  );
+  ok(
+    GLOBAL_PARTS.every((c) => COMPONENTS.includes(c)) &&
+      !GLOBAL_PARTS.includes("hook") &&
+      !GLOBAL_PARTS.includes("rules"),
+    "the global set holds only components that are not scoped to a project",
+  );
+  ok(
+    GLOBAL_TARGETS.every((t) => typeof t.host === "string" && typeof t.skills === "string") &&
+      new Set(GLOBAL_TARGETS.map((t) => t.home)).size === GLOBAL_TARGETS.length,
+    "every host names a skills directory, and no two claim the same home",
+  );
+
+  const projectPlaces = places({ global: false, cwd: ROOT_ABSENT, home: ROOT_ABSENT });
+  const globalPlaces = places({ global: true, cwd: ROOT_ABSENT, home: ROOT_ABSENT });
+
+  ok(
+    COMPONENTS.every((c) => projectPlaces.some((p) => p.part === c)),
+    "every component names at least one place in a project",
+  );
+  ok(
+    globalPlaces.every((p) => p.part === "skills" || p.part === "agent"),
+    "the machine holds only the components a global install writes",
+  );
+  ok(
+    new Set(projectPlaces.map((p) => p.path)).size === projectPlaces.length &&
+      new Set(globalPlaces.map((p) => p.path)).size === globalPlaces.length,
+    "no two places claim the same path, so nothing is removed twice",
+  );
+  ok(
+    projectPlaces.some((p) => p.part === "hook" && p.mark === "roblox-optimum"),
+    "the commit hook is found by the line this tool writes into it",
+  );
+  ok(
+    condition({ path: join(ROOT_ABSENT, "nothing"), mark: null }).state === "absent",
+    "a path with nothing at it is absent, not foreign",
+  );
+
+  ok(
     SKILL_TARGETS.every((t) => t.markers.length > 0) &&
       new Set(SKILL_TARGETS.map((t) => t.dir)).size === SKILL_TARGETS.length,
     "every skill directory names a marker, and no two claim the same path",
@@ -1202,6 +1549,8 @@ if (invokedDirectly) {
   else if (mode === "--compact") process.exit(await runCompactReminder());
   else if (mode === "--check") process.exit(runCheck(rest));
   else if (mode === "install") process.exit(runInstall(rest));
+  else if (mode === "doctor") process.exit(runDoctor(rest));
+  else if (mode === "uninstall") process.exit(runUninstall(rest));
   else if (mode === "--help" || mode === "-h") process.stdout.write(USAGE);
   else if (mode === undefined) process.exit(await runPostToolUse());
   else {

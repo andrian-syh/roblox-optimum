@@ -96,8 +96,8 @@ function auditDeclaredVersions(manifest) {
 }
 
 /**
- * Checks how each host is told to start the MCP server. Both mistakes caught here install
- * cleanly and fail only once the server is asked for.
+ * Checks how each host is told to start the MCP server, which installs cleanly and fails only
+ * once the server is asked for. Pins are check-versions.mjs's rule, not this one's.
  */
 function auditMcpManifests(manifest) {
   for (const file of ["mcp.json", "mcp_config.json"]) {
@@ -108,12 +108,8 @@ function auditMcpManifests(manifest) {
     }
 
     const args = JSON.parse(readFileSync(path, "utf8")).mcpServers?.["roblox-optimum"]?.args ?? [];
-    const pinned = args.find((a) => a.startsWith("roblox-optimum@"))?.split("@")[1];
-
-    if (pinned !== manifest.version) {
-      problems.push(
-        `${file} pins roblox-optimum@${pinned} but .claude-plugin/plugin.json is v${manifest.version}`,
-      );
+    if (!args.includes("roblox-optimum")) {
+      problems.push(`${file} does not name roblox-optimum as the package to run`);
     }
   }
 

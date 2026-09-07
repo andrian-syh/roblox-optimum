@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Deterministic Roblox and Luau standards checks: deprecated APIs and out-of-order section headers, as an agent hook, a commit hook, or a CI step.",
   "keywords": [
     "roblox",
@@ -15,17 +15,19 @@
   "type": "module",
   "bin": {
     "roblox-optimum": "scripts/roblox-optimum.mjs",
-    "roblox-mcp": "scripts/roblox-mcp.mjs"
+    "roblox-mcp": "scripts/roblox-mcp.mjs",
+    "roblox-studio-mcp-antigravity": "scripts/studio-mcp-antigravity.mjs"
   },
   "files": [
     "scripts/roblox-optimum.mjs",
     "scripts/roblox-mcp.mjs",
     "skills/",
     "agents/",
-    "AGENTS.md"
+    "AGENTS.md",
+    "scripts/studio-mcp-antigravity.mjs"
   ],
   "scripts": {
-    "test": "node scripts/roblox-optimum.mjs --selftest && node scripts/roblox-mcp.mjs --selftest"
+    "test": "node scripts/check-versions.mjs && node scripts/audit.mjs && node scripts/roblox-optimum.mjs --selftest && node scripts/roblox-mcp.mjs --selftest && node scripts/studio-mcp-antigravity.mjs --selftest"
   },
   "author": {
     "name": "andrian-syh",

@@ -47,6 +47,27 @@ npx roblox-optimum install hook      # Git pre-commit hook
 Useful options:
 * `--all`: Generates rule files for every supported agent, even if their configuration folders do not exist yet.
 * `--force`: Updates previously installed skills or agents to the latest version.
+* `--global`: Installs into each agent's home directory instead of the project, covering every repository at once.
+
+### Installing Globally
+
+```bash
+npx roblox-optimum install --global
+```
+
+Skills and the agent load in every project, with no per-repository install:
+
+| Agent | Skills | Agent |
+|---|---|---|
+| Claude Code | `~/.claude/skills/` | `~/.claude/agents/` |
+| Cursor | `~/.cursor/skills/` | `~/.cursor/agents/` |
+| Copilot CLI | `~/.copilot/skills/` | `~/.copilot/agents/` |
+| Antigravity | `~/.gemini/config/skills/` | not supported |
+| OpenCode | `~/.config/opencode/skills/` | not supported |
+
+Only agents whose home directory already exists are written to, since that is the one reliable sign the agent runs on this machine. Add `--all` to write to every location regardless.
+
+`rules` and `hook` are refused in this mode and reported as skipped. A rule file would apply Roblox standards to every repository the agent opens, and a pre-commit hook belongs to one `.git` directory. Install both inside the project that needs them.
 
 ### Where Skills Land
 
@@ -56,6 +77,36 @@ When installing skills directly into your project:
 * Projects with both configurations receive skills in both directories.
 
 To prevent naming collisions with unrelated tools, standalone copied skills use the `roblox-` prefix (for example, `roblox-best-practices`). When installed as a plugin, skills use the standard namespace (such as `/roblox-optimum:best-practices`).
+
+### Checking What Is Installed
+
+```bash
+npx roblox-optimum doctor              # project and machine
+npx roblox-optimum doctor --project    # this repository only
+npx roblox-optimum doctor --global     # this machine only
+```
+
+Each copy is reported as one of four states, judged by the stamp written into it rather than by its name:
+
+| State | Meaning |
+|---|---|
+| `at <version>` | Written by this release |
+| `copied from <version>` | Written by an older release; refresh with `--force` |
+| `written by this tool` | A rule file or hook carrying this tool's marker line |
+| `not written by this tool` | Someone else's file; never touched |
+
+The report reads only and changes nothing.
+
+### Uninstalling
+
+```bash
+npx roblox-optimum uninstall                    # every component, this project
+npx roblox-optimum uninstall skills agent       # named components only
+npx roblox-optimum uninstall --global           # this machine
+npx roblox-optimum uninstall --dry-run          # list without removing
+```
+
+Only files carrying this tool's stamp or marker are removed. A file of your own that happens to share a name is reported and left in place. Host directories are never removed, only the copies inside them.
 
 ### Updating Installed Files
 

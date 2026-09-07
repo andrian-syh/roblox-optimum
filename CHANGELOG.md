@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-07
+
+### Added
+
+- **Global installation**: Added `roblox-optimum install --global`, which writes the skills and the `roblox-auditor` agent into each agent's home directory (`~/.claude`, `~/.cursor`, `~/.copilot`, `~/.gemini/config`, `~/.config/opencode`) so they load in every project without a per-repository install. Only agents already present on the machine are written to unless `--all` is passed.
+- **Antigravity Studio MCP wrapper**: Added `scripts/studio-mcp-antigravity.mjs`, a stdio proxy that keeps Roblox's own Studio MCP server usable from Antigravity. It answers the non-standard `server/discover` request that Antigravity opens a session with, which StudioMCP rejects with `expect initialized request` before closing the pipe, and launches `StudioMCP.exe` directly rather than through the `mcp.bat` Roblox ships, whose `else` sits on its own line and is rejected by `cmd`. The executable is located by install date, so a Studio update does not stale the path. Exposed as the `roblox-studio-mcp-antigravity` binary.
+- **Installation report**: Added `roblox-optimum doctor`, which reports every copy this tool has written, in the project and on the machine, marking each as current, older than the release in hand, or owned by someone else. Judged by the stamp inside the file rather than by its name. `--project` and `--global` narrow the scope. Reads only.
+- **Uninstall**: Added `roblox-optimum uninstall`, which removes what this tool wrote, by component, in the project or with `--global` on the machine. A file carrying no stamp or marker of this tool's is reported and left in place, and host directories are never removed, only the copies inside them. `--dry-run` lists without removing.
+- **Version consistency check**: Added `scripts/check-versions.mjs`, which proves the seven manifests carrying a version agree with `package.json` and that no shipped configuration pins a release. `--fix` writes the declared version across them in place, without reformatting the rest of the file.
+
+### Changed
+
+- **Test chain**: `npm test` now runs `check-versions` and the structural audit before the selftests, so a manifest left behind at the previous version or a broken link fails the build rather than shipping.
+- **Report paths**: Installer reports now name a written file relative to the working directory while it stays inside one, and relative to `~` once it does not, instead of printing an absolute path or a chain of `..` segments.
+- **Copilot agent directory**: `copyCopilotAgents` now takes the directory to write into rather than assuming the project's `.github/agents/`, so a global install reaches `~/.copilot/agents/` where the Copilot CLI reads it. The project path is unchanged.
+
+### Fixed
+
+- **Version pinning in shipped MCP configuration**: `mcp.json` and `mcp_config.json` pinned `roblox-optimum@<version>`, which froze anyone who copied them on the release that shipped them and had to be bumped by hand every release. Both now name the package without a version, matching every example in `INSTALL.md`. The structural audit enforced the pin and now enforces its absence.
+
 ## [1.4.0] - 2026-09-06
 
 ### Added

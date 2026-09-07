@@ -44,6 +44,34 @@ npx roblox-optimum install hook      # Git pre-commit hook
 
 Add `--all` to generate configuration files for all supported agents at once.
 
+Working across several projects? Install the skills once, into every agent on the machine:
+
+```bash
+npx roblox-optimum install --global
+```
+
+This writes the skills and the `roblox-auditor` agent into each agent's own home directory, so they load in every project without a per-repository install. Only agents already present on the machine are written to. Rules and the pre-commit hook stay with the project, since both are scoped to one repository.
+
+### Checking and Removing an Installation
+
+See what is installed, where, and how old it is:
+
+```bash
+npx roblox-optimum doctor
+```
+
+This reports the project and the machine together, marking each copy as current, older than the release in hand, or written by someone else. It reads only.
+
+Remove what the tool wrote:
+
+```bash
+npx roblox-optimum uninstall             # this project
+npx roblox-optimum uninstall --global    # this machine
+npx roblox-optimum uninstall --dry-run   # list without removing
+```
+
+Files the tool did not write are reported and left in place.
+
 ### Agent Marketplace Installation
 
 If your agent supports plugin marketplaces, install directly using the commands below:
