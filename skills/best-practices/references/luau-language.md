@@ -153,6 +153,9 @@ Not applicable to Studio work, despite appearing in Luau release notes: the embe
 - A connection made after a fire within the same resumption cycle does not receive that fire — connect before you cause the event.
 - Re-entrant fire chains are depth-limited (10) and then dropped — recursive fire-inside-handler designs fail silently; restructure them as queues.
 - `Instance.Destroying` handlers run after destruction has already completed — capture any state you need from the instance *before* it dies, not inside the handler.
+- **`Disconnect()` and `Destroy()` are not the same teardown.** By the time you tear down, handler invocations may already be queued. `Disconnect()` drops every pending one. **Any other route — `Destroy()` on the instance included — disconnects just as immediately but still runs the handlers already queued.** So a listener torn down by destroying its instance can fire once more, against state the teardown has already dismantled. Where that matters, disconnect explicitly first, or make the handler re-check that its owner is still alive ([patterns/lifecycle.md](patterns/lifecycle.md)).
+
+`AncestryDeferred` is a fourth value of the enum, not a typo: it defers only the events raised by ancestry changes and leaves everything else immediate. Treat a place set to it as Deferred for anything parenting-related and Immediate elsewhere.
 
 Code that follows the skill's normal rules (connect at setup time, react to events, no hidden ordering dependencies) is automatically safe under both behaviors — this section matters when reviewing code that isn't.
 

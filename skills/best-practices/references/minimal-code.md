@@ -9,6 +9,7 @@ The cheapest code is the code never written. This file governs **how much** code
 - [Already exists — do not hand-roll these](#already-exists--do-not-hand-roll-these)
 - [Searching the project first](#searching-the-project-first)
 - [Density rules](#density-rules)
+- [What the pass leaves behind](#what-the-pass-leaves-behind)
 - [Marking a deliberate ceiling](#marking-a-deliberate-ceiling)
 - [The check that finishes the work](#the-check-that-finishes-the-work)
 - [When reimplementation is justified](#when-reimplementation-is-justified)
@@ -146,6 +147,17 @@ These target code volume, never structure. The three-section layout, the doc blo
 Anti-goal: code that looks substantial. Length is not evidence of quality, and a long function is harder to verify, slower to read, and more likely to hide an edge case.
 
 Two opposite anti-goals matter just as much. **A function that is short because it does less than it was asked to** has failed, and so has **a function that is short because it was compressed past readability.** Every density rule above removes ceremony, never capability and never clarity. When they pull against each other, completeness and readability win, and the extra lines are the correct price.
+
+## What the pass leaves behind
+
+The density rules govern what gets written. These govern what is still there when the work is handed over, which is a different failure and the one an agent is most prone to: the measured signature of machine-written code is not bad logic, it is **leftovers** — dead bindings, redundant branches, and scaffolding that outlived its purpose.
+
+- **No unused bindings.** A local, a parameter, a `require`, or a function nothing calls is dead the moment it ships. Delete it rather than leaving it for the linter (`LocalUnused`, `FunctionUnused`, `ImportUnused` — [luau-language.md](luau-language.md#the-linters-vocabulary)). Deleting an unused *parameter* changes a signature: check the callers first.
+- **No placeholders in delivered code.** `-- TODO`, `-- implement this`, an empty function body standing in for logic, a hard-coded id or sample table meant to be replaced. Either build it or say plainly that it is not built; a stub that looks finished is worse than a gap the user can see.
+- **No leftover debug output.** `print` calls added while working come out before the hand-off. Logging that the feature genuinely needs is a deliberate line with context, not a bare value ([performance.md](performance.md#measurement-never-optimize-blind)).
+- **No second version of the same thing.** The older function, the commented-out block, the variant kept "just in case" — a reader cannot tell which one is live. Version control holds the previous version already.
+
+Applies to code this pass wrote. Leftovers already in the file belong to whoever wrote them: report them, never silently sweep them up ([SKILL.md](../SKILL.md#user-authority)).
 
 ## Marking a deliberate ceiling
 

@@ -50,9 +50,30 @@ export const DEPRECATED = [
   [/(?<![.:\w])tick\s*\(/, "tick()", "os.clock() or os.time()"],
   [/:connect\s*\(/, ":connect()", ":Connect()"],
   [/[Hh]umanoid[\w.]*:LoadAnimation\s*\(/, "Humanoid:LoadAnimation()", "Animator:LoadAnimation()"],
+  [
+    /[Aa]nimationController[\w.]*:LoadAnimation\s*\(/,
+    "AnimationController:LoadAnimation()",
+    "Animator:LoadAnimation()",
+  ],
+  [/:GetAnimationClip(?:ById)?\s*\(/, "GetAnimationClip() / GetAnimationClipById()", "GetAnimationClipAsync()"],
   [/:SetPrimaryPartCFrame\s*\(/, "SetPrimaryPartCFrame()", "Model:PivotTo()"],
   [/:GetPrimaryPartCFrame\s*\(/, "GetPrimaryPartCFrame()", "Model:GetPivot()"],
   [/\.CoordinateFrame\b/, "Camera.CoordinateFrame", "Camera.CFrame"],
+  [/\.RotVelocity\b/, "BasePart.RotVelocity", "BasePart.AssemblyAngularVelocity"],
+  [/\.WorldRotation\b/, "Attachment.WorldRotation", "Attachment.WorldOrientation"],
+  [/:Preload\s*\(/, "ContentProvider:Preload()", "ContentProvider:PreloadAsync()"],
+  [/:AwardBadge\s*\(/, "BadgeService:AwardBadge()", "BadgeService:AwardBadgeAsync()"],
+  [/:UserHasBadge\s*\(/, "BadgeService:UserHasBadge()", "BadgeService:UserHasBadgeAsync()"],
+  [
+    /:FilterStringForPlayerAsync\s*\(/,
+    "Chat:FilterStringForPlayerAsync()",
+    "TextService:FilterStringAsync()",
+  ],
+  [
+    /:(?:Make|Break)Joints\s*\(/,
+    "MakeJoints() / BreakJoints()",
+    "a WeldConstraint or HingeConstraint, created and destroyed directly",
+  ],
   [
     /:GetR(?:ank|ole)InGroupAsync\s*\(/,
     "Player:GetRankInGroupAsync() / GetRoleInGroupAsync()",
@@ -62,6 +83,21 @@ export const DEPRECATED = [
     /\bBody(?:Velocity|Position|Gyro|AngularVelocity|Force|Thrust)\b/,
     "Body* mover",
     "a constraint (LinearVelocity, AlignPosition, AlignOrientation, VectorForce)",
+  ],
+];
+
+/**
+ * Calls that are current, documented, and still forbidden, each with what goes wrong. Separate
+ * from DEPRECATED because calling one of these deprecated would be false, and a checker that
+ * misstates why a line is wrong teaches the wrong lesson even when it points at the right line.
+ */
+export const HAZARDS = [
+  [
+    /:InvokeClient\s*\(/,
+    "RemoteFunction:InvokeClient()",
+    "a client that returns nothing yields the calling server thread forever, and a client that " +
+      "errors or disconnects rethrows on the server. Fire a RemoteEvent and let the client reply " +
+      "on a second one",
   ],
 ];
 
@@ -339,6 +375,15 @@ export function inspect(source, path = "") {
     for (let k = 0; k < lines.length; k++) {
       if (pattern.test(lines[k])) {
         deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is deprecated. Use ${replacement}.` });
+        break;
+      }
+    }
+  }
+
+  for (const [pattern, name, why] of HAZARDS) {
+    for (let k = 0; k < lines.length; k++) {
+      if (pattern.test(lines[k])) {
+        deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is unsafe: ${why}.` });
         break;
       }
     }
@@ -1358,6 +1403,58 @@ Players.PlayerAdded:Connect(greet)
       p.includes("Animator"),
     ),
     "LoadAnimation on an Animator is not reported",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "animationController:LoadAnimation(a)")).some((p) =>
+      p.includes("AnimationController"),
+    ),
+    "LoadAnimation on an AnimationController is caught",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "ContentProvider:Preload(assets)")).some((p) =>
+      p.includes("PreloadAsync"),
+    ),
+    "Preload is caught",
+  );
+  ok(
+    !inspect(good.replace("print(player.Name)", "ContentProvider:PreloadAsync(assets)")).some((p) =>
+      p.includes("deprecated"),
+    ),
+    "the Async name that replaces a deprecated one is not itself reported",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "part.RotVelocity = Vector3.zero")).some((p) =>
+      p.includes("AssemblyAngularVelocity"),
+    ),
+    "RotVelocity is caught",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "BadgeService:AwardBadge(id, badgeId)")).some((p) =>
+      p.includes("AwardBadgeAsync"),
+    ),
+    "AwardBadge is caught",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "part:BreakJoints()")).some((p) => p.includes("WeldConstraint")),
+    "BreakJoints is caught",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "remote:InvokeClient(player)")).some((p) =>
+      p.includes("yields the calling server thread forever"),
+    ),
+    "InvokeClient is caught",
+  );
+  ok(
+    !inspect(good.replace("print(player.Name)", "remote:InvokeClient(player)")).some((p) =>
+      p.includes("deprecated"),
+    ),
+    "a hazard is not reported as a deprecation",
+  );
+  ok(
+    !inspect(good.replace("print(player.Name)", "local n = remote:InvokeServer()")).some((p) =>
+      p.includes("is unsafe"),
+    ),
+    "InvokeServer, which is allowed, is not reported",
   );
 
   ok(

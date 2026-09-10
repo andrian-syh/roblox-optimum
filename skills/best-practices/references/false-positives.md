@@ -92,7 +92,7 @@ Cold paths are exempt entirely: a `GetChildren()` scan, a table build, or a deep
 Non-Negotiable #2 requires a teardown for everything created. These already have one:
 
 - Connections on an Instance you later `Destroy()` — destroying disconnects them.
-- `:Once()` listeners — they self-disconnect after firing.
+- `:Once()` listeners — the connection is dropped *before* the handler runs, so there is nothing left to disconnect and nothing to re-enter.
 - Connections made **on the character's own instances** — they die with the character model; only connections held elsewhere that merely *reference* the character need explicit teardown.
 - Anything added to a trove/maid/janitor or a connection bag that has a teardown path.
 - A `task.delay`/`task.spawn` whose handle is `task.cancel`ed in the owner's teardown.

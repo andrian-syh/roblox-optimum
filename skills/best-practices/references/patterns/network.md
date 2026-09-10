@@ -5,6 +5,7 @@ Everything that crosses a boundary: client to server, server to client, and serv
 ## Contents
 
 - [Remote Communication](#remote-communication)
+- [Network ownership](#network-ownership)
 - [What survives a remote call](#what-survives-a-remote-call)
 - [Cross-Server Communication](#cross-server-communication)
 - [Streaming (StreamingEnabled)](#streaming-streamingenabled)
@@ -29,7 +30,17 @@ end
 
 - A handler that type-checks and early-returns on bad input is already **complete**: the skeleton is the maximum shape, not a mandatory checklist. A harmless, idempotent action needs no rate/ownership layer, and silent rejection is correct (an error reply aids fuzzing). Don't report a lean handler as missing layers — see [false-positives.md](../false-positives.md#security--validation--a-handler-can-already-be-complete).
 - **Every client-triggerable instance is a remote in disguise.** An exploiter can fire a `ProximityPrompt`, `ClickDetector`, or `DragDetector` from anywhere, at any rate, regardless of `Enabled`, `MaxActivationDistance`, or where their character actually is. Treat the resulting server-side event exactly like a `RemoteEvent` handler: re-verify distance, state, and ownership at execution time ([cases/world-interaction.md](../cases/world-interaction.md#interactable-objects-and-prompts)).
-- **Never invoke a client from the server.** Roblox documents three ways `RemoteFunction:InvokeClient` fails, and every one of them is the server paying for the client's behaviour: an error thrown on the client is rethrown on the server, a client that disconnects mid-invocation throws, and a client that returns nothing **yields the server thread forever**. Use `RemoteEvent` plus a response event instead. Client→server `RemoteFunction` is acceptable, with a server-side timeout mindset.
+- **Never invoke a client from the server.** Roblox documents three ways `RemoteFunction:InvokeClient` fails, and every one of them is the server paying for the client's behaviour: an error thrown on the client is rethrown on the server, a client that disconnects mid-invocation throws, and a client that returns nothing **yields the server thread forever**. Use `RemoteEvent` plus a response event instead. Client→server `RemoteFunction` is acceptable, with a server-side timeout mindset. The checker reports `InvokeClient` on sight.
+- **What a `RemoteFunction` returns is not proof the client can see it.** An instance the server creates while handling `InvokeServer` is not guaranteed to exist client-side when the call returns. Roblox names this for `BasePart` and `Model` under streaming, where distant parts have not streamed in and an `Atomic` model waits on all of its own; even a `Persistent` model can lag the return. Return an id and let the client resolve it when it arrives, rather than returning the instance and indexing it immediately.
+- **`Remote event invocation discarded` in the log means nothing was listening.** The event fired into a remote with no `OnServerEvent`/`OnClientEvent` connected. Reliable remotes buffer a large number of these before the message appears, so it usually surfaces long after the real fault: a listener bound too late, bound on the wrong side, or torn down while the sender kept firing.
+
+### Binding and unbinding a handler
+
+`OnServerEvent` and `OnClientEvent` are **events**: every `Connect` adds a listener, they all run, and each returns a connection that has to be disconnected by whatever owns it ([lifecycle.md](lifecycle.md)).
+
+`OnServerInvoke` and `OnClientInvoke` are **callbacks, not events**. One per remote, assigned rather than connected. A second assignment silently replaces the first, so two modules binding the same `RemoteFunction` do not both run — the one that loaded last wins, and nothing reports it. Bind each `RemoteFunction` in exactly one place; unbind with `OnServerInvoke = nil`.
+
+Destroying the remote is the whole teardown: every connection to it goes with it, and the instance stops existing for the other side. Per-player or per-round remotes therefore need an owner that destroys them, exactly like any other created instance — otherwise they accumulate in `ReplicatedStorage` for the life of the server. Remotes created once at startup are owned by the session and are not a leak.
 
 ### Choosing a remote type
 
@@ -43,9 +54,18 @@ end
 
 **Send absolute values, never deltas.** A dropped delta is a permanent desync, and two deltas arriving swapped corrupt the state even though nothing was lost. A position, a rotation, a health value, a full timer reading — each is correct on arrival regardless of what came before. `+3 damage` is not. The same reasoning rules out anything that must happen exactly once.
 
-Its payload ceiling and the shared client rate limit are in [limits-budgets.md](../limits-budgets.md#network-payload); the ceiling is enforced by silent discard, so it is a design constraint rather than something to handle at runtime.
+Its payload ceiling and the shared client rate limit are in [limits-budgets.md](../limits-budgets.md#network-payload). The ceiling is enforced by discard rather than by an error — Studio logs the overage, a live client says nothing — so it is a design constraint rather than something to handle at runtime.
 - Namespace remotes in one folder (`ReplicatedStorage/Remotes`); create them in one server script or build step so clients can `WaitForChild` deterministically.
 - State that clients merely *display* → replicate via Attributes on the player/character instead of remotes.
+
+## Network ownership
+
+Who simulates a part. The security consequence is in [security.md](../security.md) — a client that owns an assembly can place it anywhere and can forge or suppress its `Touched` events. These are the mechanics that decide whether a `SetNetworkOwner` call does what it looks like it does:
+
+- **The server always owns anchored parts, and that cannot be changed.** `SetNetworkOwner` on one throws. Anchoring is therefore the cheapest way to take authority back for something gameplay-critical.
+- **Ownership is granted by assembly, not by part**, and a mechanism with **no anchored parts** shares one owner: setting ownership on any assembly in it sets the same owner for **every** assembly. Expecting per-part granularity there produces code that appears to work and silently governs the whole mechanism.
+- **Unanchored parts are handed to nearby clients automatically**, chosen by character proximity and client hardware. Client ownership is the default state of the world, not something a script has to opt into.
+- **Hand it back with `SetNetworkOwnershipAuto()`**, not by guessing a new owner. Pinning to the server with `SetNetworkOwner(nil)` is documented as something to do conservatively: it costs the owning client its latency-free response and shows up as jitter.
 
 ## What survives a remote call
 

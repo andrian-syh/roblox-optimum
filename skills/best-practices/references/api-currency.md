@@ -2,7 +2,7 @@
 
 The verify-first rule ([SKILL.md](../SKILL.md#environment--scale)) says: confirm a newer API exists in the target environment before relying on it, and never flag an API as nonexistent from memory. This file is the **baseline that rule reads against** — a dated list of what is already confirmed, so the agent stops re-litigating shipped APIs while still verifying the genuinely bleeding-edge.
 
-**Snapshot basis: 5 September 2026.** Sources: Luau releases through **0.737** (4 September 2026), the Luau 2025 runtime recap (19 December 2025), the Luau RFC repository, Roblox engine release notes through **737** (week of 31 August 2026, read from the weekly updates pages described in step 5 below), and the versioned API dump at `robloxapi.github.io/ref` reflecting **v0.735.0.7351131** (17 August 2026). Release notes 737 carry no API change at all — one Studio flag-override improvement and one layered-clothing fix — so the engine rows below rest on 736 and earlier. The performance figures and tooling in [performance.md](performance.md), [device-performance.md](device-performance.md), and [verification.md](verification.md) were read directly from the Creator Hub performance-optimization guides (`create.roblox.com/docs/performance-optimization`, its `design`, `identify`, `improve`, `monitor`, `scene-analysis`, `test-on-hardware`, and `microprofiler/*` pages) and the `Workspace` class reference.
+**Snapshot basis: 10 September 2026.** Sources: Luau releases through **0.737** (4 September 2026), the Luau 2025 runtime recap (19 December 2025), the Luau RFC repository, Roblox engine release notes through the week of **7 September 2026** (read from the weekly updates pages described in step 5 below), the pending-release list read the same day, and the versioned API dump at `robloxapi.github.io/ref` reflecting **v0.735.0.7351131** (17 August 2026). The two most recent weeks carry no API addition — 737 is one Studio flag-override improvement and one layered-clothing fix, and the week of 7 September is a single `GeometryService:FragmentAsync()` ordering guarantee — so the engine rows below rest on 736 and earlier. Nothing in the pending list is a deprecation. The performance figures and tooling in [performance.md](performance.md), [device-performance.md](device-performance.md), and [verification.md](verification.md) were read directly from the Creator Hub performance-optimization guides (`create.roblox.com/docs/performance-optimization`, its `design`, `identify`, `improve`, `monitor`, `scene-analysis`, `test-on-hardware`, and `microprofiler/*` pages) and the `Workspace` class reference.
 
 **Maturity tags:** **[GA]** generally available, safe as a default · **[Beta]** opt-in and may change, document as an option but never make it the default · **[Undocumented]** confirmed present in the API dump with a known version, but create.roblox.com has not caught up — usable, with no reference page to read · **[Verify]** confirm in the target place before relying on it · **[UNVERIFIED]** this skill could not confirm it; treat with suspicion.
 
@@ -83,6 +83,7 @@ Never assert existence or nonexistence from training memory alone. Name which st
 | Input Action System | **[GA]** | Mandatory under Server Authority |
 | Animation Graphs | **[GA]** July 2026 | |
 | Studio Script Sync (external editors, bidirectional) | **[GA]** — full release 17 June 2026 | Syncs only `Script`, `LocalScript`, `ModuleScript`, and `Folder`; **attributes and tags on synced scripts are ignored and can be lost**; ceilings of 10,000 scripts per top-level instance and 128 top-level instances; no debugger control from the external editor. Full behavior in [external-editors.md](external-editors.md#studio-script-sync--the-official-one) |
+| `InstanceFileSyncService` (`GetStatus`, `GetSyncedInstance`, `GetAllInstances`) with `Enum.InstanceFileSyncStatus` | **[GA]** | Queries Script Sync state from Luau. **PluginSecurity** — command bar, plugin, or MCP `execute_luau` only, never shipped code ([external-editors.md](external-editors.md#studio-script-sync--the-official-one)) |
 | Rojo `syncback` (`rojo syncback <project> --input <file.rbxl>`) | **[GA]** — Rojo 7.7.0, 1 July 2026 | The supported way to pull a place back into a project, governed by `syncbackRules`. The plugin's live Two-Way Sync setting remains experimental and is not the same feature. Same release moved `rojo serve` to websockets ([external-editors.md](external-editors.md#rojo)) |
 | Studio CLI (`--task RunScript --runScriptFile <path>`, `--outputFile`, `--quitAfterExecution`; `--openScriptPath`; `--api`/`--fullApi`/`--apiV2` JSON dumps) | **[GA]** | Officially documented under create.roblox.com/docs/studio/command-line-interface; scripts run at command-bar permission ([verification.md](verification.md#newer-verification-levers)). The API-dump flags are the strongest offline currency check |
 | `GroupService:GetRolesInGroupAsync(userId, groupId)` | **[GA]** | Deprecates `Player:GetRankInGroupAsync`/`GetRoleInGroupAsync` |
@@ -184,6 +185,9 @@ Tool names, limits, and variants are recorded in [studio-mcp.md](studio-mcp.md) 
 
 - `wait`/`spawn`/`delay`, `tick`, lowercase `:connect`/`:wait`
 - `Body*` movers, `Humanoid:LoadAnimation`, `Part.Velocity`/`RotVelocity`
+- `AnimationController:LoadAnimation` → `Animator:LoadAnimation`, `AnimationClipProvider:GetAnimationClip`/`GetAnimationClipById` → `GetAnimationClipAsync`
+- `MakeJoints`/`BreakJoints` → a `WeldConstraint` or `HingeConstraint`, `Attachment.WorldRotation` → `WorldOrientation`
+- Pre-`Async` web calls: `ContentProvider:Preload` → `PreloadAsync`, `BadgeService:AwardBadge`/`UserHasBadge` → their `Async` names, `Chat:FilterStringForPlayerAsync` → `TextService:FilterStringAsync`
 - `SetPrimaryPartCFrame`/`GetPrimaryPartCFrame`, `Camera.CoordinateFrame`
 - `Player:GetRankInGroupAsync`/`GetRoleInGroupAsync` → `GroupService:GetRolesInGroupAsync`
 - InputContext/InputAction camera replication → `Player:GetCameraState()`
@@ -192,6 +196,8 @@ Tool names, limits, and variants are recorded in [studio-mcp.md](studio-mcp.md) 
 - **`TeleportService:TeleportToPlaceInstance` / `TeleportToPrivateServer` / `TeleportPartyAsync`** (all deprecated at engine v735, August 2026) → `TeleportService:TeleportAsync` with a `TeleportOptions`. Plain `TeleportService:Teleport` is **not** deprecated
 
 Discouraged-but-functional APIs are **not** in this list; the split is in [false-positives.md](false-positives.md#deprecated-vs-discouraged--do-not-conflate-them).
+
+The full inventory is published, and it is the authority when a name is not listed above: `https://create.roblox.com/docs/reference/engine/deprecated.md` is generated from the same YAML the reference pages are built from, and gives every deprecated member with its replacement. It lists far more than this skill reports, because a name a community library also exposes cannot be matched by pattern without accusing correct code. Read it before claiming a member is current; report from it only when the name is unambiguous.
 
 ## Dates live here, and only here
 

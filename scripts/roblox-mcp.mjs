@@ -16,7 +16,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { inspect, DEPRECATED, ranAsScript } from "./roblox-optimum.mjs";
+import { inspect, DEPRECATED, HAZARDS, ranAsScript } from "./roblox-optimum.mjs";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -110,6 +110,78 @@ export const EXPLANATIONS = {
       "the track, so loading anywhere else leaves replication to a compatibility path.",
     instead: "Animator:LoadAnimation(), on the Animator inside the Humanoid.",
     read: "patterns/world.md",
+  },
+  "RemoteFunction:InvokeClient()": {
+    why:
+      "The server pays for whatever the client does. Roblox documents three outcomes: an error " +
+      "on the client is rethrown on the server, a client that disconnects mid-invocation throws, " +
+      "and a client that returns nothing yields the calling server thread forever. The last one " +
+      "has no timeout and no recovery, and an exploiter can trigger it deliberately.",
+    instead:
+      "RemoteEvent:FireClient() with the client replying on a second RemoteEvent, so a client " +
+      "that never answers costs the server nothing.",
+    read: "patterns/network.md",
+  },
+  "AnimationController:LoadAnimation()": {
+    why:
+      "Loading on the AnimationController is deprecated for the same reason it is on the " +
+      "Humanoid: the Animator owns the track and replicates it, and the controller only forwards.",
+    instead: "Animator:LoadAnimation(), on the Animator inside the AnimationController.",
+    read: "patterns/world.md",
+  },
+  "GetAnimationClip() / GetAnimationClipById()": {
+    why:
+      "Both block the thread until the clip has loaded, so a cold asset freezes the whole script " +
+      "rather than yielding it.",
+    instead: "AnimationClipProvider:GetAnimationClipAsync(), which yields while the asset loads.",
+    read: "patterns/world.md",
+  },
+  "MakeJoints() / BreakJoints()": {
+    why:
+      "Both act on surface-type joints, which the engine no longer creates for new work, so what " +
+      "they make or break depends on how the parts were authored rather than on the call.",
+    instead:
+      "a WeldConstraint or HingeConstraint, created where the joint is wanted and destroyed where " +
+      "it is not.",
+    read: "patterns/world.md",
+  },
+  "BasePart.RotVelocity": {
+    why:
+      "It is the part's original name for the property that became AssemblyAngularVelocity, and " +
+      "it reads the part rather than the assembly it belongs to.",
+    instead: "BasePart.AssemblyAngularVelocity, which is the velocity the solver actually uses.",
+    read: "style-rules.md",
+  },
+  "Attachment.WorldRotation": {
+    why: "It is the attachment's original name for the property that became WorldOrientation.",
+    instead: "Attachment.WorldOrientation, which is the same value under the current name.",
+    read: "style-rules.md",
+  },
+  "ContentProvider:Preload()": {
+    why:
+      "It blocks the thread for every asset in the list, so a slow one stalls the caller with no " +
+      "way to report which asset failed.",
+    instead: "ContentProvider:PreloadAsync(), which yields and reports each asset's status.",
+    read: "performance.md",
+  },
+  "BadgeService:AwardBadge()": {
+    why: "It is the pre-Async name for a web call, so it gives the caller no way to handle a failed award.",
+    instead: "BadgeService:AwardBadgeAsync(), wrapped in pcall like every other web call.",
+    read: "patterns/network.md",
+  },
+  "BadgeService:UserHasBadge()": {
+    why: "Same pre-Async name for a web call, with no way to tell a false answer from a failed request.",
+    instead: "BadgeService:UserHasBadgeAsync(), wrapped in pcall.",
+    read: "patterns/network.md",
+  },
+  "Chat:FilterStringForPlayerAsync()": {
+    why:
+      "It filters through the legacy Chat service, which is superseded, and it filters for one " +
+      "recipient at a time.",
+    instead:
+      "TextService:FilterStringAsync(), then the result object's per-recipient method for the " +
+      "audience the text is going to.",
+    read: "security.md",
   },
   "SetPrimaryPartCFrame()": {
     why:
@@ -240,7 +312,7 @@ export function keyFor(finding) {
  * checker and reported for months with nothing behind it.
  */
 export function uncovered() {
-  return DEPRECATED.map(([, name]) => name).filter((name) => keyFor(name) === null);
+  return [...DEPRECATED, ...HAZARDS].map(([, name]) => name).filter((name) => keyFor(name) === null);
 }
 
 /**

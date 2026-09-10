@@ -86,11 +86,17 @@ than restating them. Read the one that matches the finding.
 - [style-rules.md](../best-practices/references/style-rules.md) — deprecated APIs, naming, module hygiene, the misremembered-API table
 - [section-layout.md](../best-practices/references/section-layout.md) — layout and Documentation Comment rules, for Advisory findings only
 - [limits-budgets.md](../best-practices/references/limits-budgets.md) — platform ceilings; grep the row, do not read it whole
-- [api-currency.md](../best-practices/references/api-currency.md) — before calling any API missing, wrong, or new
+- [api-currency.md](../best-practices/references/api-currency.md) — before calling any API missing, wrong, or new, and for the full deprecation inventory this skill reports only part of
 - [workflow.md](../best-practices/references/workflow.md#reviewrefactor-mode) — the severity model and confidence gate in full, which the card above summarises
 
 **Never flag a member as nonexistent because a documentation page omits it.** The docs site
 lags the engine. Undocumented is not unshipped.
+
+**Never call a member current from memory either.** The engine publishes every deprecated
+member with its replacement, and the list is far longer than the one this skill carries: read
+it before clearing a name that looks dated, and cite it when reporting one
+([api-currency.md](../best-practices/references/api-currency.md#deprecated-report-as-findings)
+holds the URL and the rule for which names are safe to report).
 
 
 ## Reporting

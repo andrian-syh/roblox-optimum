@@ -5,11 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-10
+
+### Fixed
+
+- **`UnreliableRemoteEvent` payload limit documentation**: Corrected [limits-budgets.md](skills/best-practices/references/limits-budgets.md) regarding oversized `UnreliableRemoteEvent` payloads, clarifying that Studio logs how far over the limit a payload went while a live client logs nothing (addressing payloads that grow after release and drop silently in production).
+
+### Added
+
+- **Code hand-off hygiene standards**: Added rules in [minimal-code.md](skills/best-practices/references/minimal-code.md#what-the-pass-leaves-behind) governing the state of files at hand-off to prevent machine-written leftovers (such as unused bindings, placeholder stubs, `-- TODO` comments presented as finished work, debug `print` calls, and duplicate backups), while leaving existing file leftovers untouched and reporting them instead.
+- **Script Sync verification guidelines**: Documented verification procedures in [external-editors.md](skills/best-practices/references/external-editors.md#studio-script-sync--the-official-one) using `InstanceFileSyncService:GetStatus()` and the `InstanceFileSyncStatus` enum to detect stopped sync states that appear healthy from the filesystem, noting the **PluginSecurity** constraint restricting usage to command bar, plugins, or MCP tools rather than shipped code.
+- **Event teardown semantics documentation**: Documented teardown distinctions in [luau-language.md](skills/best-practices/references/luau-language.md#deferred-engine-events), noting that `Disconnect()` drops queued handler invocations while destroying an instance still executes queued events against dismantled state, alongside documentation for the `SignalBehavior.AncestryDeferred` mode.
+- **Bindable execution edge cases**: Documented hanging and error-handling edge cases in [edge-cases.md](skills/best-practices/references/edge-cases.md), including `BindableFunction:Invoke` hanging indefinitely without error or timeout when no `OnInvoke` handler is set, and `BindableEvent:Fire` returning before listeners finish across independent threads without propagating errors.
+- **`RemoteFunction:InvokeClient` hazard detection**: Added deterministic hazard checks in `roblox-optimum --check` via a new `HAZARDS` table to flag `RemoteFunction:InvokeClient` (preventing indefinite server thread hangs when a client fails to return), and updated selftests to enforce `explain_finding` documentation coverage for all hazards.
+- **Network ownership mechanics**: Documented network ownership rules in [patterns/network.md](skills/best-practices/references/patterns/network.md#network-ownership) covering `SetNetworkOwner` constraints, server authority on anchored parts, assembly ownership distribution, automatic client assignment for unanchored parts, and `SetNetworkOwnershipAuto()`, with cross-references from `security.md`.
+- **Remote communication edge cases**: Documented replication edge cases where a `RemoteFunction` return does not guarantee client visibility of newly created server instances, and detailed causes of delayed `Remote event invocation discarded` warnings from unhandled buffered events.
+- **Remote handler binding and teardown**: Documented differences in [patterns/network.md](skills/best-practices/references/patterns/network.md) between accumulating event connections (`OnServerEvent`/`OnClientEvent`) and single-assignment callbacks (`OnServerInvoke`/`OnClientInvoke`), along with lifecycle teardown requirements for temporary remotes.
+- **Network profiling caveats**: Documented network measurement caveats in [performance.md](skills/best-practices/references/performance.md#measurement-never-optimize-blind), clarifying that Developer Console Network stats track web calls rather than remotes, and that MicroProfiler network metrics are available only in saved frame dumps rather than live overlays.
+- **Expanded deprecated API detection**: Added checks, replacements, and `explain_finding` documentation for `AnimationController:LoadAnimation`, `AnimationClipProvider:GetAnimationClip`/`GetAnimationClipById`, `MakeJoints`/`BreakJoints`, `BasePart.RotVelocity`, `Attachment.WorldRotation`, `ContentProvider:Preload`, `BadgeService:AwardBadge`, `BadgeService:UserHasBadge`, and `Chat:FilterStringForPlayerAsync` based on published engine deprecation data.
+- **Engine deprecation inventory reference**: Designated `create.roblox.com/docs/reference/engine/deprecated.md` in [api-currency.md](skills/best-practices/references/api-currency.md) as the authority for unflagged deprecated APIs, documented procedures for reading the pending-release list, and updated `code-review` rules against unverified API assumptions.
+
 ## [1.5.1] - 2026-09-07
 
 ### Fixed
 
-- **Silent exit when the package is reached through a symlink**: Every command printed nothing and exited 0 when `roblox-optimum` or `roblox-mcp` was launched from a symlinked copy, as `npm link`, pnpm, and running `npx roblox-optimum` from inside the package's own directory all produce. The entry-point guard compared `import.meta.url`, which names the link target, against `process.argv[1]`, which names the link, so the CLI decided it had been imported rather than run. Both sides are now resolved to a real path first, in `roblox-optimum.mjs`, `roblox-mcp.mjs`, and `sync-rules.mjs`.
+- **Package symlink execution resolution**: Fixed silent exits (exiting 0 with no output) when `roblox-optimum` or `roblox-mcp` is executed from symlinked locations (such as `npm link`, pnpm, or running inside the package directory) by resolving both `import.meta.url` and `process.argv[1]` to real paths across `roblox-optimum.mjs`, `roblox-mcp.mjs`, and `sync-rules.mjs`.
 
 ## [1.5.0] - 2026-09-07
 
@@ -17,19 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Global installation**: Added `roblox-optimum install --global`, which writes the skills and the `roblox-auditor` agent into each agent's home directory (`~/.claude`, `~/.cursor`, `~/.copilot`, `~/.gemini/config`, `~/.config/opencode`) so they load in every project without a per-repository install. Only agents already present on the machine are written to unless `--all` is passed.
 - **Antigravity Studio MCP wrapper**: Added `scripts/studio-mcp-antigravity.mjs`, a stdio proxy that keeps Roblox's own Studio MCP server usable from Antigravity. It answers the non-standard `server/discover` request that Antigravity opens a session with, which StudioMCP rejects with `expect initialized request` before closing the pipe, and launches `StudioMCP.exe` directly rather than through the `mcp.bat` Roblox ships, whose `else` sits on its own line and is rejected by `cmd`. The executable is located by install date, so a Studio update does not stale the path. Exposed as the `roblox-studio-mcp-antigravity` binary.
-- **Installation report**: Added `roblox-optimum doctor`, which reports every copy this tool has written, in the project and on the machine, marking each as current, older than the release in hand, or owned by someone else. Judged by the stamp inside the file rather than by its name. `--project` and `--global` narrow the scope. Reads only.
-- **Uninstall**: Added `roblox-optimum uninstall`, which removes what this tool wrote, by component, in the project or with `--global` on the machine. A file carrying no stamp or marker of this tool's is reported and left in place, and host directories are never removed, only the copies inside them. `--dry-run` lists without removing.
+- **Installation reporting**: Added `roblox-optimum doctor`, which reports every copy this tool has written, in the project and on the machine, marking each as current, older than the release in hand, or owned by someone else. Judged by the stamp inside the file rather than by its name. `--project` and `--global` narrow the scope. Reads only.
+- **Uninstallation command**: Added `roblox-optimum uninstall`, which removes what this tool wrote, by component, in the project or with `--global` on the machine. A file carrying no stamp or marker of this tool's is reported and left in place, and host directories are never removed, only the copies inside them. `--dry-run` lists without removing.
 - **Version consistency check**: Added `scripts/check-versions.mjs`, which proves the seven manifests carrying a version agree with `package.json` and that no shipped configuration pins a release. `--fix` writes the declared version across them in place, without reformatting the rest of the file.
 
 ### Changed
 
-- **Test chain**: `npm test` now runs `check-versions` and the structural audit before the selftests, so a manifest left behind at the previous version or a broken link fails the build rather than shipping.
-- **Report paths**: Installer reports now name a written file relative to the working directory while it stays inside one, and relative to `~` once it does not, instead of printing an absolute path or a chain of `..` segments.
-- **Copilot agent directory**: `copyCopilotAgents` now takes the directory to write into rather than assuming the project's `.github/agents/`, so a global install reaches `~/.copilot/agents/` where the Copilot CLI reads it. The project path is unchanged.
+- **Test chain pipeline**: Updated `npm test` to run `check-versions` and the structural audit before selftests, preventing builds from shipping with outdated manifest versions or broken links.
+- **Installer path formatting**: Updated installer reports to display written file paths relative to the working directory or `~` instead of printing absolute paths or redundant parent directory segments.
+- **Copilot agent installation directory**: Updated `copyCopilotAgents` to accept explicit target directories for global installations (`~/.copilot/agents/`) while preserving existing project paths.
 
 ### Fixed
 
-- **Version pinning in shipped MCP configuration**: `mcp.json` and `mcp_config.json` pinned `roblox-optimum@<version>`, which froze anyone who copied them on the release that shipped them and had to be bumped by hand every release. Both now name the package without a version, matching every example in `INSTALL.md`. The structural audit enforced the pin and now enforces its absence.
+- **MCP configuration version pinning**: Removed hardcoded version pinning (`roblox-optimum@<version>`) from shipped `mcp.json` and `mcp_config.json` configurations to prevent downstream setups from freezing on specific releases, aligning with `INSTALL.md` examples and enforcing unpinned versions via structural audit.
 
 ## [1.4.0] - 2026-09-06
 
@@ -125,6 +145,9 @@ Initial public release.
 - **Configurable supervision levels**: Supported `ask`, `bal`, and `go` operational modes per request or as persistent defaults.
 - **Multi-agent installation tool**: Automated installer (`npx roblox-optimum install`) with support for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.6.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.1.0...v1.2.0

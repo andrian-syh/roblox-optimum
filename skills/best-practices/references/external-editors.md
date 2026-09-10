@@ -76,6 +76,10 @@ Other limits worth stating before a user commits to it:
 - **Team Create:** indicators show who else is syncing, and duplicate names auto-increment. Never let two people sync *and* edit the same script; each will overwrite the other.
 - Conflicts open a resolution dialog itemizing what would be added, modified, or deleted on each side. Read it; do not click through it for the user.
 
+**Ask the sync what it thinks, rather than inferring it.** `InstanceFileSyncService:GetStatus(instance)` returns an `InstanceFileSyncStatus`: `SyncedAsRoot`, `SyncedAsDescendant`, `NotSynced`, `Errored` (this instance is a sync root that stopped), or `AncestorErrored` (its root stopped, so it is no longer syncing either). `GetSyncedInstance(filePath)` maps the other direction, and `GetAllInstances()` lists everything tracked. The two error states are the ones worth checking, because a stopped sync looks exactly like a working one from the file side — which is the whole reason for the rule above about never assuming a write reached the place.
+
+These carry **PluginSecurity**: they run from the command bar, a plugin, or an MCP `execute_luau` call, and they raise from a delivered `Script` or `LocalScript`. Use them to verify, never as a line of shipped code.
+
 For a full IDE experience the official answer is Script Sync plus the **Luau LSP** VS Code extension and its **Studio companion plugin** — not Rojo. That plugin supplies DataModel information for instances outside any build and exposes the endpoint the language server uses to map Script Sync's files.
 
 ## Rojo
