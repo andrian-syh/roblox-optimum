@@ -14,26 +14,24 @@ Roblox and Luau standards for AI agents, paired with an instant static checker.
 
 </div>
 
-roblox-optimum helps AI coding assistants write clean, secure, and reliable Roblox Luau. It combines practical engineering standards with a local static checker that catches deprecated APIs and structural issues in milliseconds.
+Holds AI coding assistants to professional Roblox Luau, and checks the result in milliseconds.
 
-## How it works
+Two parts:
 
-The project combines two complementary tools:
-
-* **The Standards**: A unified set of best practices covering server authority, memory leak prevention, lifecycle management, and consistent file layout. Supported across Claude Code, Cursor, Windsurf, GitHub Copilot, Antigravity, and other popular agent environments.
-* **The Checker**: A standalone CLI tool and MCP server available via `roblox-optimum` on npm. It runs locally with zero runtime dependencies, delivering instant feedback in pre-commit hooks, CI pipelines, or directly within agent workflows.
+* **The Standards**: server authority, memory leaks, lifecycle, and file layout. Read by Claude Code, Cursor, Windsurf, GitHub Copilot, Antigravity, Kiro, OpenCode, and others.
+* **The Checker**: a CLI and MCP server on npm, zero runtime dependencies, for pre-commit hooks, CI, or an agent hook.
 
 ## Quick Start
 
-Set up standards and git hooks across your project with a single command:
+In your project root:
 
 ```bash
 npx roblox-optimum install
 ```
 
-This detects installed AI agents in your repository, sets up matching rule configurations, and installs a pre-commit hook that prevents deprecated APIs from entering your codebase. Existing custom files and configurations remain untouched.
+Detects the agents your repository uses, writes their rule files, and installs a pre-commit hook. Files you wrote yourself are never overwritten.
 
-Need specific parts? Install them individually:
+Or install parts individually:
 
 ```bash
 npx roblox-optimum install rules     # AGENTS.md and agent rule files
@@ -44,37 +42,28 @@ npx roblox-optimum install hook      # Git pre-commit hook
 
 Add `--all` to generate configuration files for all supported agents at once.
 
-Working across several projects? Install the skills once, into every agent on the machine:
+Across every project on the machine:
 
 ```bash
 npx roblox-optimum install --global
 ```
 
-This writes the skills and the `roblox-auditor` agent into each agent's own home directory, so they load in every project without a per-repository install. Only agents already present on the machine are written to. Rules and the pre-commit hook stay with the project, since both are scoped to one repository.
+Each agent is installed the best way it supports: Cursor and Antigravity take a plugin, which carries everything in one directory; Copilot CLI, OpenCode, and Kiro take separate copies plus an MCP entry. A host already holding the plugin is skipped, and a plugin directory of your own is left for `git pull`.
+
+Only agents already on the machine are written to. Rules and the pre-commit hook stay with the project.
 
 ### Checking and Removing an Installation
 
-See what is installed, where, and how old it is:
-
 ```bash
-npx roblox-optimum doctor
-```
-
-This reports the project and the machine together, marking each copy as current, older than the release in hand, or written by someone else. It reads only.
-
-Remove what the tool wrote:
-
-```bash
+npx roblox-optimum doctor                # what is installed, where, how old
 npx roblox-optimum uninstall             # this project
 npx roblox-optimum uninstall --global    # this machine
 npx roblox-optimum uninstall --dry-run   # list without removing
 ```
 
-Files the tool did not write are reported and left in place.
+`doctor` reads only. `uninstall` removes what this tool wrote, including plugin directories and its own MCP entries; anything else is reported and left in place.
 
 ### Agent Marketplace Installation
-
-If your agent supports plugin marketplaces, install directly using the commands below:
 
 ```bash
 # Claude Code
@@ -93,11 +82,9 @@ copilot plugin install roblox-optimum@andrian-syh
 qwen extensions install https://github.com/andrian-syh/roblox-optimum
 ```
 
-For Cursor, Antigravity, and Kiro, check out [INSTALL.md](INSTALL.md) for direct setup instructions.
+For Cursor, Antigravity, and Kiro, see [INSTALL.md](INSTALL.md).
 
 ### Running the Checker Manually
-
-Run static checks on any Luau files without installing anything permanently:
 
 ```bash
 npx roblox-optimum --check src/**/*.luau
@@ -105,7 +92,7 @@ npx roblox-optimum --check src/**/*.luau
 
 ## Roblox Studio Integration (MCP)
 
-Building directly in Roblox Studio without syncing local disk files? roblox-optimum includes a Model Context Protocol (MCP) server that pairs seamlessly with Roblox's official Studio MCP server.
+For building in Studio without syncing to disk, roblox-optimum ships an MCP server that runs alongside Roblox's official Studio MCP server.
 
 | Tool | Purpose |
 |---|---|
@@ -113,13 +100,11 @@ Building directly in Roblox Studio without syncing local disk files? roblox-opti
 | `explain_finding` | Explains why a rule exists and shows how to update the code. |
 | `get_standards` | Provides the complete standards card directly to the agent. |
 
-In this workflow, your agent reads scripts with Studio MCP (`script_read`), validates syntax with `check_luau`, and applies clean updates back to Studio with `multi_edit`.
+The agent reads scripts with Studio MCP (`script_read`), validates them with `check_luau`, and writes back with `multi_edit`.
 
-Installing the plugin on Claude Code, Cursor, Kiro, or Antigravity automatically registers the MCP server alongside your existing Studio connections.
+Installing the plugin on Claude Code, Cursor, Kiro, or Antigravity registers the MCP server for you.
 
 ## Included Skills
-
-Four specialized skills provide focused guidance throughout the development lifecycle:
 
 | Skill | Focus Area |
 |---|---|
@@ -128,15 +113,13 @@ Four specialized skills provide focused guidance throughout the development life
 | `diagnose` | Root-cause analysis for runtime bugs before modifying code. |
 | `studio-ops` | Working with Studio MCP, sync tools (Rojo, Argon), and live verification. |
 
-In Claude Code, invoke skills directly like `/roblox-optimum:best-practices`. In other editors, agents read them automatically as structured project instructions.
+In Claude Code, invoke one directly: `/roblox-optimum:best-practices`. Other editors pick them by description.
 
 ## Dedicated Auditor Agent
 
-`roblox-auditor` is a read-only subagent designed for comprehensive project evaluations. It audits large repositories in a separate context without cluttering your main conversation, scoring your project across security, lifecycle safety, performance, and replication.
+`roblox-auditor` is a read-only subagent. It audits a whole repository in its own context and returns a score across security, lifecycle safety, performance, and replication, instead of filling your conversation with files.
 
 ## Supervision Settings
-
-Control how autonomously agents make decisions during complex tasks:
 
 | Level | Behavior |
 |---|---|
@@ -158,8 +141,6 @@ Or configure a persistent preference:
 
 ## Static Checker Overview
 
-The checker provides immediate, actionable feedback when deprecated patterns or unordered sections appear:
-
 ```text
 $ npx roblox-optimum --check CoinService.luau
 Roblox standards check failed for CoinService.luau:
@@ -168,15 +149,15 @@ Roblox standards check failed for CoinService.luau:
   - Line 8: Humanoid:LoadAnimation() is deprecated. Use Animator:LoadAnimation().
 ```
 
-Key validation features:
+What it does and does not flag:
 
-* Ignores string literals and comments to prevent false positives.
-* Automatically skips third-party packages in `Packages/`, `DevPackages/`, and `node_modules/`.
-* Evaluates pure `.lua` files only when they contain recognized Roblox APIs.
-* Enforces standard section ordering (`VARIABLES` > `FUNCTIONS` > `INITIALIZATION`) on files using those conventions.
-* Catches a `while true do` that can neither yield nor exit, which freezes the thread that reaches it.
-* Reads `.server.luau` and `.client.luau` as the statement of intent they are, and reports members that fail on that side: `LocalPlayer` and `UserInputService` on the server, `DataStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` on the client.
-* Can be temporarily paused across all environments by setting `ROBLOX_OPTIMUM=off`.
+* Ignores string literals and comments, so a rule named in prose is not a finding.
+* Skips `Packages/`, `DevPackages/`, and `node_modules/`.
+* Reads a plain `.lua` file only when it contains Roblox APIs.
+* Enforces `VARIABLES` > `FUNCTIONS` > `INITIALIZATION` ordering, on files that use those sections.
+* Catches a `while true do` that can neither yield nor exit, which freezes its thread.
+* Reads `.server.luau` and `.client.luau` as the declaration they are, and reports wrong-side members: `LocalPlayer` and `UserInputService` on the server, `DataStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` on the client.
+* Pauses everywhere with `ROBLOX_OPTIMUM=off`.
 
 ## What the Standards Cover
 

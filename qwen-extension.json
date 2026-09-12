@@ -1,6 +1,14 @@
 {
   "name": "roblox-optimum",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Professional Roblox and Luau standards for AI agents.",
-  "contextFileName": "QWEN.md"
+  "contextFileName": "QWEN.md",
+  "skills": "skills",
+  "agents": "agents",
+  "mcpServers": {
+    "roblox-optimum": {
+      "command": "npx",
+      "args": ["-y", "-p", "roblox-optimum", "roblox-mcp"]
+    }
+  }
 }

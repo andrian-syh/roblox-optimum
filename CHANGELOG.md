@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-09-12
+
+### Added
+
+- **Route-aware `install --global`**: One command now installs each agent on the machine the best way that agent supports. Cursor and Antigravity take a plugin, laid down from this package with the manifest, skills, subagent, rules, MCP file, scripts, and the host's own `hooks.json` shape; every other host takes separate copies. Nothing is installed twice: a host already holding the plugin is skipped, Cursor is skipped whenever Claude Code holds it, and a plugin directory under git is left for `git pull`.
+- **Seven more hosts reached**: `install --global` now writes into Kiro, Qoder, Cline, Qwen Code, Windsurf, Copilot CLI, and Codex — skills for all seven, the subagent for Kiro, Qoder, and Copilot, and an MCP entry for every host that keeps one in a file. A project install adds Kiro's `PostFileSave` and `PostFileCreate` hooks, and `.kiro/skills/` joins the project skill locations.
+- **MCP registration during install**: The server is merged into each host's own configuration, keeping every other server and backing the file up once. A file that will not parse is reported rather than rewritten. Antigravity is included because it validates a plugin's bundled `mcp_config.json` without reliably surfacing the server from it.
+- **Hook files per host**: Cursor takes an `afterFileEdit` hook and Antigravity a `PostToolUse` hook matching its write tools. The two schemas conflict, so neither can be a file in this repository; each is written at install time. `agy plugin validate` now reports `hooks: 1 processed` where it reported them skipped.
+- **Hook payloads and report shapes**: `targetsFromPayload` reads the path from four more payload shapes, including tool arguments sent as a JSON string, across the keys hosts name a written file under — and only those keys, so no other value is guessed at. `--hook copilot` answers on stdout as `additionalContext` and `--hook kiro` prints the report and exits 0; the default shape is unchanged.
+- **Subagent front matter per host**: `roblox-auditor` is rewritten for the host that reads it — `mode` and `permission` for OpenCode, `tools: ["read"]` for Kiro, the two documented keys for Copilot — and retitled like every other standalone copy, so it names `roblox-code-review` rather than a plugin namespace that is not beside it. Qoder needs no rewriting; Codex and Qwen do not read a Markdown subagent at all.
+- **Plugin awareness in `doctor`**: The report lists this plugin wherever a host installed it, names the live copy with a count of older ones cached beside it, says which copies this tool wrote, and warns when a host reads both a plugin and a loose copy of the same skills, or when Cursor is reading the Claude Code plugin alongside its own.
+- **Uninstall reaches the plugin route**: `uninstall --global` with no component named removes the plugin directories this tool laid down and the `roblox-optimum` entry it added to each MCP configuration, keeping every other server. A directory is removed only when it carries this tool's stamp file, and an MCP entry only while it still matches what this tool writes.
+- **Shipping guard for plugin installs**: `check-versions` fails the build when `package.json` omits a file the plugin route lays down, so a plugin cannot ship missing its rules, a manifest, or the scripts.
+
+### Changed
+
+- **Agent front matter dispatch**: `copyCopilotAgents` became `copyAgents`, driven by a `form` on each host rather than a name checked in three places, with `splitFront` shared between the per-host translations.
+- **Qwen extension manifest**: `qwen-extension.json` now declares `skills`, `agents`, and `mcpServers`, so one `qwen extensions install` carries all four components instead of the context file alone.
+- **Installation guide**: [INSTALL.md](INSTALL.md) documents every supported host from its own documentation, including Codex, Cline, Windsurf, Qoder, and Qwen Code, which previously appeared only as a rule-file path.
+
 ## [1.6.0] - 2026-09-10
 
 ### Fixed
@@ -145,6 +165,7 @@ Initial public release.
 - **Configurable supervision levels**: Supported `ask`, `bal`, and `go` operational modes per request or as persistent defaults.
 - **Multi-agent installation tool**: Automated installer (`npx roblox-optimum install`) with support for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.7.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.4.0...v1.5.0

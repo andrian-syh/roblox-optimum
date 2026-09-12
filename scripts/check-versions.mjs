@@ -100,6 +100,32 @@ export function pinned(root = ROOT) {
     })
     .map((full) => relative(root, full).split("\\").join("/"));
 }
+
+/**
+ * What the published package must carry for `install --global` to lay a plugin down from it.
+ * A plugin is copied out of this package rather than cloned, so anything missing here is a
+ * component the installed plugin would silently lack.
+ */
+const PLUGIN_FILES = [
+  "skills/",
+  "agents/",
+  "rules/",
+  "AGENTS.md",
+  "plugin.json",
+  ".cursor-plugin/",
+  "mcp.json",
+  "mcp_config.json",
+  "scripts/roblox-optimum.mjs",
+  "scripts/roblox-mcp.mjs",
+  "scripts/studio-mcp-antigravity.mjs",
+];
+
+/** The plugin files package.json does not ship, which install would then fail to lay down. */
+export function unshipped(root = ROOT) {
+  const shipped = new Set(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).files ?? []);
+  return PLUGIN_FILES.filter((file) => !shipped.has(file));
+}
+
 /**
  * Writes the declared version into every manifest that disagrees with it, in place. Reading a
  * file as JSON and writing it back reformats the rest of it, turning a bump into a diff nobody
@@ -130,6 +156,7 @@ function main() {
   const version = declaredVersion();
   const reports = drifted(version);
   const pins = pinned();
+  const missing = unshipped();
 
   if (process.argv.includes("--fix") && reports.length > 0) {
     process.stdout.write(`check-versions: writing ${version} into ${reports.length} place(s):\n`);
@@ -137,9 +164,17 @@ function main() {
     return main();
   }
 
-  if (reports.length === 0 && pins.length === 0) {
+  if (reports.length === 0 && pins.length === 0 && missing.length === 0) {
     process.stdout.write(`check-versions: ${MANIFESTS.length} manifests all at ${version}\n`);
     return 0;
+  }
+
+  if (missing.length > 0) {
+    process.stderr.write(
+      `\ncheck-versions: the published package omits what a plugin install lays down:\n` +
+        missing.map((file) => `  ${file}\n`).join("") +
+        `Add them to the files list in package.json.\n`,
+    );
   }
 
   if (reports.length > 0) {
