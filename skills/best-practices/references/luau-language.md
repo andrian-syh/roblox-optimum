@@ -136,6 +136,17 @@ Confirmed available per [api-currency.md](api-currency.md) — use them, and don
 - **Immediately invoked lambdas are now inlined** — the `(function() ... end)()` idiom no longer carries a call-overhead penalty, so use it freely where it improves scoping.
 - **Refinements survive loops** — a narrowed type stays narrowed across loop iterations, removing a common source of spurious "possibly nil" errors.
 - Improved inference for function arguments passed as table literals, and a `math.round` fix for negative zero.
+- **Generic function bodies are checked strictly now, and this breaks code that used to pass.** Analysis was previously too permissive inside the body of a generic function, so a body could use a generic parameter in ways the signature never promised. The canonical case:
+
+  ```lua
+  --!strict
+  local function call<T>(f: (T) -> T)
+      f(nil)  -- now an error: nil is not of type T
+  end
+  ```
+
+  `T` is chosen by the caller, so the body cannot assume it admits `nil`. The fix is to say what the body actually needs — `f: (T?) -> T` if `nil` is legitimate, or a non-generic signature if the function only ever handles one type. **This is a corrected false negative, not a regression:** the old behavior let unsound code through. A place that upgrades its engine can see fresh errors in untouched scripts for this reason ([false-positives.md](false-positives.md)).
+- **Deprecation warnings now fire through unions and intersections.** A deprecated member reached on a type like `A | B` or `A & B` used to pass the linter silently. Expect previously quiet scripts to start reporting real deprecations.
 
 Not applicable to Studio work, despite appearing in Luau release notes: the embedder **C API** additions (`lua_memorydump`, `lua_callhook`, and similar) and **double-precision vector** builds (a VM build-time option). Do not recommend these for a Roblox project. Require-by-string is the partial exception: string requires using the `@rbx` alias exist in Studio for experiences opted into the Input Action System path — see [api-currency.md](api-currency.md#luau-language-and-libraries) — while ordinary requires still resolve through Instances.
 

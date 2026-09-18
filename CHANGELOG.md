@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-09-18
+
+### Fixed
+
+- **Three engine facts the skill stated wrongly**: `PlayerControlState` was removed at engine v738 and replaced by `ControlState` plus `StateSchema`; the skill still told the agent to design around the old name. `GuiService:GetUIScaleMultiplier` was removed at v738 while three pages — including the regression set that must pass a review clean — instructed the agent never to flag it. `GuiObject.InputSink` stopped serializing at v738 when `GuiObject.Sink` appeared beside it, so the property is mid-rename rather than settled. Each correction reaches every page that repeated the claim, not just the row that held it.
+- **A method error worth more than the fact it produced**: a previous snapshot sized engine version 737 from a *weekly* release-notes page, which lists only what is already live, and recorded the version as two items. The versioned page carries 22. The failure is now written down beside the corrected numbers, because the reasoning repeats more easily than the fact.
+
+### Added
+
+- **The restructured release-notes model**: Roblox split release notes into versioned, weekly, and pending pages in September 2026, and they answer different questions — introduction is not availability, a change belongs to its earliest introduction version, and leaving the pending list does not mean going live. The verification toolbox now names which page settles which question, and how to read each: weekly pages serve `.md`, while versioned and pending pages serve their entries only as JSON inside `__NEXT_DATA__`.
+- **Engine surface through v739**: `RunService:BindToAnimation`, `WorldRoot:Simulate`/`AutoSimulate`/`SimulationRate`, `Workspace.StreamingAdaptiveRadius`, `QueueService` with `StandardQueue`, `Player.PauseTeleports`, and the `AnimatedImage` family — each carrying what is confirmed, what is not, and the probe that would settle it. The queue entry says plainly not to migrate a working MemoryStore queue to it.
+- **Deprecations the published index has not caught up to**: `GuiObject:TweenPosition`, `:TweenSize`, `:TweenSizeAndPosition`, and `GuiObject.Transparency` are tagged deprecated in the API dump at v738 but absent from `deprecated.md`. They are reportable, and the finding is told to say where the tag came from. Recorded alongside them: `BasePart.siz`, `Part.shap`, `AssetService:PromptCreateAssetAsync`, and `Enum.CollisionFidelity.Scalable` are gone outright.
+- **Luau performance as an authoring lever**: freezing a metatable that never changes now makes metamethod lookup substantially cheaper, which pays off precisely where metatable OOP is hottest. Dynamic-key table access got faster in both directions, and a non-numeric key no longer discards a pre-allocated array part. All still pending at this snapshot, and all framed as a reason to freeze class tables rather than to restructure working code.
+- **Three Server Authority behaviors that change what to write**: `RunService:SetPredictionMode()` is a silent no-op on the server, so the `IsClient()` guard people added against a spurious warning is now noise; `PredictionMode = Off` no longer drifts inside the local simulation region; and destroying or reparenting an `InputContext` no longer kills client input for the session.
+- **A new false positive, named before it is met**: Luau tightened checking inside generic function bodies, so untouched scripts can fail `--!strict` after an engine update. The guardrail says to fix the signature rather than report the author, and warns that deprecation warnings now fire through unions and intersections, lighting up real deprecations that were always there.
+
 ## [1.7.0] - 2026-09-12
 
 ### Added

@@ -206,6 +206,7 @@ Full comparison of both paths: [server-authority.md](server-authority.md).
 - Do not add or demand `--!strict` — it is opt-in per [SKILL.md](../SKILL.md#language--style-rules); requiring it is a user decision, and forcing it can surface false type errors against loosely-typed engine APIs.
 - **A quiet `--!nonstrict` file is not a gap.** The new solver's nonstrict mode reports only *definite* runtime errors by design; silence means it found none, not that type checking is missing. Likewise `--!nocheck` is a valid project choice, not a safety violation.
 - Never flag `pairs`/`ipairs`, nor `Heartbeat` vs `PostSimulation` naming — both forms are valid.
+- **A new strict-mode error inside a generic function body is the analyzer catching up, not the code rotting.** Luau tightened checking of generic function bodies, so a body that uses a type parameter in a way the signature never promised — `f(nil)` where the parameter is `(T) -> T` — now errors where it once passed ([luau-language.md](luau-language.md#compiler-and-analysis-changes-worth-knowing)). When a user reports that untouched scripts started failing after an engine update, **do not report the error as a defect the author introduced, and do not suppress it with a cast.** Name the unsound assumption and fix the signature. The same update made deprecation warnings fire through union and intersection types, so a previously quiet file can light up with real deprecations that were always there.
 
 ### Deprecated vs. discouraged — do not conflate them
 
@@ -218,6 +219,9 @@ Only the **deprecated** column is a Correctness (or Blocker) finding. The **disc
 | `Humanoid:LoadAnimation`, `Part.Velocity`/`RotVelocity` | `RemoteFunction` client→server (fine with a timeout mindset) |
 | `SetPrimaryPartCFrame`/`GetPrimaryPartCFrame`, `Camera.CoordinateFrame` | `pairs`/`ipairs` (never a finding) |
 | `Player:GetRankInGroupAsync`/`GetRoleInGroupAsync` → `GroupService:GetRolesInGroupAsync` | |
+| `GuiObject:TweenPosition`/`TweenSize`/`TweenSizeAndPosition` → `TweenService:Create`, `GuiObject.Transparency` → `BackgroundTransparency`/`TextTransparency` | |
+
+The `GuiObject` row carries a caveat worth stating in the finding itself: those four are tagged deprecated in the **API dump** but are not yet in the published deprecated index ([api-currency.md](api-currency.md#deprecated-report-as-findings)). Report them, and say the tag comes from the dump — an author who checks the index and finds nothing is not wrong, only reading the slower source.
 
 ### Style / layout — propose, never report
 
@@ -364,8 +368,8 @@ GuiService:GetPropertyChangedSignal("PreferredTextSize"):Connect(applyScale)
 -- Shipped but undocumented: present in the API dump, absent from create.roblox.com.
 -- Not a fabrication, not a finding. Confirm against the dump before ever calling a
 -- member nonexistent -- the docs site trails the engine by weeks.
-local multiplier = GuiService:GetUIScaleMultiplier()
 shadow.Inset = true
+shadow.ShowBehindParent = false
 ```
 
 ## Review mode: what happens to a finding once it is real
