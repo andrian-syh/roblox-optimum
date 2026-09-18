@@ -18,7 +18,7 @@ import {
   realpathSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** The installed package, so `install` can read the standards it ships with. */
@@ -1798,6 +1798,14 @@ function runGlobalInstall(parts, all, force, report) {
 }
 
 /**
+ * Keeps a skill's trigger queries out of an install. The published package already excludes them,
+ * so this covers the other route in: installing from a clone of this repository.
+ */
+function notDevelopmentOnly(source) {
+  return basename(source) !== "evals";
+}
+
+/**
  * Copies each entry of a directory this package ships into a project, leaving anything
  * already there alone. A skill carries no line saying who wrote it, so a name that exists
  * is kept until someone asks for it to be replaced.
@@ -1819,7 +1827,7 @@ function copyTree(source, dest, force, report) {
     }
 
     mkdirSync(dest, { recursive: true });
-    cpSync(join(source, name), full, { recursive: true });
+    cpSync(join(source, name), full, { recursive: true, filter: notDevelopmentOnly });
     retitleTree(full);
 
     const file = stampOf(full);

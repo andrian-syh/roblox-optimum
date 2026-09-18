@@ -84,6 +84,31 @@ export function drifted(version, root = ROOT) {
   return out;
 }
 
+/** Every skill's SKILL.md, which carries the version in YAML frontmatter rather than JSON. */
+function skillCards(root = ROOT) {
+  const dir = join(root, "skills");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .map((name) => join("skills", name, "SKILL.md"))
+    .filter((file) => existsSync(join(root, file)));
+}
+
+/**
+ * Every skill card whose `metadata.version` differs from the declared one, in the same shape as
+ * the manifests, so a skill cannot ship naming a release it is not part of.
+ */
+export function driftedSkills(version, root = ROOT) {
+  const out = [];
+
+  for (const file of skillCards(root)) {
+    const head = readFileSync(join(root, file), "utf8").split(/^---$/m)[1] ?? "";
+    const found = head.match(/^\s+version:\s*"?([^"\n]+)"?\s*$/m)?.[1];
+    if (found !== version) out.push({ path: file, key: "metadata.version", found: String(found) });
+  }
+
+  return out;
+}
+
 /**
  * Every shipped file that pins a version of this package. Documentation of a past release is
  * allowed to name one, so the changelog is left out.
@@ -139,7 +164,9 @@ function fix(version, reports, root = ROOT) {
     if (!existsSync(full)) continue;
 
     const before = readFileSync(full, "utf8");
-    const after = before.replace(/("version"\s*:\s*")\d+\.\d+\.\d+(")/g, `$1${version}$2`);
+    const after = /\.md$/.test(file)
+      ? before.replace(/^(\s+version:\s*")\d+\.\d+\.\d+(")/m, `$1${version}$2`)
+      : before.replace(/("version"\s*:\s*")\d+\.\d+\.\d+(")/g, `$1${version}$2`);
 
     if (after === before) {
       process.stdout.write(`  ${file} holds no version to replace, left alone\n`);
@@ -154,7 +181,7 @@ function fix(version, reports, root = ROOT) {
 /** Reports drift and pins, or writes the declared version across when asked to. */
 function main() {
   const version = declaredVersion();
-  const reports = drifted(version);
+  const reports = [...drifted(version), ...driftedSkills(version)];
   const pins = pinned();
   const missing = unshipped();
 
@@ -165,7 +192,10 @@ function main() {
   }
 
   if (reports.length === 0 && pins.length === 0 && missing.length === 0) {
-    process.stdout.write(`check-versions: ${MANIFESTS.length} manifests all at ${version}\n`);
+    const cards = skillCards().length;
+    process.stdout.write(
+      `check-versions: ${MANIFESTS.length} manifests and ${cards} skill cards all at ${version}\n`,
+    );
     return 0;
   }
 

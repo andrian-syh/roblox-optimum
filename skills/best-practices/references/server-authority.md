@@ -105,7 +105,7 @@ Engine-level **Server Authority** is [GA], but **Roblox does not enable it by de
 **Trigger topics.** The first time a task touches any of these, resolve the mode before writing or flagging anything: character movement or physics · input handling · camera control · animation timing · `BindToSimulation` · network ownership · hit registration or lag compensation · movement anti-cheat.
 
 **Procedure:**
-1. **Detect first.** Read `Workspace.AuthorityMode` where the environment allows it, or scan the project for `AuthorityMode`, `BindToSimulation`, and Input Action usage.
+1. **Detect first.** Read `Workspace.AuthorityMode` where the environment allows it, or scan the project for `AuthorityMode`, `BindToSimulation`, and Input Action usage. Expect the read to fail from tooling: the command bar, plugins, and MCP `execute_luau` all throw `The current thread cannot read 'AuthorityMode' (lacking capability RobloxScript)`. That failure says **nothing** about the mode, so it sends you to step 2, never to a default.
 2. **If undetermined, ask once:** *"Does this place have Server Authority enabled (`Workspace.AuthorityMode = "Server"`)? It changes how input, camera, and the gameplay loop must be written."*
 3. **Cache the answer for the session**, exactly like the community-library check. Do not re-ask per file.
 4. **Default assumption is OFF.** Never write Server Authority-only advice as if it were universal.

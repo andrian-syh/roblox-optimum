@@ -1,0 +1,23 @@
+[
+  { "query": "review my PR #42 before i merge it", "should_trigger": true },
+  { "query": "is this combat script safe from exploiters? pasting Combat.server.luau below", "should_trigger": true },
+  { "query": "score my game's architecture out of 5, i want to know how mature it is", "should_trigger": true },
+  { "query": "audit my whole place, especially anything touching robux", "should_trigger": true },
+  { "query": "look at src/server/DataHandler.luau and tell me if there are memory leaks", "should_trigger": true },
+  { "query": "can you check the diff on my current branch for anything dumb", "should_trigger": true },
+  { "query": "tolong review file RemoteHandler.luau ini, aman ga dari exploit", "should_trigger": true },
+  { "query": "how good is my current inventory implementation honestly", "should_trigger": true },
+  { "query": "go through these three modules and rank whatever you find by severity", "should_trigger": true },
+  { "query": "i think my data layer risks losing player saves — here's the file, judge it", "should_trigger": true },
+
+  { "query": "write me a datastore module for saving coins and gems", "should_trigger": false },
+  { "query": "refactor ServerScriptService/Shop.lua, it's a mess", "should_trigger": false },
+  { "query": "fix the leak you found in DataHandler.luau", "should_trigger": false },
+  { "query": "my leaderstats reset every single time i rejoin, no idea why", "should_trigger": false },
+  { "query": "the shop hands out free items sometimes and i cant reproduce it", "should_trigger": false },
+  { "query": "my edits in vscode keep getting overwritten by rojo", "should_trigger": false },
+  { "query": "how do i playtest with two clients to check replication", "should_trigger": false },
+  { "query": "add input validation to the remote in Abilities.luau", "should_trigger": false },
+  { "query": "review this python data pipeline for bugs", "should_trigger": false },
+  { "query": "what should i charge for my gamepass, is 199 robux fair", "should_trigger": false }
+]

@@ -2,6 +2,8 @@
 name: studio-ops
 description: "Operating a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change actually works in the running engine. Use when the user asks why their edits are being overwritten, how to set up or diagnose a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Not for authoring Luau — that is the best-practices skill; not for judging code that already exists — that is the code-review skill; not for working out why a reported symptom happens — that is the diagnose skill, which calls on this one to run the probe."
 license: MIT
+metadata:
+  version: "1.9.0"
 ---
 
 # Roblox Studio Operations
@@ -11,6 +13,11 @@ writes game code or judges it; this is about which side owns the file, what a to
 actually do, and how a change is proven to work.
 
 **Goal, in priority order:** do not destroy work → know before acting → prove it → spend few tokens.
+
+> **This skill ships as part of a set and does not stand alone.** Every reference it cites lives in
+> `../best-practices/references/`, the pool shared by all four roblox-optimum skills. Installing
+> this directory on its own leaves those links pointing at nothing. If a reference will not open,
+> the install is incomplete — say so rather than working from memory.
 
 
 ## Session Invariants (must survive compaction)

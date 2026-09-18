@@ -157,6 +157,7 @@ function auditSkills() {
     if (!desc) problems.push(`${folder}: description is empty`);
     if (!field(head, "license")) problems.push(`${folder}: declares no license`);
     if (desc.length > 1024) problems.push(`${folder}: description is ${desc.length} characters, over the limit`);
+    if (desc.length > 922) problems.push(`${folder}: description is ${desc.length} characters, past 90% of the 1024 limit, leaving no room to edit`);
     if (lines > 500) problems.push(`${folder}: SKILL.md is ${lines} lines, over the limit`);
 
     notes.push(`skill ${folder}: ${lines} lines, description ${desc.length} characters`);
@@ -181,6 +182,76 @@ function auditLinks() {
     }
   }
   notes.push(`${checked} internal links resolved`);
+}
+
+/** The one directory a skill may reach into from outside its own root. */
+const SHARED_POOL = "best-practices/references";
+
+/**
+ * Checks each skill's trigger queries, which are what prove a description routes to the right
+ * skill. A set with no near-miss negatives measures nothing, so the shape is enforced here.
+ */
+function auditTriggerQueries() {
+  const skillsDir = join(ROOT, "skills");
+  if (!existsSync(skillsDir)) return;
+
+  for (const skill of readdirSync(skillsDir)) {
+    const file = join(skillsDir, skill, "evals", "trigger-queries.json");
+    if (!existsSync(file)) {
+      problems.push(`${skill}: has no evals/trigger-queries.json, so its description is untested`);
+      continue;
+    }
+
+    let queries;
+    try {
+      queries = JSON.parse(readFileSync(file, "utf8"));
+    } catch (error) {
+      problems.push(`${skill}: evals/trigger-queries.json is not valid JSON — ${error.message}`);
+      continue;
+    }
+
+    const positive = queries.filter((q) => q.should_trigger === true).length;
+    const negative = queries.filter((q) => q.should_trigger === false).length;
+    const malformed = queries.filter((q) => typeof q.query !== "string" || typeof q.should_trigger !== "boolean");
+
+    if (malformed.length > 0) problems.push(`${skill}: ${malformed.length} trigger query/queries missing a string query or boolean should_trigger`);
+    if (positive < 8) problems.push(`${skill}: ${positive} should-trigger queries, fewer than the 8 that make a rate meaningful`);
+    if (negative < 8) problems.push(`${skill}: ${negative} should-not-trigger queries — near misses are what catch an over-broad description`);
+
+    notes.push(`skill ${skill}: ${positive} should-trigger and ${negative} near-miss queries`);
+  }
+}
+
+/**
+ * Confines a link that leaves its own skill to the shared reference pool, so the bundle's one
+ * deliberate departure from the per-skill packaging model stays the only one.
+ */
+function auditSkillBoundaries() {
+  const skillsDir = join(ROOT, "skills");
+  if (!existsSync(skillsDir)) return;
+
+  let crossing = 0;
+  for (const path of walk(skillsDir, /\.md$/)) {
+    const owner = relative(skillsDir, path).split(/[\\/]/)[0];
+    const ownerRoot = join(skillsDir, owner);
+
+    for (const m of readFileSync(path, "utf8").matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+      const target = m[1].split("#")[0];
+      if (!target || /^(https?:|mailto:)/.test(target)) continue;
+
+      const resolved = resolve(dirname(path), target);
+      if (!relative(ownerRoot, resolved).startsWith("..")) continue;
+
+      crossing++;
+      const reached = relative(skillsDir, resolved).split(/[\\/]/).join("/");
+      if (!reached.startsWith(`${SHARED_POOL}/`)) {
+        problems.push(
+          `${relative(ROOT, path)}: links out of the ${owner} skill to ${reached}, which is not the shared reference pool`,
+        );
+      }
+    }
+  }
+  notes.push(`${crossing} links reach the shared pool across skills`);
 }
 
 /**
@@ -367,6 +438,8 @@ function auditBlock(name, lines, at) {
 auditManifest();
 auditSkills();
 auditLinks();
+auditSkillBoundaries();
+auditTriggerQueries();
 auditRouting();
 auditRulesPaths();
 auditDates();

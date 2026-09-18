@@ -1,0 +1,23 @@
+[
+  { "query": "my leaderstats reset every single time i rejoin, no idea why", "should_trigger": true },
+  { "query": "players randomly fall through the map, maybe 1 in 20 spawns", "should_trigger": true },
+  { "query": "the shop hands out free items sometimes and i cant reproduce it", "should_trigger": true },
+  { "query": "my server just dies after about 40 minutes, no errors in output", "should_trigger": true },
+  { "query": "the purchase event fires twice so players get double the coins", "should_trigger": true },
+  { "query": "works perfectly in studio but breaks in the live game, no clue whats different", "should_trigger": true },
+  { "query": "kenapa data pemain kadang balik ke nilai lama setelah rejoin?", "should_trigger": true },
+  { "query": "fps tanks after playing for a while and never recovers", "should_trigger": true },
+  { "query": "some players say the door is closed and others say its open at the same time", "should_trigger": true },
+  { "query": "something's wrong with my trading system, items vanish occasionally", "should_trigger": true },
+
+  { "query": "review my PR #42 before i merge it", "should_trigger": false },
+  { "query": "is this combat script safe from exploiters? pasting Combat.server.luau below", "should_trigger": false },
+  { "query": "write me a datastore module for saving coins and gems", "should_trigger": false },
+  { "query": "fix the double-fire bug in PurchaseHandler.luau line 88", "should_trigger": false },
+  { "query": "score my game's architecture out of 5", "should_trigger": false },
+  { "query": "my edits in vscode keep getting overwritten by rojo", "should_trigger": false },
+  { "query": "how do i start a two-client playtest in studio", "should_trigger": false },
+  { "query": "add retry logic to the datastore call in Save.luau", "should_trigger": false },
+  { "query": "my npm build is failing with a module not found error", "should_trigger": false },
+  { "query": "explain what StreamingEnabled does", "should_trigger": false }
+]

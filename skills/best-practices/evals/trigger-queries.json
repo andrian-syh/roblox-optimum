@@ -1,0 +1,23 @@
+[
+  { "query": "can you write me a datastore module for saving coins and gems", "should_trigger": true },
+  { "query": "refactor ServerScriptService/Shop.lua, it's a mess and i cant read it anymore", "should_trigger": true },
+  { "query": "hey i need a sprint system — client holds shift, stamina drains, regen after 2s", "should_trigger": true },
+  { "query": "from now on follow roblox best practices whenever you touch my code", "should_trigger": true },
+  { "query": "add a cooldown to the dash ability in src/server/Abilities.luau", "should_trigger": true },
+  { "query": "im using ProfileStore — write the session lock wrapper around it", "should_trigger": true },
+  { "query": "buatkan script buat spawn NPC tiap 30 detik di ServerScriptService", "should_trigger": true },
+  { "query": "write a LocalScript that fades the shop UI in when the player joins", "should_trigger": true },
+  { "query": "i want to add trading to my game, start with the server side please", "should_trigger": true },
+  { "query": "make DataHandler.luau follow the variable ordering you normally use", "should_trigger": true },
+
+  { "query": "review my PR #42 before i merge it", "should_trigger": false },
+  { "query": "is this combat script safe from exploiters? pasting Combat.server.luau below", "should_trigger": false },
+  { "query": "my leaderstats reset every single time i rejoin, no idea why", "should_trigger": false },
+  { "query": "my edits in vscode keep getting overwritten by rojo, whats going on", "should_trigger": false },
+  { "query": "score my game's architecture out of 5, i want to know how mature it is", "should_trigger": false },
+  { "query": "the shop hands out free items sometimes and i cant reproduce it", "should_trigger": false },
+  { "query": "how do i set up argon sync for an existing place file", "should_trigger": false },
+  { "query": "whats a good name and thumbnail idea for my new obby", "should_trigger": false },
+  { "query": "write a python script that parses my roblox analytics csv export", "should_trigger": false },
+  { "query": "convert this lua 5.1 script so it runs in my love2d project", "should_trigger": false }
+]

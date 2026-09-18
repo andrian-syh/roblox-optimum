@@ -5,21 +5,43 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-09-19
+
+### Fixed
+
+- **Three engine claims corrected against a running engine, not a document**: `WorldRoot:Simulate`/`AutoSimulate`/`SimulationRate` throw `lacking capability RobloxEngine` despite release notes 737 calling them scriptable; `Workspace.StreamingAdaptiveRadius` is a readable, writable boolean rather than a Studio-only setting; `ControlState`'s members and `Enum.InputSink`'s values were read off the engine instead of inferred.
+- **The worked probe this skill taught did not run**: `print(typeof(workspace.AuthorityMode))` throws `lacking capability RobloxScript` from the command bar, a plugin, or MCP. Replaced by a probe that classifies the failure; `workflow.md` and `server-authority.md` now treat a failed read as unknown rather than as a default.
+- **A probe cannot prove absence**: a fabricated name and a security-gated member both return `is not a valid member`. Existence can be settled by a probe, non-existence only by the API dump.
+
+### Added
+
+- **A guard on the bundle's one packaging exception**: three skills read a reference pool under `best-practices` rather than carrying copies that drift, so `audit.mjs` fails any link leaving a skill for anywhere else, and each dependent skill states that it does not stand alone.
+- **Trigger evals per skill**: ten prompts that should reach it and ten near misses owned by a sibling, which is what tests each description's `Not for ...` boundary. Shape enforced by the audit, method in `evals/README.md`, excluded from the package and from installs.
+- **`MAINTAINING.md`**, holding the release contract and the conventions this repository enforces on itself beyond the Agent Skills specification.
+- **Version and budget checks that reach the skills**: `check-versions.mjs` reads the four skill cards alongside the seven manifests, and the audit fails a description past 90% of the 1024-character limit.
+
+### Changed
+
+- **The authoring skill's description is 868 characters, down from 1011**, losing two clauses that described the skill's own mechanics. Every trigger keyword and the boundary naming all three siblings is untouched.
+- **Maintainer procedure moved off the runtime path**: the API refresh pass lives in `MAINTAINING.md`, while the rules governing how its rows are read stayed behind.
+- **Two passages cut to the rule they carried**, taking reconstructions of past mistakes out of a file agents load to look something up.
+
 ## [1.8.0] - 2026-09-18
 
 ### Fixed
 
-- **Three engine facts the skill stated wrongly**: `PlayerControlState` was removed at engine v738 and replaced by `ControlState` plus `StateSchema`; the skill still told the agent to design around the old name. `GuiService:GetUIScaleMultiplier` was removed at v738 while three pages — including the regression set that must pass a review clean — instructed the agent never to flag it. `GuiObject.InputSink` stopped serializing at v738 when `GuiObject.Sink` appeared beside it, so the property is mid-rename rather than settled. Each correction reaches every page that repeated the claim, not just the row that held it.
-- **A method error worth more than the fact it produced**: a previous snapshot sized engine version 737 from a *weekly* release-notes page, which lists only what is already live, and recorded the version as two items. The versioned page carries 22. The failure is now written down beside the corrected numbers, because the reasoning repeats more easily than the fact.
+- **Three engine facts the skill stated wrongly**: `PlayerControlState` was removed at v738 and replaced by `ControlState` plus `StateSchema`; `GuiService:GetUIScaleMultiplier` was removed while three pages instructed the agent never to flag it; `GuiObject.InputSink` stopped serializing when `GuiObject.Sink` appeared beside it. Each correction reaches every page that repeated the claim.
+- **A method error worth more than the fact it produced**: engine 737 was sized from a *weekly* page, which lists only live changes, and recorded as two items. Its version page carries 22. The reasoning is written down beside the corrected numbers.
 
 ### Added
 
-- **The restructured release-notes model**: Roblox split release notes into versioned, weekly, and pending pages in September 2026, and they answer different questions — introduction is not availability, a change belongs to its earliest introduction version, and leaving the pending list does not mean going live. The verification toolbox now names which page settles which question, and how to read each: weekly pages serve `.md`, while versioned and pending pages serve their entries only as JSON inside `__NEXT_DATA__`.
-- **Engine surface through v739**: `RunService:BindToAnimation`, `WorldRoot:Simulate`/`AutoSimulate`/`SimulationRate`, `Workspace.StreamingAdaptiveRadius`, `QueueService` with `StandardQueue`, `Player.PauseTeleports`, and the `AnimatedImage` family — each carrying what is confirmed, what is not, and the probe that would settle it. The queue entry says plainly not to migrate a working MemoryStore queue to it.
-- **Deprecations the published index has not caught up to**: `GuiObject:TweenPosition`, `:TweenSize`, `:TweenSizeAndPosition`, and `GuiObject.Transparency` are tagged deprecated in the API dump at v738 but absent from `deprecated.md`. They are reportable, and the finding is told to say where the tag came from. Recorded alongside them: `BasePart.siz`, `Part.shap`, `AssetService:PromptCreateAssetAsync`, and `Enum.CollisionFidelity.Scalable` are gone outright.
-- **Luau performance as an authoring lever**: freezing a metatable that never changes now makes metamethod lookup substantially cheaper, which pays off precisely where metatable OOP is hottest. Dynamic-key table access got faster in both directions, and a non-numeric key no longer discards a pre-allocated array part. All still pending at this snapshot, and all framed as a reason to freeze class tables rather than to restructure working code.
-- **Three Server Authority behaviors that change what to write**: `RunService:SetPredictionMode()` is a silent no-op on the server, so the `IsClient()` guard people added against a spurious warning is now noise; `PredictionMode = Off` no longer drifts inside the local simulation region; and destroying or reparenting an `InputContext` no longer kills client input for the session.
-- **A new false positive, named before it is met**: Luau tightened checking inside generic function bodies, so untouched scripts can fail `--!strict` after an engine update. The guardrail says to fix the signature rather than report the author, and warns that deprecation warnings now fire through unions and intersections, lighting up real deprecations that were always there.
+- **The restructured release-notes model**: versioned, weekly, and pending pages answer different questions — introduction is not availability, and leaving the pending list does not mean going live. The toolbox names which page settles which, and how to fetch each.
+- **Engine surface through v739**: `RunService:BindToAnimation`, `WorldRoot:Simulate`, `Workspace.StreamingAdaptiveRadius`, `QueueService` with `StandardQueue`, `Player.PauseTeleports`, and the `AnimatedImage` family, each carrying what is confirmed and what is not. The queue entry says not to migrate a working MemoryStore queue to it.
+- **Deprecations the published index has not caught up to**: `GuiObject:TweenPosition`, `:TweenSize`, `:TweenSizeAndPosition`, and `.Transparency`, tagged in the API dump at v738 but absent from `deprecated.md`. A finding must say where the tag came from.
+- **Removals worth recognising**: `BasePart.siz`, `Part.shap`, `AssetService:PromptCreateAssetAsync`, and `Enum.CollisionFidelity.Scalable` are gone outright.
+- **Luau performance as an authoring lever**: freezing a metatable that never changes makes metamethod lookup substantially cheaper, which pays where metatable OOP is hottest. Dynamic-key access got faster both ways. Still pending, and a reason to freeze class tables rather than restructure working code.
+- **Three Server Authority behaviours that change what to write**: `SetPredictionMode()` is a silent server-side no-op, so its `IsClient()` guard is now noise; `PredictionMode = Off` no longer drifts inside the local simulation region; destroying an `InputContext` no longer kills client input for the session.
+- **A new false positive, named before it is met**: Luau tightened checking inside generic function bodies, so untouched scripts can fail `--!strict` after an engine update. Fix the signature rather than report the author.
 
 ## [1.7.0] - 2026-09-12
 

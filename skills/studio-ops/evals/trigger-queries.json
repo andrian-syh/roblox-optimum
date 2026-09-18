@@ -1,0 +1,23 @@
+[
+  { "query": "my edits in vscode keep getting overwritten by rojo, whats going on", "should_trigger": true },
+  { "query": "how do i set up argon sync for an existing place file", "should_trigger": true },
+  { "query": "which side wins when script sync is running, studio or my files", "should_trigger": true },
+  { "query": "how do i playtest with two clients to check replication", "should_trigger": true },
+  { "query": "before you run that studio mcp tool, what will it actually change", "should_trigger": true },
+  { "query": "whats the safest way to pull my place back down into the repo", "should_trigger": true },
+  { "query": "kenapa file saya ketimpa terus setiap kali studio disimpan?", "should_trigger": true },
+  { "query": "how do i prove this fix actually works in a running session, not just typecheck", "should_trigger": true },
+  { "query": "me and two other devs are on this place, how do we not clobber each other", "should_trigger": true },
+  { "query": "can you connect to studio and tell me what tools you have", "should_trigger": true },
+
+  { "query": "write me a datastore module for saving coins and gems", "should_trigger": false },
+  { "query": "review my PR #42 before i merge it", "should_trigger": false },
+  { "query": "my leaderstats reset every single time i rejoin", "should_trigger": false },
+  { "query": "refactor ServerScriptService/Shop.lua, it's a mess", "should_trigger": false },
+  { "query": "score my game's architecture out of 5", "should_trigger": false },
+  { "query": "the shop hands out free items sometimes and i cant reproduce it", "should_trigger": false },
+  { "query": "write a unit test for my damage calculation function", "should_trigger": false },
+  { "query": "set up github actions to lint my luau on every push", "should_trigger": false },
+  { "query": "my docker compose wont start the postgres container", "should_trigger": false },
+  { "query": "should i use StreamingEnabled for an open world game", "should_trigger": false }
+]
