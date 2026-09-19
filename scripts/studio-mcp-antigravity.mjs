@@ -16,6 +16,8 @@ import { createInterface } from "node:readline";
 import { readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
+import { ranAsScript } from "./roblox-optimum.mjs";
+
 /** The method Antigravity probes with, which no MCP server implements. */
 const PROBE = "server/discover";
 
@@ -35,8 +37,14 @@ export function findStudioMcp(root = versionsRoot()) {
 
   const found = readdirSync(root)
     .map((name) => join(root, name, "StudioMCP.exe"))
-    .filter((path) => existsSync(path))
-    .map((path) => ({ path, at: statSync(path).mtimeMs }))
+    .map((path) => {
+      try {
+        return { path, at: statSync(path).mtimeMs };
+      } catch {
+        return null;
+      }
+    })
+    .filter((copy) => copy !== null)
     .sort((a, b) => b.at - a.at);
 
   return found[0]?.path ?? null;
@@ -63,7 +71,8 @@ export function interception(line) {
 
 /**
  * Starts the real server and relays a session against it, answering the probe on its behalf.
- * Exits with the server's own status, so a host that watches for a clean shutdown still sees one.
+ * Exits with the server's own status, so a host watching for a clean shutdown sees one. That
+ * status is set, not forced: forcing it drops what stdout still holds.
  */
 function run() {
   const exe = findStudioMcp();
@@ -77,10 +86,17 @@ function run() {
 
   const child = spawn(exe, process.argv.slice(2), { stdio: ["pipe", "pipe", "inherit"] });
   child.stdout.pipe(process.stdout);
-  child.on("exit", (code) => process.exit(code ?? 0));
+  child.on("close", (code) => {
+    process.exitCode = code ?? 0;
+    process.stdin.destroy();
+  });
   child.on("error", (error) => {
     process.stderr.write(`studio-mcp-antigravity: cannot run ${exe}: ${error.message}\n`);
-    process.exit(1);
+    process.exitCode = 1;
+    process.stdin.destroy();
+  });
+  child.stdin.on("error", (error) => {
+    process.stderr.write(`studio-mcp-antigravity: the server stopped reading: ${error.message}\n`);
   });
 
   createInterface({ input: process.stdin }).on("line", (line) => {
@@ -120,5 +136,7 @@ function selftest() {
   return 0;
 }
 
-if (process.argv[2] === "--selftest") process.exit(selftest());
-else run();
+if (ranAsScript(import.meta.url)) {
+  if (process.argv[2] === "--selftest") process.exit(selftest());
+  else run();
+}

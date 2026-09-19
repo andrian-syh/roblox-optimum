@@ -3,7 +3,7 @@ name: diagnose
 description: "Diagnoses a reported Roblox symptom down to its cause before anything is changed. Use when the user reports that something is broken, wrong, missing, duplicated, intermittent, or works in Studio but not in a live game - leaderstats resetting, players falling through the map, a shop granting free items, a server dying after a while, an event firing twice - and no file has been named yet. Classifies the symptom, asks which side owns the state and whether a client could have caused it, narrows the surface, reproduces, and confirms the cause before handing the fix over. Not for judging code that was handed to it (the code-review skill owns that), not for writing the fix (the best-practices skill owns that), and not for sync toolchains or driving Studio tools (the studio-ops skill owns those)."
 license: MIT
 metadata:
-  version: "1.9.0"
+  version: "1.9.1"
 ---
 
 # Roblox Diagnosis

@@ -254,7 +254,10 @@ const TOOLS = [
         source: { type: "string", description: "The Luau source to check." },
         path: {
           type: "string",
-          description: "Optional name to label the findings with, such as the script's path in the data model.",
+          description:
+            "Optional name to label the findings with, such as the script's path in the data model. " +
+            "A name ending in .server.luau or .client.luau also turns on the checks for members " +
+            "that fail on that side, so pass the filename when the source came from one.",
         },
       },
       required: ["source"],
@@ -326,8 +329,9 @@ export function runTool(name, args) {
       return fail("check_luau needs a `source` string holding the Luau to check.");
     }
 
-    const label = typeof given.path === "string" && given.path !== "" ? given.path : "the source";
-    const problems = inspect(given.source);
+    const named = typeof given.path === "string" ? given.path : "";
+    const label = named !== "" ? named : "the source";
+    const problems = inspect(given.source, named);
 
     if (problems.length === 0) {
       return text(`No findings in ${label}.`);
@@ -392,6 +396,8 @@ export function handle(message) {
   const { id, method, params } = message ?? {};
   const isRequest = id !== undefined && id !== null;
 
+  if (!isRequest) return null;
+
   if (method === "initialize") {
     const asked = params?.protocolVersion;
     const speaks = asked === PROTOCOL || ALSO_SPOKEN.includes(asked);
@@ -405,8 +411,6 @@ export function handle(message) {
         "Studio. Findings are one line each; explain_finding expands one into the rule behind it.",
     });
   }
-
-  if (!isRequest) return null;
 
   if (method === "tools/list") return reply(id, { tools: TOOLS });
 
@@ -433,6 +437,19 @@ function error(id, code, message) {
 }
 
 /**
+ * The answer one parsed line is owed, which is an array of them when the line held a batch.
+ * Revisions this server still speaks allow a batch, and one dropped in silence leaves the
+ * client waiting on a reply that never comes.
+ */
+export function answer(message) {
+  if (!Array.isArray(message)) return handle(message);
+  if (message.length === 0) return error(null, -32600, "Invalid Request");
+
+  const answers = message.map((one) => handle(one)).filter((one) => one !== null);
+  return answers.length === 0 ? null : answers;
+}
+
+/**
  * Reads messages from stdin and writes answers to stdout, one JSON object per line.
  * Nothing else may reach stdout: the protocol reads every line there as a message.
  */
@@ -450,14 +467,14 @@ function serve() {
       return;
     }
 
-    let answer;
+    let written;
     try {
-      answer = handle(message);
+      written = answer(message);
     } catch (e) {
-      answer = error(message?.id, -32603, `Internal error: ${e.message}`);
+      written = error(message?.id, -32603, `Internal error: ${e.message}`);
     }
 
-    if (answer !== null) send(answer);
+    if (written !== null) send(written);
   });
 }
 
@@ -490,6 +507,22 @@ function selftest() {
     handle({ jsonrpc: "2.0", method: "notifications/initialized" }) === null,
     "a notification is answered with nothing",
   );
+  ok(
+    handle({ jsonrpc: "2.0", method: "initialize", params: {} }) === null,
+    "an initialize carrying no id is a notification, and takes no reply either",
+  );
+
+  const batch = answer([
+    { jsonrpc: "2.0", id: 30, method: "ping" },
+    { jsonrpc: "2.0", method: "notifications/initialized" },
+    { jsonrpc: "2.0", id: 31, method: "ping" },
+  ]);
+  ok(Array.isArray(batch) && batch.length === 2, "a batch is answered per request, notifications aside");
+  ok(
+    answer([{ jsonrpc: "2.0", method: "notifications/initialized" }]) === null,
+    "a batch owed no answer is written nothing, as a single notification is",
+  );
+  ok(answer([]).error.code === -32600, "an empty batch is an invalid request");
 
   const list = handle({ id: 2, method: "tools/list" }).result.tools;
   ok(list.length === TOOLS.length && list.length === 3, "every tool this server carries is listed");
@@ -525,6 +558,27 @@ function selftest() {
   ok(dirty.content[0].text.includes("wait()"), "a deprecated call is reported");
   ok(dirty.content[0].text.includes("Workspace.A"), "the given path labels the findings");
   ok(dirty.isError === false, "a finding is a result, not a tool failure");
+
+  const sided = handle({
+    id: 13,
+    method: "tools/call",
+    params: {
+      name: "check_luau",
+      arguments: { source: 'local s = game:GetService("DataStoreService")', path: "src/Hud.client.luau" },
+    },
+  }).result;
+  ok(sided.content[0].text.includes("DataStoreService"), "a path naming a side turns on that side's checks");
+  ok(
+    handle({
+      id: 14,
+      method: "tools/call",
+      params: {
+        name: "check_luau",
+        arguments: { source: 'local s = game:GetService("DataStoreService")', path: "Workspace.Hud" },
+      },
+    }).result.content[0].text.includes("No findings"),
+    "a data model label states no side, so no side check applies",
+  );
 
   ok(
     handle({ id: 7, method: "tools/call", params: { name: "check_luau", arguments: {} } }).result.isError,

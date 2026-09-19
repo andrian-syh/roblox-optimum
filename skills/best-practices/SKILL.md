@@ -4,7 +4,7 @@ argument-hint: "[ask|bal|go]"
 description: "Framework-agnostic Roblox/Luau coding standards. Use when writing, implementing, or refactoring any Luau code (Script, LocalScript, ModuleScript) in a Roblox project, or when the user asks to keep best practices in mind as standing guidance — enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules regardless of framework, folder structure, or genre. Adapts to the project's existing style and to community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...). Not for reviewing or auditing code that already exists (the code-review skill owns that), not for tracing a reported symptom to its cause when no file has been named yet (the diagnose skill owns that), not for sync toolchains, Studio MCP, or playtests (the studio-ops skill owns those), non-Roblox Lua, or game design with no Luau to write."
 license: MIT
 metadata:
-  version: "1.9.0"
+  version: "1.9.1"
 ---
 
 # Roblox Game Development Best Practices

@@ -130,9 +130,9 @@ const CONTEXT_ERRORS = [
 ];
 
 /**
- * A service is usually named only inside the string `GetService` takes, which the code strip
- * blanks along with every other string. Matching that one call shape on the raw line reaches it
- * without letting any other prose back in.
+ * A service is usually named inside the string `GetService` takes, which the strip blanks.
+ * Matching that shape on the raw line reaches it, and the strip keeps every column, so a match
+ * it kept is code while one it blanked is prose.
  */
 function serviceCall(name) {
   return new RegExp(`GetService\\s*\\(\\s*["']${name}["']`);
@@ -145,16 +145,19 @@ const YIELDS = /(?:\btask\.wait\b|(?<![.:\w])wait\s*\(|:Wait\s*\(|\bcoroutine\.y
 const OPENS = /\b(?:function|do|then|repeat)\b/g;
 const CLOSES = /\b(?:end|until)\b/g;
 
+/** The loop this check is about, matched once to find it and again to find where its body starts. */
+const WHILE_TRUE = /\bwhile\s+(?:\(\s*)?true(?:\s*\))?\s+do\b/;
+
 /**
- * Reports every `while true do` that can neither yield nor exit, which freezes its thread. A
- * loop that can leave, or that gives the scheduler a turn, is left alone, and an ambiguous
- * read reports nothing.
+ * Reports every `while true do` that can neither yield nor exit, which freezes the thread.
+ * A loop that can leave or yield is left alone; an ambiguous read reports nothing.
+ * A one-line loop keeps its body after the `do`, so that line is read from there.
  */
 function frozenLoops(lines) {
   const found = [];
 
   for (let start = 0; start < lines.length; start++) {
-    if (!/\bwhile\s+(?:\(\s*)?true(?:\s*\))?\s+do\b/.test(lines[start])) continue;
+    if (!WHILE_TRUE.test(lines[start])) continue;
 
     let depth = 0;
     let body = "";
@@ -162,7 +165,8 @@ function frozenLoops(lines) {
     for (let k = start; k < lines.length; k++) {
       const withoutElseif = lines[k].replace(/\belseif\b(.*?)\bthen\b/g, "$1");
       depth += (withoutElseif.match(OPENS) || []).length - (withoutElseif.match(CLOSES) || []).length;
-      if (k > start) body += withoutElseif + "\n";
+      const opener = k === start ? WHILE_TRUE.exec(withoutElseif) : null;
+      body += (opener ? withoutElseif.slice(opener.index + opener[0].length) : withoutElseif) + "\n";
       if (depth > 0) continue;
 
       if (depth === 0 && !YIELDS.test(body) && !/\b(?:break|return|error)\b/.test(body)) {
@@ -400,7 +404,8 @@ export function inspect(source, path = "") {
     for (const [pattern, name, why] of members) {
       const call = /^[A-Za-z]+$/.test(name) ? serviceCall(name) : null;
       for (let k = 0; k < lines.length; k++) {
-        if (pattern.test(lines[k]) || (call && call.test(raw[k] ?? ""))) {
+        const hit = call ? call.exec(raw[k] ?? "") : null;
+        if (pattern.test(lines[k]) || (hit && lines[k]?.[hit.index] === raw[k][hit.index])) {
           deprecated.push({
             line: k + 1,
             text: `Line ${k + 1}: ${name} in ${side}. The filename says which side this runs on, and ${why}.`,
@@ -707,12 +712,13 @@ function pluginVersion(path) {
 }
 
 /**
- * A version as one number, for sorting copies of the same plugin newest first. A string that is
- * not three numbers sorts below every one that is, which is where an unreadable manifest belongs.
+ * A version as one number, for sorting copies of the same plugin newest first. One that is not
+ * three numbers sorts below every one that is. Each field holds a million, so a large patch or
+ * minor cannot carry into the field above it.
  */
 export function order(version) {
   const parts = /^(\d+)\.(\d+)\.(\d+)/.exec(version ?? "");
-  return parts === null ? -1 : Number(parts[1]) * 1e6 + Number(parts[2]) * 1e3 + Number(parts[3]);
+  return parts === null ? -1 : Number(parts[1]) * 1e12 + Number(parts[2]) * 1e6 + Number(parts[3]);
 }
 
 /**
@@ -1166,8 +1172,9 @@ const MCP_CONFIGS = [
 ];
 
 /**
- * Registers the MCP server in one host's configuration, keeping every other server in it. A file
- * that will not parse is reported rather than rewritten, since guessing at it would lose servers.
+ * Registers the MCP server in one host's configuration, keeping every other server in it.
+ * A file this tool cannot read is reported, not rewritten: one that will not parse, and one
+ * whose JSON is not an object, since `null` and an array wreck the merge.
  */
 function registerMcp(root, config, force, report) {
   const file = config.paths.map((p) => join(root, p)).find(existsSync) ?? join(root, config.paths[0]);
@@ -1178,6 +1185,10 @@ function registerMcp(root, config, force, report) {
     try {
       read = JSON.parse(readFileSync(file, "utf8"));
     } catch {
+      read = null;
+    }
+
+    if (read === null || typeof read !== "object" || Array.isArray(read)) {
       report.kept.push(`${shown}, which this tool could not read`);
       return;
     }
@@ -1197,11 +1208,15 @@ function registerMcp(root, config, force, report) {
   report.written.push(shown);
 }
 
-/** The commit hook, which is the one setup that works whoever wrote the file. */
+/**
+ * The commit hook, which is the one setup that works whoever wrote the file. The paths go to the
+ * checker one per argument rather than as a bare word split, which dropped every path holding a
+ * space and let the commit through with the file unchecked.
+ */
 const PRE_COMMIT = `#!/bin/sh
 # Installed by roblox-optimum. Delete this file to remove it.
 files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$')
-[ -z "$files" ] || npx roblox-optimum --check $files
+[ -z "$files" ] || printf '%s\\n' "$files" | tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check
 `;
 
 /**
@@ -1322,7 +1337,8 @@ function runInstall(args) {
     } else {
       hookNote =
         "\nA pre-commit hook already exists, so it was left alone. To add the check to it:\n" +
-        "  npx roblox-optimum --check $(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$')\n";
+        "  git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$' |" +
+        " tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check\n";
     }
   }
 
@@ -1728,13 +1744,20 @@ function runGlobalInstall(parts, all, force, report) {
   const refused = [...parts].filter((p) => !GLOBAL_PARTS.includes(p));
   const routed = [];
   const covered = [];
+  const installedFor = [];
+
+  const wrote = (host, write) => {
+    const before = report.written.length;
+    write();
+    if (report.written.length > before && !installedFor.includes(host)) installedFor.push(host);
+  };
 
   for (const target of seen) {
     const root = join(home, target.home);
     const taken = routeFor(target.host, home);
 
     if (taken.kind === "plugin") {
-      installPlugin(home, taken.route, force, report);
+      wrote(target.host, () => installPlugin(home, taken.route, force, report));
       routed.push(target.host);
       continue;
     }
@@ -1744,35 +1767,39 @@ function runGlobalInstall(parts, all, force, report) {
     }
 
     if (parts.has("skills")) {
-      copyTree(join(PACKAGE_ROOT, "skills"), join(root, target.skills), force, report);
+      wrote(target.host, () => copyTree(join(PACKAGE_ROOT, "skills"), join(root, target.skills), force, report));
     }
     if (parts.has("agent") && target.agents !== undefined) {
-      if (target.form === undefined) {
-        copyTree(join(PACKAGE_ROOT, "agents"), join(root, target.agents), force, report);
-      } else {
-        copyAgents(join(root, target.agents), target.form, force, report);
-      }
+      wrote(target.host, () =>
+        target.form === undefined
+          ? copyTree(join(PACKAGE_ROOT, "agents"), join(root, target.agents), force, report)
+          : copyAgents(join(root, target.agents), target.form, force, report),
+      );
     }
   }
 
   for (const config of MCP_CONFIGS) {
     const target = seen.find((t) => t.host === config.host);
-    if (target !== undefined) registerMcp(home, config, force, report);
+    if (target !== undefined) wrote(config.host, () => registerMcp(home, config, force, report));
   }
 
   for (const hook of COPY_HOOKS) {
     const target = seen.find((t) => t.host === hook.host);
-    if (target !== undefined) writeOwned(join(home, hook.path), hook.body, force, report);
+    if (target !== undefined) wrote(hook.host, () => writeOwned(join(home, hook.path), hook.body, force, report));
   }
 
   process.stdout.write(
     (report.written.length > 0
-      ? `roblox-optimum installed ${report.written.length} file(s) for ${seen.map((t) => t.host).join(", ")}:\n` +
+      ? `roblox-optimum installed ${report.written.length} file(s) for ${installedFor.join(", ")}:\n` +
         report.written.map((p) => `  ${p}\n`).join("")
       : "roblox-optimum wrote nothing new.\n") +
       (routed.length > 0
         ? `\n${routed.join(" and ")} took the plugin, which carries the skills, the agent, the\n` +
-          `rules and the MCP server in one directory. Nothing was copied beside it.\n`
+          `rules and the MCP server in one directory. Nothing was copied beside it.\n` +
+          (parts.size < GLOBAL_PARTS.length
+            ? `The plugin is one directory, so it carries ${GLOBAL_PARTS.join(" and ")} whichever of\n` +
+              `them you named. Only the copies for other hosts were narrowed to ${[...parts].join(" and ")}.\n`
+            : "")
         : "") +
       (covered.length > 0
         ? `\nNothing was installed for these, which a plugin already reaches:\n` +
@@ -1978,6 +2005,20 @@ Players.PlayerAdded:Connect(greet)
     "elseif does not throw off the block depth count",
   );
   ok(
+    inspect(`-- // INITIALIZATION // --\nwhile true do task.wait(1) end`).length === 0,
+    "a loop written on one line is read from after its do, not treated as an empty body",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nwhile true do if done then break end task.wait() end`).length === 0,
+    "a one-line loop that can break is left alone",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nwhile true do local n = 1 + 1 end`).some((p) =>
+      p.includes("freezes the thread"),
+    ),
+    "a one-line loop that neither yields nor exits is still caught",
+  );
+  ok(
     inspect(`-- // INITIALIZATION // --\nlocal Players = game:GetService("Players")\nlocal p = Players.LocalPlayer`, "src/Main.server.luau").some((p) =>
       p.includes("Players.LocalPlayer"),
     ),
@@ -1996,6 +2037,10 @@ Players.PlayerAdded:Connect(greet)
   ok(
     inspect(`-- // INITIALIZATION // --\nlocal s = game:GetService("DataStoreService")`, "src/Data.luau").length === 0,
     "a ModuleScript states no side, so neither context check applies",
+  );
+  ok(
+    inspect(`-- // INITIALIZATION // --\nlocal msg = 'call game:GetService("DataStoreService") on the server'`, "src/Hud.client.luau").length === 0,
+    "a service call quoted inside a string is prose, not a use of it",
   );
   ok(
     inspect(`-- // VARIABLES // --\nlocal ACTIONS = { "show" }\n\n-- // INITIALIZATION // --\nreturn function(registry)\n\tregistry:Register(ACTIONS)\nend`).length === 0,
@@ -2361,6 +2406,8 @@ Players.PlayerAdded:Connect(greet)
   ok(order("1.6.0") > order("1.10.0") === false, "a version sorts by number, not by text");
   ok(order("10.0.0") > order("9.9.9"), "a two-digit major sorts above a one-digit one");
   ok(order("not a version") === -1, "a version that cannot be read sorts below every one that can");
+  ok(order("1.1.0") > order("1.0.1000"), "a patch in the thousands does not carry into the minor");
+  ok(order("2.0.0") > order("1.1000.0"), "a minor in the thousands does not carry into the major");
   ok(pluginVersion(PACKAGE_ROOT) === VERSION, "this package is recognized as a copy of the plugin");
   ok(pluginVersion(ROOT_ABSENT) === null, "a directory that is not a plugin is not called one");
 

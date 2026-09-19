@@ -13,6 +13,19 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
 const notes = [];
 
+/**
+ * One file read as JSON, or null with the breakage reported. A JSON file this repository ships
+ * broken is a finding of its own, and a throw here would end the audit before the rest of it ran.
+ */
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(join(ROOT, file), "utf8"));
+  } catch (err) {
+    problems.push(`${file} could not be read as JSON: ${err.message}`);
+    return null;
+  }
+}
+
 /** Returns every file under a directory whose name matches, as paths relative to the root. */
 function walk(dir, match, found = []) {
   if (!existsSync(dir)) return found;
@@ -56,7 +69,7 @@ function auditManifest() {
   auditMcpManifests(manifest);
   auditMarketplace(manifest);
 
-  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+  const pkg = readJson("package.json") ?? {};
   for (const [name, target] of Object.entries(pkg.bin || {})) {
     if (!existsSync(join(ROOT, target))) {
       problems.push(`package.json bin ${name} points at ${target}, which does not exist`);
@@ -86,7 +99,10 @@ function auditDeclaredVersions(manifest) {
       continue;
     }
 
-    const version = JSON.parse(readFileSync(otherPath, "utf8")).version;
+    const read = readJson(other);
+    if (read === null) continue;
+
+    const version = read.version;
     if (version !== manifest.version) {
       problems.push(
         `${other} is v${version} but .claude-plugin/plugin.json is v${manifest.version}`,
@@ -107,7 +123,7 @@ function auditMcpManifests(manifest) {
       continue;
     }
 
-    const args = JSON.parse(readFileSync(path, "utf8")).mcpServers?.["roblox-optimum"]?.args ?? [];
+    const args = readJson(file)?.mcpServers?.["roblox-optimum"]?.args ?? [];
     if (!args.includes("roblox-optimum")) {
       problems.push(`${file} does not name roblox-optimum as the package to run`);
     }
@@ -128,7 +144,8 @@ function auditMcpManifests(manifest) {
  */
 function auditMarketplace(manifest) {
   const market = ".github/plugin/marketplace.json";
-  const listing = JSON.parse(readFileSync(join(ROOT, market), "utf8"));
+  const listing = readJson(market);
+  if (listing === null) return;
 
   for (const [label, version] of [
     ["metadata", listing.metadata?.version],
@@ -207,6 +224,11 @@ function auditTriggerQueries() {
       queries = JSON.parse(readFileSync(file, "utf8"));
     } catch (error) {
       problems.push(`${skill}: evals/trigger-queries.json is not valid JSON — ${error.message}`);
+      continue;
+    }
+
+    if (!Array.isArray(queries)) {
+      problems.push(`${skill}: evals/trigger-queries.json holds no list of queries`);
       continue;
     }
 

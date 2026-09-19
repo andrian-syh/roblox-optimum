@@ -178,17 +178,21 @@ function fix(version, reports, root = ROOT) {
   }
 }
 
-/** Reports drift and pins, or writes the declared version across when asked to. */
-function main() {
+/**
+ * Reports drift and pins, or writes the declared version across when asked to. The rerun that
+ * confirms a write never writes again, since a missing manifest is reported and cannot be
+ * fixed, and retrying it repeats forever.
+ */
+function main(fixing = process.argv.includes("--fix")) {
   const version = declaredVersion();
   const reports = [...drifted(version), ...driftedSkills(version)];
   const pins = pinned();
   const missing = unshipped();
 
-  if (process.argv.includes("--fix") && reports.length > 0) {
+  if (fixing && reports.length > 0) {
     process.stdout.write(`check-versions: writing ${version} into ${reports.length} place(s):\n`);
     fix(version, reports);
-    return main();
+    return main(false);
   }
 
   if (reports.length === 0 && pins.length === 0 && missing.length === 0) {

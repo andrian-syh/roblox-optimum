@@ -612,8 +612,11 @@ its own path, `--all` writes every file this tool knows: `.cursor/rules/roblox-o
 ```sh
 #!/bin/sh
 files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.luau?$')
-[ -z "$files" ] || npx roblox-optimum --check $files
+[ -z "$files" ] || printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx roblox-optimum --check
 ```
+
+Each path reaches the checker as one argument. Passing `$files` unquoted instead splits a path on
+its spaces, and a file under `src/Combat System/` is then skipped without a word.
 
 Make it executable:
 

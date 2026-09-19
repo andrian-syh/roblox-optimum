@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-09-20
+
+### Fixed
+
+- **Two false positives in the checker**: a `while true do` written on one line was read as an empty body, so `while true do task.wait(1) end` was reported as a frozen thread; and a `GetService` call quoted inside a string was read as a use of the service, so a `.client.luau` file explaining `game:GetService("DataStoreService")` in prose was reported as calling it. The loop's opener is now read from after its `do`, and a service call is accepted only where the code strip kept it. Three loop cases and the quoted call are covered by the self-test.
+- **The pre-commit hook skipped every path holding a space, without a word**: `$files` was passed unquoted, so `src/Combat System/Main Loop.luau` split into three arguments that the checker passed over as unreadable, and the commit went through unchecked. Paths now reach the checker one argument each. The hook already installed on a project is replaced by `install hook`.
+- **`check_luau` ignored the `path` it was given**: the side-aware checks never ran over MCP, so `Players.LocalPlayer` in a `.server.luau` file was reported by the CLI and not by the server. The name is now passed to the checker as well as used as the label, and the tool's schema says so.
+- **Two JSON-RPC shapes the MCP server answered wrongly**: an `initialize` carrying no `id` was answered with an envelope holding no `id`, and a batch was dropped in silence, leaving a client waiting on a reply that never came. A notification of any method is now answered with nothing, and a batch is answered per request.
+- **`check-versions.mjs --fix` never returned**: it re-ran itself while anything was still drifted, but a missing manifest and one carrying no version string are both reported and neither can be written, so the run repeated until it was killed. The pass that confirms a write no longer writes again.
+- **MCP registration wrecked by a configuration holding JSON that is not an object**: `null` threw `TypeError: Cannot read properties of null`, and an array survived the merge as a file rewritten into numbered keys. Both now count as a file this tool cannot read, which is reported and left, as an unparsable one already was.
+- **Four faults in the Antigravity Studio proxy**: it forced its own exit as soon as the server closed, dropping whatever stdout still held; it died on `EPIPE` when the server stopped reading first; it threw when a Studio update removed a version directory between the two calls that read it; and it launched the server on import, because it was the one script with no `ranAsScript` guard.
+- **Version ordering collided above 999**: each field was packed a thousand apart, so `1.0.1000` and `1.1.0` sorted as one number and `doctor` could name the wrong copy live. Each field now holds a million.
+- **The structural audit stopped at the first broken JSON file** rather than reporting it and carrying on, and it assumed `evals/trigger-queries.json` held a list. Both are now findings like any other.
+- **`install --global` named hosts it had installed nothing for**, listing every host it detected rather than the ones that received files. It also says, when only one component is named, that a host taking the plugin route still receives both, since the plugin is one directory.
+
+### Changed
+
+- **The logo is a rounded tile carrying a check**, not a shield. A shield reads as protection, and this tool judges code against a standard rather than defending it. The two bars above the check keep reading as lines of code.
+
 ## [1.9.0] - 2026-09-19
 
 ### Fixed
