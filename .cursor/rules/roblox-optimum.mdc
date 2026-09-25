@@ -1,7 +1,6 @@
 ---
 description: Roblox and Luau coding standards
-globs: ["**/*.luau", "**/*.lua"]
-alwaysApply: false
+alwaysApply: true
 ---
 <!-- Generated from AGENTS.md. Edit that file. -->
 

@@ -240,7 +240,8 @@ const TOOLS = [
     name: "check_luau",
     title: "Check Luau against the Roblox standards",
     description:
-      "Check Luau source for deprecated APIs and out-of-order section headers, and return one " +
+      "Check Roblox Luau source for deprecated APIs and out-of-order section headers. Use it " +
+      "after writing or editing any Roblox script, before handing the code back. Returns one " +
       "finding per rule that matched, each naming its line and the replacement to use. Takes the " +
       "source as text, so it reaches a script read out of Studio that was never written to disk. " +
       "The check is deterministic and asks no model anything, so the same source always returns " +
@@ -289,8 +290,8 @@ const TOOLS = [
     name: "get_standards",
     title: "The standards this server checks against",
     description:
-      "Return the invariant card: the section layout, comment rules, server authority, cleanup, " +
-      "data safety, and the rest of the standards every script is held to. Takes no arguments " +
+      "Return the Roblox Luau invariant card: the section layout, comment rules, server " +
+      "authority, cleanup, data safety, and the rest of the standards every script is held to. Takes no arguments " +
       "and always returns the same text. Read it before writing or editing Luau in a place that " +
       "carries no skills of its own, and again after a summary, since these rules do not survive " +
       "one. It returns the rules themselves, not a judgement of any code, and not the reference " +
@@ -407,8 +408,10 @@ export function handle(message) {
       capabilities: { tools: {} },
       serverInfo: { name: "roblox-optimum", title: "Roblox Optimum standards", version: VERSION },
       instructions:
-        "Check Luau with check_luau before handing it back, including source read out of " +
-        "Studio. Findings are one line each; explain_finding expands one into the rule behind it.",
+        "For Roblox or Luau work, whether or not the user names this server: call get_standards " +
+        "once before writing Luau, and check_luau on every script written or edited before " +
+        "handing it back, including source read out of Studio. Findings are one line each; " +
+        "explain_finding expands one into the rule behind it.",
     });
   }
 

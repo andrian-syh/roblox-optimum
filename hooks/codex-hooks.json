@@ -1,5 +1,18 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--pre-write"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit",
@@ -15,12 +28,35 @@
     ],
     "SessionStart": [
       {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--session"],
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "compact",
         "hooks": [
           {
             "type": "command",
             "command": "node",
             "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--compact"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--prompt"],
             "timeout": 10
           }
         ]

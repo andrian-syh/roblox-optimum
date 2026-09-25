@@ -1,227 +1,325 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to this project are documented in this file. Changes that affect only the
+repository's own tooling, tests, or maintenance scripts are left out.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.1] - 2026-09-20
+## [1.10.0] - 2026-09-26
 
-### Fixed
+Upgrading: run `npx roblox-optimum install --global --force` to replace plugin copies from earlier
+releases. Their bundled MCP server fails to start, and the Antigravity copy duplicates every tool.
 
-- **Two false positives in the checker**: a `while true do` written on one line was read as an empty body, so `while true do task.wait(1) end` was reported as a frozen thread; and a `GetService` call quoted inside a string was read as a use of the service, so a `.client.luau` file explaining `game:GetService("DataStoreService")` in prose was reported as calling it. The loop's opener is now read from after its `do`, and a service call is accepted only where the code strip kept it. Three loop cases and the quoted call are covered by the self-test.
-- **The pre-commit hook skipped every path holding a space, without a word**: `$files` was passed unquoted, so `src/Combat System/Main Loop.luau` split into three arguments that the checker passed over as unreadable, and the commit went through unchecked. Paths now reach the checker one argument each. The hook already installed on a project is replaced by `install hook`.
-- **`check_luau` ignored the `path` it was given**: the side-aware checks never ran over MCP, so `Players.LocalPlayer` in a `.server.luau` file was reported by the CLI and not by the server. The name is now passed to the checker as well as used as the label, and the tool's schema says so.
-- **Two JSON-RPC shapes the MCP server answered wrongly**: an `initialize` carrying no `id` was answered with an envelope holding no `id`, and a batch was dropped in silence, leaving a client waiting on a reply that never came. A notification of any method is now answered with nothing, and a batch is answered per request.
-- **`check-versions.mjs --fix` never returned**: it re-ran itself while anything was still drifted, but a missing manifest and one carrying no version string are both reported and neither can be written, so the run repeated until it was killed. The pass that confirms a write no longer writes again.
-- **MCP registration wrecked by a configuration holding JSON that is not an object**: `null` threw `TypeError: Cannot read properties of null`, and an array survived the merge as a file rewritten into numbered keys. Both now count as a file this tool cannot read, which is reported and left, as an unparsable one already was.
-- **Four faults in the Antigravity Studio proxy**: it forced its own exit as soon as the server closed, dropping whatever stdout still held; it died on `EPIPE` when the server stopped reading first; it threw when a Studio update removed a version directory between the two calls that read it; and it launched the server on import, because it was the one script with no `ranAsScript` guard.
-- **Version ordering collided above 999**: each field was packed a thousand apart, so `1.0.1000` and `1.1.0` sorted as one number and `doctor` could name the wrong copy live. Each field now holds a million.
-- **The structural audit stopped at the first broken JSON file** rather than reporting it and carrying on, and it assumed `evals/trigger-queries.json` held a list. Both are now findings like any other.
-- **`install --global` named hosts it had installed nothing for**, listing every host it detected rather than the ones that received files. It also says, when only one component is named, that a host taking the plugin route still receives both, since the plugin is one directory.
+### Added
+
+- Added a `SessionStart` hook for Claude Code and Codex. In a Roblox project, it tells the agent
+  which skill fits each kind of request, and asks the agent to tell you once that the standards
+  were applied. Outside a Roblox project, it adds nothing.
+- Added a `UserPromptSubmit` hook for Claude Code and Codex that names the skill a prompt needs
+  before the model reads it, so a small model loads the right skill without recalling it. A prompt
+  in a language other than English gets every skill listed, and a prompt about another language or
+  engine, such as Python or Unity, gets nothing.
+- Added a `PreToolUse` hook for Claude Code and Codex that restates the standards in brief just
+  before the agent writes a `.luau` file.
+- Added `*.project.json`, `.luaurc`, `foreman.toml`, `selene.toml`, place files, and `.luau` files
+  within two directory levels to the signs that mark a Roblox project.
 
 ### Changed
 
-- **The logo is a rounded tile carrying a check**, not a shield. A shield reads as protection, and this tool judges code against a standard rather than defending it. The two bars above the check keep reading as lines of code.
+- Changed the Cursor, Kiro, and Windsurf rules to load on every request. They loaded only once a
+  `.luau` file was open, so a request made before that ran without them.
+- Rewrote the skill descriptions to open with when each skill applies, including requests that
+  never name Roblox or Luau.
+- Changed the MCP server's instructions and tool descriptions to say when to call each tool:
+  `get_standards` before writing Luau, and `check_luau` after every edit.
+
+### Removed
+
+- Removed the MCP server from the Antigravity plugin. `install --global` registers the server in
+  `~/.gemini/config/mcp_config.json`, and with both, Antigravity listed every tool twice.
+  `install --global --force` replaces the plugin directory whole, which removes the old entry.
+
+### Fixed
+
+- Fixed the MCP server bundled in a plugin failing to start with
+  `'roblox-mcp' is not recognized`. `npx` read the plugin directory's own `package.json` as the
+  package to run. The plugin MCP entries and hooks run `roblox-optimum@latest`, which is not a
+  version pin.
+- Fixed `roblox-studio-mcp-antigravity` answering the `server/discover` probe with an empty result,
+  which a client that follows MCP 2026-07-28 reads as a server supporting no version. The proxy
+  refuses the probe with `-32601`, so the client falls back to `initialize`.
+
+## [1.9.1] - 2026-09-20
+
+### Changed
+
+- Changed the logo from a shield to a rounded tile with a check mark.
+
+### Fixed
+
+- Fixed a frozen-thread false positive on a one-line loop, such as
+  `while true do task.wait(1) end`.
+- Fixed a wrong-side false positive on a `GetService` call quoted inside a string in a
+  `.client.luau` file.
+- Fixed the pre-commit hook skipping every staged path that contains a space. To replace a hook
+  that an earlier release installed, run `npx roblox-optimum install hook`.
+- Fixed `check_luau` ignoring its `path` argument, so the `.server.luau` and `.client.luau` checks
+  ran from the CLI but not over MCP.
+- Fixed the MCP server answering an `initialize` notification with a reply, and dropping batch
+  requests without an answer.
+- Fixed MCP registration failing on a configuration file whose JSON is `null` or an array. The
+  installer reports and keeps such a file.
+- Fixed four faults in `roblox-studio-mcp-antigravity`: it cut off output still in flight when the
+  server closed, stopped on `EPIPE`, failed when a Studio update removed a version directory, and
+  started the server when imported as a module.
+- Fixed `doctor` naming the wrong live copy when a version field reached 1000.
+- Fixed `install --global` listing hosts it installed nothing for.
 
 ## [1.9.0] - 2026-09-19
 
-### Fixed
-
-- **Three engine claims corrected against a running engine, not a document**: `WorldRoot:Simulate`/`AutoSimulate`/`SimulationRate` throw `lacking capability RobloxEngine` despite release notes 737 calling them scriptable; `Workspace.StreamingAdaptiveRadius` is a readable, writable boolean rather than a Studio-only setting; `ControlState`'s members and `Enum.InputSink`'s values were read off the engine instead of inferred.
-- **The worked probe this skill taught did not run**: `print(typeof(workspace.AuthorityMode))` throws `lacking capability RobloxScript` from the command bar, a plugin, or MCP. Replaced by a probe that classifies the failure; `workflow.md` and `server-authority.md` now treat a failed read as unknown rather than as a default.
-- **A probe cannot prove absence**: a fabricated name and a security-gated member both return `is not a valid member`. Existence can be settled by a probe, non-existence only by the API dump.
-
 ### Added
 
-- **A guard on the bundle's one packaging exception**: three skills read a reference pool under `best-practices` rather than carrying copies that drift, so `audit.mjs` fails any link leaving a skill for anywhere else, and each dependent skill states that it does not stand alone.
-- **Trigger evals per skill**: ten prompts that should reach it and ten near misses owned by a sibling, which is what tests each description's `Not for ...` boundary. Shape enforced by the audit, method in `evals/README.md`, excluded from the package and from installs.
-- **`MAINTAINING.md`**, holding the release contract and the conventions this repository enforces on itself beyond the Agent Skills specification.
-- **Version and budget checks that reach the skills**: `check-versions.mjs` reads the four skill cards alongside the seven manifests, and the audit fails a description past 90% of the 1024-character limit.
+- Added a statement to the `code-review`, `diagnose`, and `studio-ops` skills that they read the
+  reference pages under `best-practices` and do not work alone.
 
 ### Changed
 
-- **The authoring skill's description is 868 characters, down from 1011**, losing two clauses that described the skill's own mechanics. Every trigger keyword and the boundary naming all three siblings is untouched.
-- **Maintainer procedure moved off the runtime path**: the API refresh pass lives in `MAINTAINING.md`, while the rules governing how its rows are read stayed behind.
-- **Two passages cut to the rule they carried**, taking reconstructions of past mistakes out of a file agents load to look something up.
-
-## [1.8.0] - 2026-09-18
+- Shortened the `best-practices` skill description from 1011 to 868 characters, keeping every
+  trigger word and hand-off.
+- Moved the API refresh procedure for maintainers out of the pages agents load.
+- Cut two reference passages down to the rule they carried.
 
 ### Fixed
 
-- **Three engine facts the skill stated wrongly**: `PlayerControlState` was removed at v738 and replaced by `ControlState` plus `StateSchema`; `GuiService:GetUIScaleMultiplier` was removed while three pages instructed the agent never to flag it; `GuiObject.InputSink` stopped serializing when `GuiObject.Sink` appeared beside it. Each correction reaches every page that repeated the claim.
-- **A method error worth more than the fact it produced**: engine 737 was sized from a *weekly* page, which lists only live changes, and recorded as two items. Its version page carries 22. The reasoning is written down beside the corrected numbers.
+- Corrected three engine claims against a running engine: `WorldRoot:Simulate`, `AutoSimulate`,
+  and `SimulationRate` fail with `lacking capability RobloxEngine`,
+  `Workspace.StreamingAdaptiveRadius` is a readable and writable boolean, and the members of
+  `ControlState` and `Enum.InputSink` were read from the engine.
+- Replaced the example probe, which failed with `lacking capability RobloxScript`, with one that
+  classifies the failure. A failed read is treated as unknown, not as a default value.
+- Corrected the claim that a probe proves an API does not exist. A made-up name and a
+  security-gated member return the same error, so only the API dump settles absence.
+
+## [1.8.0] - 2026-09-18
 
 ### Added
 
-- **The restructured release-notes model**: versioned, weekly, and pending pages answer different questions — introduction is not availability, and leaving the pending list does not mean going live. The toolbox names which page settles which, and how to fetch each.
-- **Engine surface through v739**: `RunService:BindToAnimation`, `WorldRoot:Simulate`, `Workspace.StreamingAdaptiveRadius`, `QueueService` with `StandardQueue`, `Player.PauseTeleports`, and the `AnimatedImage` family, each carrying what is confirmed and what is not. The queue entry says not to migrate a working MemoryStore queue to it.
-- **Deprecations the published index has not caught up to**: `GuiObject:TweenPosition`, `:TweenSize`, `:TweenSizeAndPosition`, and `.Transparency`, tagged in the API dump at v738 but absent from `deprecated.md`. A finding must say where the tag came from.
-- **Removals worth recognising**: `BasePart.siz`, `Part.shap`, `AssetService:PromptCreateAssetAsync`, and `Enum.CollisionFidelity.Scalable` are gone outright.
-- **Luau performance as an authoring lever**: freezing a metatable that never changes makes metamethod lookup substantially cheaper, which pays where metatable OOP is hottest. Dynamic-key access got faster both ways. Still pending, and a reason to freeze class tables rather than restructure working code.
-- **Three Server Authority behaviours that change what to write**: `SetPredictionMode()` is a silent server-side no-op, so its `IsClient()` guard is now noise; `PredictionMode = Off` no longer drifts inside the local simulation region; destroying an `InputContext` no longer kills client input for the session.
-- **A new false positive, named before it is met**: Luau tightened checking inside generic function bodies, so untouched scripts can fail `--!strict` after an engine update. Fix the signature rather than report the author.
+- Added guidance on the three release-notes pages, versioned, weekly, and pending, and which
+  question each one answers.
+- Added engine surface through v739: `RunService:BindToAnimation`, `WorldRoot:Simulate`,
+  `Workspace.StreamingAdaptiveRadius`, `QueueService` with `StandardQueue`,
+  `Player.PauseTeleports`, and the `AnimatedImage` family.
+- Added `GuiObject:TweenPosition`, `:TweenSize`, `:TweenSizeAndPosition`, and `.Transparency` as
+  deprecated, as tagged in the API dump at v738.
+- Added the removed members `BasePart.siz`, `Part.shap`, `AssetService:PromptCreateAssetAsync`, and
+  `Enum.CollisionFidelity.Scalable`.
+- Added guidance to freeze metatables that never change, which makes metamethod lookup cheaper.
+- Added three Server Authority behaviors: `SetPredictionMode()` does nothing on the server,
+  `PredictionMode = Off` no longer drifts in the local simulation region, and destroying an
+  `InputContext` no longer stops client input.
+- Added a known false positive: stricter checks inside generic function bodies can fail
+  `--!strict` on unchanged scripts after an engine update.
+
+### Fixed
+
+- Corrected three engine facts: `PlayerControlState` was removed at v738 in favor of
+  `ControlState` and `StateSchema`, `GuiService:GetUIScaleMultiplier` was removed, and
+  `GuiObject.InputSink` stopped serializing when `GuiObject.Sink` was added.
+- Corrected the size of engine release 737 from 2 items to 22. The count came from the weekly page,
+  which lists only live changes.
 
 ## [1.7.0] - 2026-09-12
 
 ### Added
 
-- **Route-aware `install --global`**: One command now installs each agent on the machine the best way that agent supports. Cursor and Antigravity take a plugin, laid down from this package with the manifest, skills, subagent, rules, MCP file, scripts, and the host's own `hooks.json` shape; every other host takes separate copies. Nothing is installed twice: a host already holding the plugin is skipped, Cursor is skipped whenever Claude Code holds it, and a plugin directory under git is left for `git pull`.
-- **Seven more hosts reached**: `install --global` now writes into Kiro, Qoder, Cline, Qwen Code, Windsurf, Copilot CLI, and Codex — skills for all seven, the subagent for Kiro, Qoder, and Copilot, and an MCP entry for every host that keeps one in a file. A project install adds Kiro's `PostFileSave` and `PostFileCreate` hooks, and `.kiro/skills/` joins the project skill locations.
-- **MCP registration during install**: The server is merged into each host's own configuration, keeping every other server and backing the file up once. A file that will not parse is reported rather than rewritten. Antigravity is included because it validates a plugin's bundled `mcp_config.json` without reliably surfacing the server from it.
-- **Hook files per host**: Cursor takes an `afterFileEdit` hook and Antigravity a `PostToolUse` hook matching its write tools. The two schemas conflict, so neither can be a file in this repository; each is written at install time. `agy plugin validate` now reports `hooks: 1 processed` where it reported them skipped.
-- **Hook payloads and report shapes**: `targetsFromPayload` reads the path from four more payload shapes, including tool arguments sent as a JSON string, across the keys hosts name a written file under — and only those keys, so no other value is guessed at. `--hook copilot` answers on stdout as `additionalContext` and `--hook kiro` prints the report and exits 0; the default shape is unchanged.
-- **Subagent front matter per host**: `roblox-auditor` is rewritten for the host that reads it — `mode` and `permission` for OpenCode, `tools: ["read"]` for Kiro, the two documented keys for Copilot — and retitled like every other standalone copy, so it names `roblox-code-review` rather than a plugin namespace that is not beside it. Qoder needs no rewriting; Codex and Qwen do not read a Markdown subagent at all.
-- **Plugin awareness in `doctor`**: The report lists this plugin wherever a host installed it, names the live copy with a count of older ones cached beside it, says which copies this tool wrote, and warns when a host reads both a plugin and a loose copy of the same skills, or when Cursor is reading the Claude Code plugin alongside its own.
-- **Uninstall reaches the plugin route**: `uninstall --global` with no component named removes the plugin directories this tool laid down and the `roblox-optimum` entry it added to each MCP configuration, keeping every other server. A directory is removed only when it carries this tool's stamp file, and an MCP entry only while it still matches what this tool writes.
-- **Shipping guard for plugin installs**: `check-versions` fails the build when `package.json` omits a file the plugin route lays down, so a plugin cannot ship missing its rules, a manifest, or the scripts.
+- Added plugin installs to `install --global`. Cursor and Antigravity take a plugin that carries
+  every component, other hosts take separate copies, and a host that already holds the plugin is
+  skipped.
+- Added Kiro, Qoder, Cline, Qwen Code, Windsurf, Copilot CLI, and Codex to `install --global`, and
+  Kiro's `PostFileSave` and `PostFileCreate` hooks and `.kiro/skills/` to project installs.
+- Added MCP registration to `install --global`. The installer merges the server into each host's
+  configuration file, keeps every other server, and backs the file up once.
+- Added the Cursor `afterFileEdit` hook and the Antigravity `PostToolUse` hook, written at install
+  time in each host's format.
+- Added `--hook copilot` and `--hook kiro`, which report findings in the shape each host reads.
+- Added a per-host version of the `roblox-auditor` subagent for OpenCode, Kiro, and Copilot.
+- Added plugin reporting to `doctor`, with a warning when a host reads both a plugin and a loose
+  copy of the same skills.
+- Added plugin directories and MCP entries to `uninstall --global`. The uninstaller removes only
+  those this tool wrote.
 
 ### Changed
 
-- **Agent front matter dispatch**: `copyCopilotAgents` became `copyAgents`, driven by a `form` on each host rather than a name checked in three places, with `splitFront` shared between the per-host translations.
-- **Qwen extension manifest**: `qwen-extension.json` now declares `skills`, `agents`, and `mcpServers`, so one `qwen extensions install` carries all four components instead of the context file alone.
-- **Installation guide**: [INSTALL.md](INSTALL.md) documents every supported host from its own documentation, including Codex, Cline, Windsurf, Qoder, and Qwen Code, which previously appeared only as a rule-file path.
+- Changed `qwen-extension.json` to declare the skills, the subagent, and the MCP server, so one
+  `qwen extensions install` carries every component.
 
 ## [1.6.0] - 2026-09-10
 
-### Fixed
-
-- **`UnreliableRemoteEvent` payload limit documentation**: Corrected [limits-budgets.md](skills/best-practices/references/limits-budgets.md) regarding oversized `UnreliableRemoteEvent` payloads, clarifying that Studio logs how far over the limit a payload went while a live client logs nothing (addressing payloads that grow after release and drop silently in production).
-
 ### Added
 
-- **Code hand-off hygiene standards**: Added rules in [minimal-code.md](skills/best-practices/references/minimal-code.md#what-the-pass-leaves-behind) governing the state of files at hand-off to prevent machine-written leftovers (such as unused bindings, placeholder stubs, `-- TODO` comments presented as finished work, debug `print` calls, and duplicate backups), while leaving existing file leftovers untouched and reporting them instead.
-- **Script Sync verification guidelines**: Documented verification procedures in [external-editors.md](skills/best-practices/references/external-editors.md#studio-script-sync--the-official-one) using `InstanceFileSyncService:GetStatus()` and the `InstanceFileSyncStatus` enum to detect stopped sync states that appear healthy from the filesystem, noting the **PluginSecurity** constraint restricting usage to command bar, plugins, or MCP tools rather than shipped code.
-- **Event teardown semantics documentation**: Documented teardown distinctions in [luau-language.md](skills/best-practices/references/luau-language.md#deferred-engine-events), noting that `Disconnect()` drops queued handler invocations while destroying an instance still executes queued events against dismantled state, alongside documentation for the `SignalBehavior.AncestryDeferred` mode.
-- **Bindable execution edge cases**: Documented hanging and error-handling edge cases in [edge-cases.md](skills/best-practices/references/edge-cases.md), including `BindableFunction:Invoke` hanging indefinitely without error or timeout when no `OnInvoke` handler is set, and `BindableEvent:Fire` returning before listeners finish across independent threads without propagating errors.
-- **`RemoteFunction:InvokeClient` hazard detection**: Added deterministic hazard checks in `roblox-optimum --check` via a new `HAZARDS` table to flag `RemoteFunction:InvokeClient` (preventing indefinite server thread hangs when a client fails to return), and updated selftests to enforce `explain_finding` documentation coverage for all hazards.
-- **Network ownership mechanics**: Documented network ownership rules in [patterns/network.md](skills/best-practices/references/patterns/network.md#network-ownership) covering `SetNetworkOwner` constraints, server authority on anchored parts, assembly ownership distribution, automatic client assignment for unanchored parts, and `SetNetworkOwnershipAuto()`, with cross-references from `security.md`.
-- **Remote communication edge cases**: Documented replication edge cases where a `RemoteFunction` return does not guarantee client visibility of newly created server instances, and detailed causes of delayed `Remote event invocation discarded` warnings from unhandled buffered events.
-- **Remote handler binding and teardown**: Documented differences in [patterns/network.md](skills/best-practices/references/patterns/network.md) between accumulating event connections (`OnServerEvent`/`OnClientEvent`) and single-assignment callbacks (`OnServerInvoke`/`OnClientInvoke`), along with lifecycle teardown requirements for temporary remotes.
-- **Network profiling caveats**: Documented network measurement caveats in [performance.md](skills/best-practices/references/performance.md#measurement-never-optimize-blind), clarifying that Developer Console Network stats track web calls rather than remotes, and that MicroProfiler network metrics are available only in saved frame dumps rather than live overlays.
-- **Expanded deprecated API detection**: Added checks, replacements, and `explain_finding` documentation for `AnimationController:LoadAnimation`, `AnimationClipProvider:GetAnimationClip`/`GetAnimationClipById`, `MakeJoints`/`BreakJoints`, `BasePart.RotVelocity`, `Attachment.WorldRotation`, `ContentProvider:Preload`, `BadgeService:AwardBadge`, `BadgeService:UserHasBadge`, and `Chat:FilterStringForPlayerAsync` based on published engine deprecation data.
-- **Engine deprecation inventory reference**: Designated `create.roblox.com/docs/reference/engine/deprecated.md` in [api-currency.md](skills/best-practices/references/api-currency.md) as the authority for unflagged deprecated APIs, documented procedures for reading the pending-release list, and updated `code-review` rules against unverified API assumptions.
+- Added `RemoteFunction:InvokeClient` to the checker as a hazard, since a client that never
+  returns hangs the server thread.
+- Added checks and explanations for `AnimationController:LoadAnimation`,
+  `AnimationClipProvider:GetAnimationClip` and `GetAnimationClipById`, `MakeJoints`,
+  `BreakJoints`, `BasePart.RotVelocity`, `Attachment.WorldRotation`, `ContentProvider:Preload`,
+  `BadgeService:AwardBadge`, `BadgeService:UserHasBadge`, and `Chat:FilterStringForPlayerAsync`.
+- Added rules for the state of files at hand-off: no unused bindings, placeholder stubs,
+  unfinished `-- TODO` comments, debug `print` calls, or backup copies.
+- Added a way to confirm that Script Sync is running with `InstanceFileSyncService:GetStatus()`.
+- Added event teardown behavior: `Disconnect()` drops queued handler calls, while destroying an
+  instance still runs them.
+- Added edge cases for `BindableFunction:Invoke`, which hangs without an `OnInvoke` handler, and
+  `BindableEvent:Fire`, which returns before its listeners finish.
+- Added network ownership rules, including `SetNetworkOwner` limits and
+  `SetNetworkOwnershipAuto()`.
+- Added remote edge cases: a `RemoteFunction` return does not guarantee the client sees new server
+  instances, and unhandled buffered events cause `Remote event invocation discarded` warnings.
+- Added the difference between event connections, which accumulate, and `OnServerInvoke` and
+  `OnClientInvoke` callbacks, which replace each other.
+- Added network measurement caveats for the Developer Console and the MicroProfiler.
+- Added the engine's deprecated API index as the authority for deprecations the checker does not
+  flag.
+
+### Fixed
+
+- Corrected the `UnreliableRemoteEvent` payload limit guidance: Studio logs an oversized payload,
+  and a live client drops it without a log.
 
 ## [1.5.1] - 2026-09-07
 
 ### Fixed
 
-- **Package symlink execution resolution**: Fixed silent exits (exiting 0 with no output) when `roblox-optimum` or `roblox-mcp` is executed from symlinked locations (such as `npm link`, pnpm, or running inside the package directory) by resolving both `import.meta.url` and `process.argv[1]` to real paths across `roblox-optimum.mjs`, `roblox-mcp.mjs`, and `sync-rules.mjs`.
+- Fixed `roblox-optimum` and `roblox-mcp` exiting without output when run through a symlink, such
+  as after `npm link` or a pnpm install.
 
 ## [1.5.0] - 2026-09-07
 
 ### Added
 
-- **Global installation**: Added `roblox-optimum install --global`, which writes the skills and the `roblox-auditor` agent into each agent's home directory (`~/.claude`, `~/.cursor`, `~/.copilot`, `~/.gemini/config`, `~/.config/opencode`) so they load in every project without a per-repository install. Only agents already present on the machine are written to unless `--all` is passed.
-- **Antigravity Studio MCP wrapper**: Added `scripts/studio-mcp-antigravity.mjs`, a stdio proxy that keeps Roblox's own Studio MCP server usable from Antigravity. It answers the non-standard `server/discover` request that Antigravity opens a session with, which StudioMCP rejects with `expect initialized request` before closing the pipe, and launches `StudioMCP.exe` directly rather than through the `mcp.bat` Roblox ships, whose `else` sits on its own line and is rejected by `cmd`. The executable is located by install date, so a Studio update does not stale the path. Exposed as the `roblox-studio-mcp-antigravity` binary.
-- **Installation reporting**: Added `roblox-optimum doctor`, which reports every copy this tool has written, in the project and on the machine, marking each as current, older than the release in hand, or owned by someone else. Judged by the stamp inside the file rather than by its name. `--project` and `--global` narrow the scope. Reads only.
-- **Uninstallation command**: Added `roblox-optimum uninstall`, which removes what this tool wrote, by component, in the project or with `--global` on the machine. A file carrying no stamp or marker of this tool's is reported and left in place, and host directories are never removed, only the copies inside them. `--dry-run` lists without removing.
-- **Version consistency check**: Added `scripts/check-versions.mjs`, which proves the seven manifests carrying a version agree with `package.json` and that no shipped configuration pins a release. `--fix` writes the declared version across them in place, without reformatting the rest of the file.
+- Added `install --global`, which writes the skills and the `roblox-auditor` subagent into each
+  agent's home directory so they load in every project.
+- Added `roblox-studio-mcp-antigravity`, a proxy that makes Roblox's Studio MCP server usable from
+  Antigravity on Windows.
+- Added `doctor`, which reports every copy this tool wrote and whether it is current, older, or
+  someone else's.
+- Added `uninstall`, which removes only the files this tool wrote. `--dry-run` lists them without
+  removing anything.
 
 ### Changed
 
-- **Test chain pipeline**: Updated `npm test` to run `check-versions` and the structural audit before selftests, preventing builds from shipping with outdated manifest versions or broken links.
-- **Installer path formatting**: Updated installer reports to display written file paths relative to the working directory or `~` instead of printing absolute paths or redundant parent directory segments.
-- **Copilot agent installation directory**: Updated `copyCopilotAgents` to accept explicit target directories for global installations (`~/.copilot/agents/`) while preserving existing project paths.
+- Changed installer reports to show paths relative to the working directory or `~`.
+- Changed global installs for Copilot to write the subagent to `~/.copilot/agents/`.
 
 ### Fixed
 
-- **MCP configuration version pinning**: Removed hardcoded version pinning (`roblox-optimum@<version>`) from shipped `mcp.json` and `mcp_config.json` configurations to prevent downstream setups from freezing on specific releases, aligning with `INSTALL.md` examples and enforcing unpinned versions via structural audit.
+- Removed the version pin from the shipped MCP configuration files, which froze the server at one
+  release.
 
 ## [1.4.0] - 2026-09-06
 
 ### Added
 
-- **Unyielding loop detection**: Added deterministic checks in `roblox-optimum --check` to flag `while true do` loops that lack yields, breaks, or exits to prevent thread starvation.
-- **Context-aware boundary checks**: Added validation for `.server.luau` and `.client.luau` scripts to detect cross-boundary API usage (such as `Players.LocalPlayer` on the server or `DataStoreService` on the client).
-- **Standards documentation**: Documented unyielding loops and script context rules in `style-rules.md`.
-- **Git LFS place locking**: Added Git LFS configuration and lockable patterns in `team-workflow.md` to prevent merge conflicts on binary `.rbxl` files.
-- **Git history and branch management**: Added collaborative git standards covering branch protection, `--force-with-lease`, and safe reverts for published branches.
-- **Open Cloud CI testing**: Documented automated place testing workflows using the Open Cloud Luau Execution API and concurrency group configurations.
-- **Credential rotation protocols**: Added emergency response procedures for leaked repository credentials and `.ROBLOSECURITY` tokens.
-- **Failure mode documentation**: Documented common team workflow edge cases, including place autosave overwrites, unlanded place dependencies, and test place data store sharing.
+- Added a check for `while true do` loops that can neither yield nor exit.
+- Added a check for members used on the wrong side in `.server.luau` and `.client.luau` files,
+  such as `Players.LocalPlayer` on the server.
+- Added Git LFS locking for binary `.rbxl` files to the team workflow guide.
+- Added branch protection, `--force-with-lease`, and safe reverts to the team workflow guide.
+- Added automated place testing with the Open Cloud Luau Execution API.
+- Added a response procedure for leaked credentials and `.ROBLOSECURITY` tokens.
+- Added team workflow failure modes: autosave overwrites, unlanded place dependencies, and test
+  places sharing data stores.
 
 ### Changed
 
-- **Evidence categorization**: Clarified team metric baselines (branch count and lifespan recommendations) as observational data distinct from engine-enforced rules.
+- Marked branch count and lifespan targets as observations, not engine rules.
 
 ## [1.3.0] - 2026-09-06
 
 ### Added
 
-- **`team-workflow.md` reference**: Added comprehensive team workflow documentation covering branch places per developer, DataModel ownership boundaries, review checkpoints, and deployment through Open Cloud.
-- **Collaborative failure modes**: Documented deployment edge cases, including autosave conflicts and unsupported instance updates in Open Cloud pipelines.
-- **Engine network limit documentation**: Added explicit engine networking limits, including the ~500 calls/second client-to-server rate cap and the 1,000-byte payload limit for `UnreliableRemoteEvent`.
-- **Network optimization guidelines**: Documented optimization hierarchy (traffic elimination, frequency reduction, payload minimization, and buffer packing) and replication overheads for server-side tweens and hierarchy updates.
-- **Networking library evaluation criteria**: Added evaluation guidelines focusing on per-frame batching efficiency and realistic network metrics rather than synthetic benchmarks.
+- Added a team workflow guide: a branch place per developer, DataModel ownership, review
+  checkpoints, and deployment through Open Cloud.
+- Added engine network limits: about 500 client-to-server calls per second, and a 1,000-byte
+  payload limit for `UnreliableRemoteEvent`.
+- Added a network optimization order: remove traffic, send less often, shrink payloads, then pack
+  buffers.
+- Added criteria for judging networking libraries by per-frame batching and measured traffic.
 
 ### Changed
 
-- **`minimal-code.md` enhancements**: Added caller-tracing rules before refactoring shared logic, guidelines for reducing unnecessary ModuleScripts and dependencies, and documentation conventions for architectural constraints.
-- **Protected code paths**: Explicitly classified data-loss protection routines and accessibility features as non-negotiable paths exempt from code reduction.
+- Required tracing every caller before refactoring shared code, and extended the guidance on
+  removing unneeded ModuleScripts and dependencies.
+- Marked data-loss protection and accessibility code as exempt from code reduction.
 
 ### Fixed
 
-- **`UnreliableRemoteEvent` state guidance**: Documented unordered delivery characteristics of `UnreliableRemoteEvent` and mandated sending absolute state values instead of delta updates.
-- **`RemoteFunction:InvokeClient` failure modes**: Documented all three failure modes for client invocations (indefinite thread hangs, rethrown client errors, and mid-flight disconnections).
-- **Documentation link anchors**: Fixed cross-reference anchor links pointing to `workflow.md`.
+- Corrected the `UnreliableRemoteEvent` guidance to send absolute state, since delivery is
+  unordered.
+- Documented all three failure modes of `RemoteFunction:InvokeClient`: a hang, a rethrown client
+  error, and a disconnect mid-call.
+- Fixed broken links to `workflow.md`.
 
 ## [1.2.0] - 2026-09-05
 
 ### Added
 
-- **`diagnose` skill**: Added a specialized debugging skill for root-cause analysis before modifying code. Features systematic problem isolation, server versus client state verification, hypothesis testing with Studio probes, and automatic routing to `best-practices`.
-- **Cross-skill routing validation**: Added audit checks in `audit.mjs` verifying that skill descriptions cross-reference related skills for reliable agent routing.
-- **`get_standards` MCP tool**: Added a third MCP tool exposing the invariant standards card directly to agents in Studio-native environments without local files.
+- Added the `diagnose` skill, which traces a reported bug to its cause before any code changes.
+- Added the `get_standards` MCP tool, which returns the invariant standards card.
 
 ### Changed
 
-- **MCP protocol alignment**: Updated MCP server implementation to declare protocol revision `2025-11-25` while maintaining backward compatibility with revisions `2025-06-18`, `2025-03-26`, and `2024-11-05`.
-- **Contract-focused script documentation**: Streamlined internal function docstrings to focus strictly on contract descriptions and purpose, removing redundant annotations where signatures are self-evident.
-- **Skill packaging metadata**: Added explicit `license: MIT` field to all skill frontmatter blocks.
-- **Direct reference links**: Updated `explain_finding` to output direct links to raw reference documentation.
-- **Contractual MCP tool specifications**: Rewrote tool descriptions for `check_luau`, `explain_finding`, and `get_standards` to explicitly state operational scopes and boundaries.
-- **Clarified invariant rule boundaries**: Refined per-frame garbage and yield re-validation rules in `AGENTS.md` to clarify exemptions for cold paths, scheduled timers, and non-yielding code paths.
-- **Strict citation guidelines**: Strengthened requirements for verifying active project code and engine APIs before forming hypotheses or making changes.
+- Changed the MCP server to declare protocol revision `2025-11-25`, and to keep answering
+  `2025-06-18`, `2025-03-26`, and `2024-11-05`.
+- Set `license: MIT` in the front matter of every skill.
+- Changed `explain_finding` to return direct links to the reference pages.
+- Rewrote the MCP tool descriptions to state what each tool does and does not do.
+- Narrowed the per-frame garbage and re-validation rules to exempt cold paths, timers, and code
+  that does not yield.
+- Strengthened the rule to confirm project code and engine APIs before forming a hypothesis.
 
 ## [1.1.0] - 2026-09-05
 
 ### Added
 
-- **Expanded deprecated API detection**: Added checks and explanations for `Model:GetPrimaryPartCFrame()`, `Camera.CoordinateFrame`, and `Player:GetRankInGroupAsync()` / `GetRoleInGroupAsync()`.
-- **Automated MCP configuration synchronization**: Derived `mcp_config.json` directly from `mcp.json` with automated drift detection.
-- **Cross-platform CI support**: Added Windows test runners alongside Linux in GitHub Actions workflows.
-- **Date validation audit**: Added structural audit checks ensuring baseline documents maintain proper date conventions.
-- **Provenance attestations**: Configured npm releases with `--provenance` cryptographic attestations.
+- Added checks and explanations for `Model:GetPrimaryPartCFrame()`, `Camera.CoordinateFrame`, and
+  `Player:GetRankInGroupAsync()` and `GetRoleInGroupAsync()`.
+- Added npm provenance attestations to releases.
 
 ### Changed
 
-- **Currency baseline update**: Updated Luau and engine compatibility baseline to version 0.737.
-- **Promoted Luau features**: Promoted `pcall` / `xpcall` within user-defined type functions from experimental to generally available.
-- **Engine pending-changes parsing**: Added support for reading pending engine changes directly from structured JSON payloads.
+- Updated the engine and Luau baseline to version 0.737.
+- Marked `pcall` and `xpcall` inside user-defined type functions as generally available.
+- Changed the pending engine change guidance to read the JSON source.
 
 ### Fixed
 
-- **`MultiEdit` hook support**: Fixed hook matcher patterns to properly intercept `MultiEdit` tool invocations in Claude Code and Codex environments.
-- **Windsurf rule activation**: Configured explicit `trigger: model_decision` in Windsurf rule definitions.
-- **Universal references in `AGENTS.md`**: Replaced repository-relative file paths in the invariant card with universal skill names and standard CLI commands.
-- **Complete URLs in `explain_finding`**: Updated `explain_finding` to return complete, navigable URLs to reference patterns.
-- **Reference link resolution in copied skills**: Fixed relative link rewrites when copying standalone skills into project directories.
+- Fixed the hooks missing `MultiEdit` in Claude Code and Codex.
+- Fixed the Windsurf rule not loading, by setting `trigger: model_decision`.
+- Replaced repository paths in the standards card with skill names and CLI commands.
+- Fixed `explain_finding` returning incomplete URLs.
+- Fixed relative links in skills copied into a project.
 
 ## [1.0.0] - 2026-09-05
 
-Initial public release.
-
 ### Added
 
-- **Core Luau Standards**: Framework-agnostic Roblox and Luau standards covering file layout (`VARIABLES` > `FUNCTIONS` > `INITIALIZATION`), contract docstrings, server authority, lifecycle management, and reliable data persistence.
-- **Three core skills**: `best-practices` (authoring and refactoring), `code-review` (auditing and scoring), and `studio-ops` (Studio MCP and toolchain sync).
-- **`roblox-auditor` agent**: Specialized read-only subagent for whole-project architectural scoring across security, lifecycle, performance, and replication.
-- **Deterministic CLI checker**: Fast, zero-dependency Node.js CLI tool (`roblox-optimum --check`) catching deprecated APIs and out-of-order section headers.
-- **Roblox Studio MCP server**: Stdio-based MCP server providing `check_luau` and `explain_finding` for places edited directly in Roblox Studio.
-- **Configurable supervision levels**: Supported `ask`, `bal`, and `go` operational modes per request or as persistent defaults.
-- **Multi-agent installation tool**: Automated installer (`npx roblox-optimum install`) with support for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
+- Added framework-agnostic Roblox and Luau standards covering file layout, documentation comments,
+  server authority, lifecycle, and data persistence.
+- Added the `best-practices`, `code-review`, and `studio-ops` skills.
+- Added the `roblox-auditor` read-only subagent, which scores a whole project across security,
+  lifecycle, performance, and replication.
+- Added the `roblox-optimum --check` CLI, which reports deprecated APIs and out-of-order section
+  headers.
+- Added an MCP server with the `check_luau` and `explain_finding` tools.
+- Added the `ask`, `bal`, and `go` supervision levels.
+- Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
+  Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.10.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.1...v1.10.0
+[1.9.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.0...v1.9.1
+[1.9.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.5.0...v1.5.1

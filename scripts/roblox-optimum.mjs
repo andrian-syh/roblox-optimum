@@ -28,15 +28,89 @@ const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROBLOX_MARKERS =
   /\bgame:GetService\s*\(|\bscript\.Parent\b|\bworkspace\b|\bInstance\.new\s*\(/;
 
-/** Proof that a directory is a Roblox project. */
-const PROJECT_MARKERS = [
-  "default.project.json",
-  "sourcemap.json",
-  ".robloxrc",
-  "wally.toml",
-  "rokit.toml",
-  "aftman.toml",
+/** Files at a project's root that a Roblox toolchain leaves there, and nothing else does. */
+const PROJECT_MARKER =
+  /^(?:.+\.project\.json|sourcemap\.json|\.robloxrc|\.luaurc|(?:wally|rokit|aftman|foreman|selene)\.toml|.+\.rbxlx?)$/;
+
+/**
+ * Whether a directory holds a .luau file within a few levels. The depth is a ceiling: a
+ * project with no toolchain marker and every script deeper than that is missed.
+ */
+function holdsLuau(dir, depth) {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+
+  return entries.some((e) =>
+    e.isDirectory()
+      ? depth > 0 && !e.name.startsWith(".") && !VENDOR.includes(e.name) && holdsLuau(join(dir, e.name), depth - 1)
+      : e.name.endsWith(".luau"),
+  );
+}
+
+/** Whether a directory is a Roblox project, by its toolchain files or by the Luau it holds. */
+export function isRobloxProject(dir) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return false;
+  }
+
+  return names.some((n) => PROJECT_MARKER.test(n)) || holdsLuau(dir, 2);
+}
+
+/**
+ * Names that only come up when the work is a Roblox game. They are API and tool names, written
+ * the same in a request of any language, so matching them needs no word list per language.
+ */
+const ROBLOX_WORDS =
+  /\b(?:roblox|robux|luau|rojo|wally|argon|azul|datastore(?:service)?|profilestore|remote(?:event|function)|serverscriptservice|replicatedstorage|starter(?:gui|player)|localscript|modulescript|leaderstats|humanoid|obby|tycoon|exploiters?)\b|\.luau\b|game:GetService/i;
+
+/** Languages and engines that say the work is not Luau, even in a Roblox project. */
+const OTHER_STACK =
+  /\b(?:python|javascript|typescript|react|node\.?js|npm|java|c#|c\+\+|rust|golang|php|ruby|swift|kotlin|love2d|lua 5\.\d|unity|unreal|godot)\b/i;
+
+/**
+ * Which skill a request reads as, first match winning, each with the phrase that says why.
+ * English only: a request these miss gets every skill listed, and the model picks.
+ */
+const PROMPT_ROUTES = [
+  [
+    /\b(?:rojo|argon|azul|script sync|studio mcp|playtest|sync|clobber|overwrit|revert)\w*|\bconnect to studio|\brunning session|\bplace (?:file|back)|\btest\b.*\b(?:\d+|two|three|multiple) (?:players|clients)/i,
+    "studio-ops",
+    "tooling or a playtest",
+  ],
+  [
+    /\b(?:review|audit|judge|rank)\w*|\bscore (?:my|this)|\bhow (?:good|safe|bad)\b|\b(?:risky|take a look)\b|\bmemory leaks?\b|\bcheck (?:the|my) (?:diff|code)|\bis (?:this|it|my)\b[^.?!]{0,40}\b(?:safe|good|secure)\b/i,
+    "code-review",
+    "judging existing code",
+  ],
+  [
+    /^(?!.*\.luau?\b).*(?:\b(?:broken|bug|error|crash|reset|twice|duplicat|vanish|disappear|lag|freez|randomly|sometimes|occasionally|breaks|dies|wrong)\w*|\bfall(?:s|ing)? through|\bfps\b|\b(?:not|doesn'?t|isn'?t|won'?t) work)/is,
+    "diagnose",
+    "a reported symptom",
+  ],
+  [
+    /\b(?:write|make|add|build|create|implement|refactor|fix|script|system|best practice)\w*/i,
+    "best-practices",
+    "writing or changing Luau",
+  ],
 ];
+
+/**
+ * The skill a prompt should load, a route with no skill when the model should pick one, or
+ * null when it is not Roblox work: another stack named, or outside a project, Roblox unnamed.
+ */
+export function routePrompt(prompt, inProject) {
+  if (OTHER_STACK.test(prompt) || (!inProject && !ROBLOX_WORDS.test(prompt))) return null;
+
+  const hit = PROMPT_ROUTES.find(([pattern]) => pattern.test(prompt));
+  return hit === undefined ? { skill: null, why: null } : { skill: hit[1], why: hit[2] };
+}
 
 /**
  * APIs the skill forbids outright, each with the replacement to offer. A name community
@@ -202,9 +276,9 @@ const SKIP_REASON = {
 export const GENERATED = "<!-- Generated from AGENTS.md. Edit that file. -->";
 
 /**
- * Where each agent reads its instructions, the front matter that host expects above the shared
- * body, and the directory whose presence says the host is in use here. An agent that reads
- * plain Markdown takes no front matter; one with no marker of its own is written on request.
+ * Where each agent reads its instructions, the front matter that loads them on every request,
+ * and the directory that says the host is in use. Rules reach only a project they were
+ * installed into, so always loading them costs nothing outside Roblox work.
  */
 export const RULE_TARGETS = [
   {
@@ -213,8 +287,7 @@ export const RULE_TARGETS = [
     agent: "Cursor",
     frontMatter: `---
 description: Roblox and Luau coding standards
-globs: ["**/*.luau", "**/*.lua"]
-alwaysApply: false
+alwaysApply: true
 ---
 `,
   },
@@ -223,8 +296,7 @@ alwaysApply: false
     marker: ".kiro",
     agent: "Kiro",
     frontMatter: `---
-inclusion: fileMatch
-fileMatchPattern: ["**/*.luau", "**/*.lua"]
+inclusion: always
 ---
 `,
   },
@@ -234,8 +306,7 @@ fileMatchPattern: ["**/*.luau", "**/*.lua"]
     marker: ".windsurf",
     agent: "Windsurf",
     frontMatter: `---
-trigger: model_decision
-description: Roblox and Luau coding standards
+trigger: always_on
 ---
 `,
   },
@@ -272,7 +343,13 @@ Usage:
                                      which is how Copilot reads a hook back.
   roblox-optimum --hook kiro         The same check, reporting on stdout and exiting 0, which is
                                      how Kiro adds a command's output to the agent's context.
-  roblox-optimum --compact           Read a session-start payload on stdin.
+  roblox-optimum --session           Read a session-start payload on stdin. In a Roblox project,
+                                     prints which skill fits which request.
+  roblox-optimum --compact           The same, after a summary: points back at the skill.
+  roblox-optimum --prompt            Read a prompt-submit payload on stdin. For a Roblox request,
+                                     prints the skill it needs.
+  roblox-optimum --pre-write         Read a pre-write hook payload on stdin. Before a Luau file
+                                     is written, prints the standards in brief.
   roblox-optimum --help              Show this text.
 
 Exit codes: 0 nothing to report, 1 findings, 2 findings for an agent or a usage error.
@@ -899,7 +976,7 @@ export function parseComponents(args) {
 }
 
 /** How a host starts the checker from a hook, without a global install to depend on. */
-const HOOK_COMMAND = "npx -y -p roblox-optimum roblox-optimum";
+const HOOK_COMMAND = "npx -y -p roblox-optimum@latest roblox-optimum";
 
 /** The tools Antigravity names when it writes a file, which are the ones worth checking after. */
 const ANTIGRAVITY_WRITES = "write_to_file|replace_file_content|multi_replace_file_content";
@@ -941,9 +1018,9 @@ const PLUGIN_PAYLOAD = [
 ];
 
 /**
- * Where each host reads a plugin from, and which of this package's files it reads there. A
- * plugin carries the skills, the agent, the rules and the MCP server at once, so a host with a
- * route here is given one directory instead of a copy of each part.
+ * Where each host reads a plugin from, and which of this package's files it reads there. A host
+ * with a route gets one directory instead of a copy of each part. Antigravity's carries no MCP
+ * file, since its server is registered globally and a second copy would duplicate every tool.
  */
 const PLUGIN_ROUTES = {
   Cursor: {
@@ -955,7 +1032,6 @@ const PLUGIN_ROUTES = {
   Antigravity: {
     dir: join(".gemini", "config", "plugins", PLUGIN),
     manifest: "plugin.json",
-    mcp: "mcp_config.json",
     hooks: "antigravity",
   },
 };
@@ -992,9 +1068,9 @@ export function routeFor(host, home) {
 const PLUGIN_STAMP = ".roblox-optimum";
 
 /**
- * Installs the plugin into one host's directory, or says why it did not. A checkout is left for
- * `git pull`, a directory this tool did not write is left alone, and an older copy waits for
- * `--force` like every other copy.
+ * Installs the plugin into one host's directory, or says why not. A checkout or a directory this
+ * tool did not write is left alone; an older copy waits for `--force`, which replaces it whole
+ * so a file a release stopped shipping does not linger.
  */
 function installPlugin(root, route, force, report) {
   const dir = join(root, route.dir);
@@ -1018,7 +1094,9 @@ function installPlugin(root, route, force, report) {
     return;
   }
 
-  for (const part of [...PLUGIN_PAYLOAD, route.manifest, route.mcp]) {
+  if (existsSync(stamp)) rmSync(dir, { recursive: true, force: true });
+
+  for (const part of [...PLUGIN_PAYLOAD, route.manifest, route.mcp].filter((p) => p !== undefined)) {
     const source = join(PACKAGE_ROOT, part);
     if (!existsSync(source)) continue;
 
@@ -1794,8 +1872,8 @@ function runGlobalInstall(parts, all, force, report) {
         report.written.map((p) => `  ${p}\n`).join("")
       : "roblox-optimum wrote nothing new.\n") +
       (routed.length > 0
-        ? `\n${routed.join(" and ")} took the plugin, which carries the skills, the agent, the\n` +
-          `rules and the MCP server in one directory. Nothing was copied beside it.\n` +
+        ? `\n${routed.join(" and ")} took the plugin, which carries the skills, the agent, and the\n` +
+          `rules in one directory. Nothing was copied beside it.\n` +
           (parts.size < GLOBAL_PARTS.length
             ? `The plugin is one directory, so it carries ${GLOBAL_PARTS.join(" and ")} whichever of\n` +
               `them you named. Only the copies for other hosts were narrowed to ${[...parts].join(" and ")}.\n`
@@ -1888,33 +1966,102 @@ function retitleTree(path) {
   if (fixed !== text) writeFileSync(path, fixed);
 }
 
+/** Which skill fits which request, for a model left to pick one itself. */
+const SKILL_CHOICES =
+  "best-practices to write or change code, code-review to judge existing code, diagnose for " +
+  "a reported symptom with no file named, studio-ops for sync tools, Studio MCP, or playtests";
+
 /**
- * Tells the agent to re-read the skill once a summary has dropped the rules, and stays
- * silent outside a Roblox project so unrelated sessions are not disturbed.
+ * What a session opening in a Roblox project is told, so the skills load on requests that
+ * never name them, and the user learns once that they did.
  */
-async function runCompactReminder() {
-  let payload;
+const SESSION_START =
+  "This is a Roblox project and roblox-optimum is installed. Before answering any Luau or " +
+  "game request, load the roblox-optimum skill that fits it, even when the user never names " +
+  `it: ${SKILL_CHOICES}. After editing Luau, run check_luau on it when the roblox-optimum MCP ` +
+  "server is connected. The first time roblox-optimum shapes an answer, tell the user in one " +
+  "line that its standards were applied.";
+
+/** What a summarized session is told, since the rules it had loaded do not survive a summary. */
+const AFTER_SUMMARY =
+  "This session was summarized. If Luau work continues, re-read the " +
+  "roblox-optimum best-practices SKILL.md before writing any code - the section " +
+  "layout, comment rules, and runtime non-negotiables do not survive a summary, " +
+  "and reconstructing them from memory produces confidently wrong files.";
+
+/** Parses the hook payload on stdin, or returns null when it is not JSON. */
+async function readPayload() {
   try {
-    payload = JSON.parse((await readStdin()) || "{}");
+    return JSON.parse((await readStdin()) || "{}");
   } catch {
-    return 0;
+    return null;
   }
+}
 
-  const cwd = payload?.cwd || process.cwd();
-  if (!PROJECT_MARKERS.some((m) => existsSync(join(cwd, m)))) return 0;
+/** Prints context the way Claude Code and Codex both add it to the conversation. */
+function addContext(event, text) {
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: event, additionalContext: text } }));
+}
 
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "SessionStart",
-        additionalContext:
-          "This session was summarized. If Luau work continues, re-read the " +
-          "roblox-optimum best-practices SKILL.md before writing any code - the section " +
-          "layout, comment rules, and runtime non-negotiables do not survive a summary, " +
-          "and reconstructing them from memory produces confidently wrong files.",
-      },
-    }),
+/**
+ * Points a session at the skills when it opens, or back at them once a summary has dropped
+ * them. Stays silent outside a Roblox project so unrelated sessions are not disturbed.
+ */
+async function runSessionStart(summarized) {
+  if (process.env.ROBLOX_OPTIMUM === "off") return 0;
+
+  const payload = await readPayload();
+  if (payload === null || !isRobloxProject(payload.cwd || process.cwd())) return 0;
+
+  addContext("SessionStart", summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START);
+  return 0;
+}
+
+/** The invariant card in brief, for the moment a Luau file is about to be written. */
+const PRE_WRITE =
+  "roblox-optimum: this writes Luau. New code follows the invariant card: VARIABLES, " +
+  "FUNCTIONS, INITIALIZATION sections in that order; a doc block above each function and no " +
+  "comments inside bodies; the server validates every remote argument; every connection has " +
+  "an owner and a teardown; no wait, spawn, delay, tick, or other deprecated API. The " +
+  "project's existing style wins, and nothing is refactored unasked. If the roblox-optimum " +
+  "best-practices skill is not loaded yet, load it first.";
+
+/**
+ * Restates the standards just before a Luau file is written, where rules read at the start of
+ * a long session sit furthest out of view. Any other write passes without comment.
+ */
+async function runPreWrite() {
+  if (process.env.ROBLOX_OPTIMUM === "off") return 0;
+
+  const payload = await readPayload();
+  if (payload === null) return 0;
+
+  const cwd = payload.cwd || process.cwd();
+  const luau = targetsFromPayload(payload).some(
+    (p) => p.endsWith(".luau") || (p.endsWith(".lua") && isRobloxProject(cwd)),
   );
+  if (luau) addContext("PreToolUse", PRE_WRITE);
+  return 0;
+}
+
+/**
+ * Names the skill a Roblox request needs before the model reads it, or lists them all when the
+ * request's words do not settle one, so a small model need not recall the skills unprompted.
+ */
+async function runPromptRoute() {
+  if (process.env.ROBLOX_OPTIMUM === "off") return 0;
+
+  const payload = await readPayload();
+  if (typeof payload?.prompt !== "string") return 0;
+
+  const route = routePrompt(payload.prompt, isRobloxProject(payload.cwd || process.cwd()));
+  if (route === null) return 0;
+
+  const load =
+    route.skill === null
+      ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
+      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code) before reading any file or answering, even though it was not named.`;
+  addContext("UserPromptSubmit", `${load} Mention roblox-optimum to the user the first time it shapes an answer.`);
   return 0;
 }
 
@@ -2278,6 +2425,33 @@ Players.PlayerAdded:Connect(greet)
     "a module that is not the one node ran is not mistaken for it",
   );
 
+  const bare = mkdtempSync(join(tmpdir(), "roblox-optimum-detect-"));
+  ok(!isRobloxProject(bare), "an empty directory is not a Roblox project");
+  mkdirSync(join(bare, "src", "server"), { recursive: true });
+  writeFileSync(join(bare, "src", "server", "Shop.server.luau"), "");
+  ok(isRobloxProject(bare), "Luau two levels down marks a project that has no toolchain file");
+  rmSync(bare, { recursive: true, force: true });
+  ok(
+    PROJECT_MARKER.test("game.project.json") && PROJECT_MARKER.test("place.rbxlx") && !PROJECT_MARKER.test("package.json"),
+    "a named Rojo project and a place file mark a project, and a Node manifest does not",
+  );
+
+  ok(routePrompt("write a python script that parses my csv", false) === null, "work outside Roblox is left alone");
+  ok(routePrompt("bikin sistem stamina", false) === null, "outside a project, a request must name Roblox");
+  ok(routePrompt("bikin sistem stamina", true)?.skill === null, "inside a project, it need not, and the model picks");
+  ok(
+    routePrompt("ServerScriptServiceでNPCをスポーンするスクリプトを作って", false)?.skill === null &&
+      routePrompt("почему мои leaderstats сбрасываются", false)?.skill === null,
+    "a request in any script is recognized by the API names it carries, and the model picks",
+  );
+  ok(
+    routePrompt("buatkan script spawn NPC di ServerScriptService", false)?.skill === "best-practices",
+    "an English task word inside another language still settles the skill",
+  );
+  ok(routePrompt("my leaderstats reset every time i rejoin", false)?.skill === "diagnose", "a symptom routes to diagnose");
+  ok(routePrompt("review my PR #42", true)?.skill === "code-review", "a review routes to code-review");
+  ok(routePrompt("rojo keeps overwriting my edits", false)?.skill === "studio-ops", "sync trouble routes to studio-ops");
+
   ok(
     SKILL_TARGETS.every((t) => t.markers.length > 0) &&
       new Set(SKILL_TARGETS.map((t) => t.dir)).size === SKILL_TARGETS.length,
@@ -2471,7 +2645,10 @@ const invokedDirectly = ranAsScript(import.meta.url);
 if (invokedDirectly) {
   const [mode, ...rest] = process.argv.slice(2);
   if (mode === "--selftest") selftest();
-  else if (mode === "--compact") process.exit(await runCompactReminder());
+  else if (mode === "--compact") process.exit(await runSessionStart(true));
+  else if (mode === "--session") process.exit(await runSessionStart(false));
+  else if (mode === "--prompt") process.exit(await runPromptRoute());
+  else if (mode === "--pre-write") process.exit(await runPreWrite());
   else if (mode === "--check") process.exit(runCheck(rest));
   else if (mode === "install") process.exit(runInstall(rest));
   else if (mode === "doctor") process.exit(runDoctor(rest));

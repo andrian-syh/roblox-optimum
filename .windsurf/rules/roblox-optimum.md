@@ -1,6 +1,5 @@
 ---
-trigger: model_decision
-description: Roblox and Luau coding standards
+trigger: always_on
 ---
 <!-- Generated from AGENTS.md. Edit that file. -->
 

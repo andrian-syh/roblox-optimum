@@ -2,7 +2,7 @@
   "mcpServers": {
     "roblox-optimum": {
       "command": "npx",
-      "args": ["-y", "-p", "roblox-optimum", "roblox-mcp"]
+      "args": ["-y", "-p", "roblox-optimum@latest", "roblox-mcp"]
     }
   }
 }

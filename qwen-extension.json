@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "Professional Roblox and Luau standards for AI agents.",
   "contextFileName": "QWEN.md",
   "skills": "skills",
@@ -8,7 +8,7 @@
   "mcpServers": {
     "roblox-optimum": {
       "command": "npx",
-      "args": ["-y", "-p", "roblox-optimum", "roblox-mcp"]
+      "args": ["-y", "-p", "roblox-optimum@latest", "roblox-mcp"]
     }
   }
 }

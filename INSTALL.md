@@ -1,246 +1,271 @@
-# Installation Guide
+# Install roblox-optimum
 
-Two parts, installed together or separately:
+roblox-optimum has two parts. You can install them together or separately:
 
-* **The Standards**: rules and skills that hold an AI agent to secure, server-authoritative, leak-free Luau.
-* **The Checker & MCP Server**: a zero-dependency Node.js CLI and MCP server that reads Luau in real time.
+* The standards: rules, skills, and a review subagent that hold an AI agent to secure,
+  server-authoritative, leak-free Luau.
+* The checker: a zero-dependency Node.js CLI and MCP server that checks Luau for deprecated APIs and
+  out-of-order section headers.
 
-## Quick Start
+| Component | What it installs | Scope |
+|---|---|---|
+| `rules` | `AGENTS.md` and each agent's own rule file | project |
+| `skills` | The `best-practices`, `code-review`, `diagnose`, and `studio-ops` skills | project or machine |
+| `agent` | The `roblox-auditor` review subagent | project or machine |
+| `hook` | A Git pre-commit hook, and Kiro's file hook | project |
+| MCP server | The `check_luau`, `explain_finding`, and `get_standards` tools | machine |
 
-In your project root:
+## Requirements
 
-```bash
-npx roblox-optimum install
-```
+* Node.js 18 or later, with `npm` and `npx` on your `PATH`. Run `node --version` to check.
+* Git, for the pre-commit hook.
+* Roblox Studio, only if you connect an agent to Studio through MCP.
+* One of the agents listed in [Set up each agent](#set-up-each-agent), or any agent that reads
+  `AGENTS.md`.
 
-Detects the agents your repository uses, writes their rule files, and installs a pre-commit hook. Files you wrote yourself are never overwritten.
+## Install in a project
 
-### Installing Specific Components
+1. Open a terminal in your project root.
+2. Run the installer:
+
+   ```bash
+   npx roblox-optimum install
+   ```
+
+   The installer detects the agents your repository uses, writes their rule files, and installs the
+   pre-commit hook. It never overwrites a file it did not write.
+
+To install only some components, name them:
 
 ```bash
 npx roblox-optimum install rules     # AGENTS.md and agent-specific rule files
-npx roblox-optimum install skills    # Four specialized skills for your active agent
-npx roblox-optimum install agent     # roblox-auditor subagent for supported hosts
-npx roblox-optimum install hook      # Git pre-commit hook
+npx roblox-optimum install skills    # the four skills, into the directories your project has
+npx roblox-optimum install agent     # the roblox-auditor subagent
+npx roblox-optimum install hook      # the Git pre-commit hook
 ```
 
-Flags:
-* `--all`: writes rule files for every supported agent, present or not.
-* `--force`: replaces a skill, agent, or plugin copy already installed.
-* `--global`: installs into each agent's home directory instead of the project.
+| Flag | Effect |
+|---|---|
+| `--all` | Writes the files of every supported agent, whether or not the project shows a sign of it. |
+| `--force` | Replaces a skill, agent, or plugin copy that an older release installed. |
+| `--global` | Installs into each agent's home directory, for every project on this machine. |
 
-### Installing Globally
+### Where skills go in a project
+
+Skills follow the agent directories the project already has. A project with several gets a copy in
+each:
+
+| Project has | Skills go to |
+|---|---|
+| `.claude` | `.claude/skills/` |
+| `.codex`, `.cursor`, `.agents`, or `.opencode` | `.agents/skills/` |
+| `.kiro` | `.kiro/skills/` |
+
+A copied skill carries the `roblox-` prefix, such as `roblox-best-practices`, so it cannot collide
+with another skill. Installed as a plugin, the skills keep the plugin namespace, such as
+`roblox-optimum:best-practices`.
+
+## Install for every project on this machine
+
+Run the installer with `--global`:
 
 ```bash
 npx roblox-optimum install --global
 ```
 
-Each agent is installed the best way it supports: a plugin where one exists, separate copies where it does not.
+Each agent is installed the way it supports best: a plugin where one exists, and separate copies
+where it does not.
 
-| Agent | Route | Where |
+| Agent | Route | Location |
 |---|---|---|
 | Claude Code | plugin, from the marketplace | `/plugin install roblox-optimum@andrian-syh` |
 | Cursor | plugin | `~/.cursor/plugins/local/roblox-optimum` |
-| Antigravity | plugin | `~/.gemini/config/plugins/roblox-optimum` |
-| Copilot CLI | copies, MCP entry, hook | `~/.copilot/skills/`, `agents/`, `mcp-config.json`, `hooks/` |
-| OpenCode | copies, MCP entry | `~/.config/opencode/skills/`, `agents/`, `opencode.json` |
-| Kiro | copies, MCP entry | `~/.kiro/skills/`, `agents/`, `settings/mcp.json` |
+| Antigravity | plugin, and an MCP entry | `~/.gemini/config/plugins/roblox-optimum`, `mcp_config.json` |
+| Copilot CLI | copies, MCP entry, and hook | `~/.copilot/skills/`, `agents/`, `mcp-config.json`, `hooks/` |
+| OpenCode | copies and MCP entry | `~/.config/opencode/skills/`, `agents/`, `opencode.json` |
+| Kiro | copies and MCP entry | `~/.kiro/skills/`, `agents/`, `settings/mcp.json` |
 | Qoder | copies | `~/.qoder/skills/`, `agents/` |
-| Cline | copies, MCP entry | `~/.cline/skills/`, `mcp.json` |
-| Qwen Code | copies, MCP entry | `~/.qwen/skills/`, `settings.json` |
-| Windsurf | copies, MCP entry | `~/.codeium/windsurf/skills/`, `mcp_config.json` |
+| Cline | copies and MCP entry | `~/.cline/skills/`, `mcp.json` |
+| Qwen Code | copies and MCP entry | `~/.qwen/skills/`, `settings.json` |
+| Windsurf | copies and MCP entry | `~/.codeium/windsurf/skills/`, `mcp_config.json` |
 | Codex | copies | `~/.agents/skills/` |
 
-Nothing is installed twice: a host already holding the plugin is skipped, Cursor is skipped when Claude Code holds it, and a plugin directory of your own under git is never overwritten.
+The installer writes only to agents whose home directory exists. To write to every location, add
+`--all`.
 
-Only agents whose home directory already exists are written to. Add `--all` to write to every location regardless.
+The installer never installs one component twice. It skips a host that already holds the plugin,
+skips Cursor when Claude Code holds the plugin, and leaves a plugin directory that is a Git checkout
+alone.
 
-`rules` and `hook` are refused in this mode and reported as skipped, since both belong to one project.
+`rules` and `hook` belong to one project, so `--global` skips them and reports them as skipped.
 
-### Where Skills Land
+## Verify the installation
 
-Inside a project, skills follow the directories already there, and a project with several gets all of them:
-
-| Project has | Skills go to |
-|---|---|
-| `.claude` | `.claude/skills/` |
-| `.codex`, `.cursor`, `.agents`, `.opencode` | `.agents/skills/` |
-| `.kiro` | `.kiro/skills/` |
-
-Copied skills carry the `roblox-` prefix (`roblox-best-practices`) to avoid collisions. As a plugin they keep the namespace (`/roblox-optimum:best-practices`).
-
-### Checking What Is Installed
+Run `doctor`. It reads your installation and changes nothing:
 
 ```bash
-npx roblox-optimum doctor              # project and machine
-npx roblox-optimum doctor --project    # this repository only
+npx roblox-optimum doctor              # this project and this machine
+npx roblox-optimum doctor --project    # this project only
 npx roblox-optimum doctor --global     # this machine only
 ```
 
-Each copy is judged by the stamp written into it, not by its name:
+`doctor` judges each copy by the stamp written into it, not by its file name:
 
 | State | Meaning |
 |---|---|
-| `at <version>` | Written by this release |
-| `copied from <version>` | Written by an older release; refresh with `--force` |
-| `written by this tool` | A rule file or hook carrying this tool's marker line |
-| `not written by this tool` | Someone else's file; never touched |
+| `at <version>` | This release wrote the copy. |
+| `copied from <version>` | An older release wrote the copy. Update it with `--force`. |
+| `written by this tool` | A rule file or hook that carries this tool's marker line. |
+| `not written by this tool` | Someone else's file. The installer never changes it. |
 
-Plugin installs are listed under `as a plugin`, with a warning when a host reads both a plugin and a loose copy of the same skills. The report changes nothing.
+Plugin installs are listed under `as a plugin`. `doctor` warns you when a host reads both a plugin
+and a loose copy of the same skills.
 
-### Uninstalling
+To check the MCP server on its own, run its self-test:
 
 ```bash
-npx roblox-optimum uninstall                    # every component, this project
-npx roblox-optimum uninstall skills agent       # named components only
-npx roblox-optimum uninstall --global           # this machine
-npx roblox-optimum uninstall --dry-run          # list without removing
+npx -y -p roblox-optimum@latest roblox-mcp --selftest
 ```
 
-Only files carrying this tool's stamp are removed. One of your own that shares a name is reported and left. Host directories are never removed, only the copies inside them.
+## Update
 
-`uninstall --global` with no component named also removes plugin directories and MCP entries this tool wrote:
-
-| What | Removed when | Left alone when |
-|---|---|---|
-| Plugin directories | The directory carries this tool's stamp file | A git checkout, or anything this tool did not write |
-| MCP entries | The `roblox-optimum` entry still matches what this tool writes | You edited it since, or the file will not parse |
-
-Every other server in an MCP configuration is kept. Naming components removes only those.
-
-### Updating Installed Files
-
-Re-run the install. It is the updater:
+Run the installer again. Without `--force`, it reports what an older release wrote and changes
+nothing:
 
 ```bash
 npx roblox-optimum install --global           # report what is older than this release
-npx roblox-optimum install --global --force   # bring it all across
+npx roblox-optimum install --global --force   # replace it
 ```
 
-* **Rules and Hooks**: Safe to update anytime with `npx roblox-optimum install rules` or `npx roblox-optimum install hook`.
-* **Skills, Agents and Plugins**: A plain run names what is older without touching your edits; `--force` replaces it.
-* **A plugin directory of your own**: Never touched either way. Update it with `git pull`.
+* Rule files and hooks: `npx roblox-optimum install rules` or `npx roblox-optimum install hook`
+  replaces them.
+* Skills, agents, and plugins: `--force` replaces them, and replaces a plugin directory whole, so a
+  file that a release stopped shipping is removed.
+* A plugin directory that is a Git checkout: the installer never changes it. Update it with
+  `git pull`.
 
-## Standalone Checker CLI
-
-Install once, run anywhere, no network:
+## Uninstall
 
 ```bash
-npm install -g roblox-optimum
-roblox-optimum --check src/**/*.luau
+npx roblox-optimum uninstall                    # every component, this project
+npx roblox-optimum uninstall skills agent       # the named components only
+npx roblox-optimum uninstall --global           # this machine
+npx roblox-optimum uninstall --dry-run          # list what would be removed
 ```
 
-## Roblox Studio Integration (MCP)
+The uninstaller removes only files that carry this tool's stamp. It reports and keeps a file of
+yours that shares a name, and it never removes a host directory, only the copies inside it.
 
-For building in Studio without syncing to disk, roblox-optimum ships an MCP server over stdio.
+With no component named, `uninstall --global` also removes the plugin directories and MCP entries
+this tool wrote:
 
-### Available MCP Tools
+| What | Removed when | Kept when |
+|---|---|---|
+| Plugin directories | The directory carries this tool's stamp file. | It is a Git checkout, or this tool did not write it. |
+| MCP entries | The `roblox-optimum` entry still matches what this tool writes. | You edited the entry, or the file does not parse. |
+
+Every other server in an MCP configuration file is kept.
+
+## Connect to Roblox Studio through MCP
+
+The MCP server lets an agent check Luau that lives in Studio and was never written to disk. It runs
+over stdio and needs no network.
 
 | Tool | Purpose |
 |---|---|
-| `check_luau` | Inspects Luau script content and returns standards violations. |
-| `explain_finding` | Explains the rationale behind a violation and points to reference patterns. |
-| `get_standards` | Provides the complete invariant standards card directly to the agent. |
+| `check_luau` | Checks Luau source and returns one finding per rule it breaks. |
+| `explain_finding` | Explains the rule behind a finding and points to the reference page. |
+| `get_standards` | Returns the invariant standards card. |
 
-In Roblox Studio, open **Assistant > Manage MCP Servers** and enable **Studio as MCP server**. The
-agent then reads scripts with `script_read`, checks them with `check_luau`, and writes back with
+To have an agent edit Studio scripts under these checks:
+
+1. In Roblox Studio, go to **Assistant** > **Manage MCP Servers**, and turn on **Studio as MCP
+   server**.
+2. Connect your agent to both the Studio MCP server and the roblox-optimum MCP server.
+
+The agent reads a script with `script_read`, checks it with `check_luau`, and writes it back with
 `multi_edit`.
 
-### Registering the server
+### Register the server
 
-`install --global` writes the entry for every host that keeps one in a file. These three do not:
+The Claude Code plugin registers the server, and `install --global` writes the MCP entry for every
+host that keeps one in a file. For the other hosts, register it yourself:
 
 ```bash
-claude mcp add roblox-optimum -- npx -y -p roblox-optimum roblox-mcp
-codex mcp add roblox-optimum -- npx -y -p roblox-optimum roblox-mcp
+claude mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp   # Claude Code without the plugin
+codex mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp    # Codex
 ```
 
-VS Code takes it in `.vscode/mcp.json` under `servers`, with `"type": "stdio"` beside the command.
-Qoder takes it through **Settings > MCP** as a STDIO server. Each host section below names the
-file it uses; most take the same entry:
+Most hosts that keep MCP servers in a JSON file take this entry:
 
 ```json
 {
   "mcpServers": {
     "roblox-optimum": {
       "command": "npx",
-      "args": ["-y", "-p", "roblox-optimum", "roblox-mcp"]
+      "args": ["-y", "-p", "roblox-optimum@latest", "roblox-mcp"]
     }
   }
 }
 ```
 
----
+* VS Code: add the entry to `.vscode/mcp.json` under `servers`, with `"type": "stdio"` beside
+  `command`.
+* Qoder: add it in **Settings** > **MCP** as a STDIO server.
 
-## Editor and Agent Setup Guides
+Keep a version number out of the package name. A pinned server stops receiving the rule changes
+that ship with the skills. `@latest` is not a pin. It keeps npm from treating a plugin directory,
+which holds this package's own `package.json`, as the package to run.
+
+## Set up each agent
+
+Each section lists the commands for one agent and where each component goes. The hooks each
+plugin carries differ by host:
+
+| Host | Hooks |
+|---|---|
+| Claude Code, Codex | Point the session at the skills in a Roblox project, route each prompt to a skill, restate the standards before a Luau file is written, and check it after. |
+| Cursor | Check a Luau file after each edit. |
+| Antigravity | Check a Luau file after each write. |
+| Copilot CLI | Check a Luau file after the `create` and `edit` tools. |
+| Kiro | Check a Luau file when it is saved or created. |
 
 ### Claude Code
 
-Install directly from the plugin marketplace:
+Install the plugin from the marketplace:
 
 ```bash
 /plugin marketplace add andrian-syh/roblox-optimum
 /plugin install roblox-optimum@andrian-syh
 ```
 
-That brings the four skills, the audit agent, the MCP server, and the hooks.
+The plugin carries the four skills, the review subagent, the MCP server, and the hooks.
 
 ```bash
-/plugin configure roblox-optimum@andrian-syh   # supervision level
-/roblox-optimum:best-practices                 # invoke a skill
+/plugin configure roblox-optimum@andrian-syh   # set the supervision level
+/roblox-optimum:best-practices                 # run a skill by name
 ```
 
 ### Cursor
 
-The plugin carries the skills, the subagent, the rules, the MCP server, and an `afterFileEdit`
-hook in one directory:
+Install the plugin, which carries the skills, the subagent, the rules, the MCP server, and an
+`afterFileEdit` hook:
 
 ```bash
 npx roblox-optimum install --global
 ```
 
-Or open **Settings > Plugins** in Cursor and paste
-`https://github.com/andrian-syh/roblox-optimum` into the search box, or keep a checkout of your
-own, which the installer leaves alone and you update with `git pull`:
+You can also install it from Cursor: go to **Settings** > **Plugins**, and search for
+`https://github.com/andrian-syh/roblox-optimum`.
+
+To update the plugin yourself with `git pull`, clone it instead. The installer leaves a checkout
+alone:
 
 ```bash
 git clone --depth 1 https://github.com/andrian-syh/roblox-optimum.git ~/.cursor/plugins/local/roblox-optimum
 ```
 
-Remove it by deleting that directory.
-
-#### Keep one source
-
-Cursor reads the plugin, `~/.cursor/skills/` and `~/.cursor/agents/`, and plugins Claude Code
-installed under `~/.claude/plugins/cache/`. Two of them holding roblox-optimum lists every skill
-and rule twice.
-
-```bash
-npx roblox-optimum doctor --global                        # what is installed, and where
-npx roblox-optimum uninstall skills agent --global        # drop the loose copies
-```
-
-With Claude Code on the same machine, install there and let Cursor read it. Delete any
-`roblox-optimum` entry in `~/.cursor/mcp.json` too; the plugin registers the same server.
-
-#### Rules scoped by glob
-
-The plugin's rule applies by description. For one scoped to Luau files:
-
-```bash
-npx roblox-optimum install rules
-```
-
-That writes `.cursor/rules/roblox-optimum.mdc`. Without the plugin, fetch it directly:
-
-```bash
-mkdir -p .cursor/rules
-curl -o .cursor/rules/roblox-optimum.mdc https://raw.githubusercontent.com/andrian-syh/roblox-optimum/main/.cursor/rules/roblox-optimum.mdc
-```
-
-#### Hooks
-
-A checkout of your own carries no `hooks.json`. Add one at `~/.cursor/hooks.json` for the machine,
+A checkout carries no `hooks.json`. To add the hook, create `~/.cursor/hooks.json` for the machine,
 or `.cursor/hooks.json` for one project:
 
 ```json
@@ -254,94 +279,88 @@ or `.cursor/hooks.json` for one project:
 }
 ```
 
-### Antigravity (IDE 2.0 and CLI)
-
-The IDE and the `agy` CLI share one customization directory, so a single install serves both.
+To load the rules on every request in one project, write the project rule file:
 
 ```bash
-npx roblox-optimum install --global
+npx roblox-optimum install rules      # writes .cursor/rules/roblox-optimum.mdc
 ```
 
-Or keep a checkout of your own, which the installer leaves alone and you update with `git pull`:
+Cursor reads its plugin, `~/.cursor/skills/`, `~/.cursor/agents/`, and the plugins Claude Code
+installed under `~/.claude/plugins/cache/`. If more than one of them holds roblox-optimum, Cursor
+lists every skill and rule twice. See [Skills, rules, or tools are listed twice](#skills-rules-or-tools-are-listed-twice).
 
-```bash
-git clone --depth 1 https://github.com/andrian-syh/roblox-optimum.git ~/.gemini/config/plugins/roblox-optimum
-```
+To remove the plugin, delete its directory.
 
-Confirm it with Antigravity's own validator:
+### Antigravity
 
-```bash
-agy plugin validate ~/.gemini/config/plugins/roblox-optimum
-```
+The Antigravity IDE and the `agy` CLI share one customization directory, so one install serves
+both.
 
-A healthy report lists four skills, one agent, one MCP server, and one hook. A checkout reports
-the hook as skipped; only an installed plugin carries one.
+1. Install the plugin and register the MCP server:
 
-For a single project, clone into `.agents/plugins/roblox-optimum` at the workspace root.
-Antigravity reads `.agents/plugins/` and `_agents/plugins/` per workspace, and
-`~/.gemini/config/plugins/` globally.
+   ```bash
+   npx roblox-optimum install --global
+   ```
 
-Remove it by deleting that directory, or with `agy plugin uninstall roblox-optimum`. Do not also
-run `install skills --global` here; those copies duplicate the plugin.
+2. Check the plugin with Antigravity's validator:
 
-#### Registering the MCP server
+   ```bash
+   agy plugin validate ~/.gemini/config/plugins/roblox-optimum
+   ```
 
-`agy plugin validate` reports the bundled `mcp_config.json` as processed, but the server does not
-reliably appear under **Installed MCP Servers**. `install --global` therefore also writes it into
-`~/.gemini/config/mcp_config.json`, keeping every other server and backing the file up once.
+   The report lists four skills, one agent, and one hook.
 
-To write it by hand, or to start the server from the copy on disk instead of through `npx`:
+3. In the MCP panel, click **Refresh**. `check_luau`, `explain_finding`, and `get_standards` appear
+   under `roblox-optimum`.
 
-```json
-{
-  "mcpServers": {
-    "roblox-optimum": {
-      "command": "node",
-      "args": ["C:/Users/you/.gemini/config/plugins/roblox-optimum/scripts/roblox-mcp.mjs"]
-    }
-  }
-}
-```
+A server bundled in an Antigravity plugin does not always appear under **Installed MCP Servers**, so
+the installer registers it in `~/.gemini/config/mcp_config.json` and the plugin carries no MCP file.
+The installer keeps every other server in that file and backs it up once.
 
-Absolute path, forward slashes on Windows. Press **Refresh** in the MCP panel or restart
-Antigravity, and `check_luau`, `explain_finding`, and `get_standards` appear.
+To install for one workspace only, clone the repository into `.agents/plugins/roblox-optimum` at the
+workspace root. A checkout carries its own `mcp_config.json`, so if you also run
+`install --global`, turn off the checkout's server in the MCP panel.
 
-Check the server on its own with
-`node ~/.gemini/config/plugins/roblox-optimum/scripts/roblox-mcp.mjs --selftest`.
+To remove the plugin, delete its directory, or run `agy plugin uninstall roblox-optimum`. Do not
+also run `install skills --global` for Antigravity, since those copies duplicate the plugin.
 
-#### Roblox Studio MCP
+#### Connect Antigravity to Roblox Studio
 
-Roblox's own `mcp.bat` fails under Antigravity on Windows: Antigravity opens with a
-`server/discover` request, which is not an MCP method, and the batch file puts `else` on its own
-line, which `cmd` rejects. `roblox-studio-mcp-antigravity` answers the probe and launches the
-newest installed `StudioMCP.exe` directly. Replace the `Roblox_Studio` entry in
-`~/.gemini/config/mcp_config.json` with:
+Antigravity opens each MCP session with a `server/discover` request, which the MCP 2026-07-28
+revision added and Roblox's `StudioMCP.exe` does not implement, and the `mcp.bat` Roblox ships fails
+under `cmd`. `roblox-studio-mcp-antigravity` answers the request the way an older server does and
+starts the most recently installed `StudioMCP.exe` directly.
 
-```json
-{
-  "mcpServers": {
-    "Roblox_Studio": {
-      "command": "node",
-      "args": ["C:/Users/you/.gemini/config/plugins/roblox-optimum/scripts/studio-mcp-antigravity.mjs"]
-    }
-  }
-}
-```
+1. In `~/.gemini/config/mcp_config.json`, replace the `Roblox_Studio` entry:
 
-Studio must be running with **Assistant > Manage MCP Servers > Studio as MCP server** enabled
-before the connection succeeds.
+   ```json
+   {
+     "mcpServers": {
+       "Roblox_Studio": {
+         "command": "node",
+         "args": ["C:/Users/you/.gemini/config/plugins/roblox-optimum/scripts/studio-mcp-antigravity.mjs"]
+       }
+     }
+   }
+   ```
+
+   Use an absolute path, with forward slashes on Windows.
+
+2. Start Roblox Studio, and turn on **Studio as MCP server** under **Assistant** > **Manage MCP
+   Servers**.
+3. In the Antigravity MCP panel, click **Refresh**.
 
 ### GitHub Copilot
 
-With the Copilot CLI installed, take the plugin, which installs into `~/.copilot/installed-plugins/`:
+If you have the Copilot CLI, install the plugin into `~/.copilot/installed-plugins/`:
 
 ```bash
 copilot plugin marketplace add andrian-syh/roblox-optimum
 copilot plugin install roblox-optimum@andrian-syh
 ```
 
-Or enable it declaratively in `~/.copilot/settings.json` for the machine, or
-`.github/copilot/settings.json` for one repository:
+To turn it on in a settings file instead, add this to `~/.copilot/settings.json` for the machine,
+or to `.github/copilot/settings.json` for one repository:
 
 ```json
 {
@@ -351,147 +370,134 @@ Or enable it declaratively in `~/.copilot/settings.json` for the machine, or
 }
 ```
 
-Without the CLI, `install --global` writes the same components into the directories Copilot reads:
+Without the CLI, write the components into the directories Copilot reads:
 
 ```bash
 npx roblox-optimum install --global
 ```
 
-| Component | Where it goes |
+| Component | Location |
 |---|---|
 | Skills | `~/.copilot/skills/` |
 | Subagent | `~/.copilot/agents/roblox-auditor.agent.md` |
 | MCP server | `~/.copilot/mcp-config.json` |
 | Hook | `~/.copilot/hooks/roblox-optimum.json` |
 
-The hook runs after the `create` and `edit` tools, returning findings as `additionalContext`. It
-is written for the machine's shell, `powershell` on Windows and `bash` elsewhere.
+The hook returns findings to the agent as `additionalContext`. The installer writes it for the
+machine's shell: `powershell` on Windows and `bash` elsewhere.
 
-In VS Code without any of this, place `.github/copilot-instructions.md` in your repository root.
+For Copilot in VS Code with none of the above, write `.github/copilot-instructions.md`:
+
+```bash
+npx roblox-optimum install rules --all
+```
 
 ### Codex
 
-This repository is an Agent Plugins v1 package, which Codex installs whole. Start `codex`, run
-`/plugins`, and install it from a local folder or a marketplace. The plugin brings the skills;
-the MCP server and the hook are added separately:
+This repository is an Agent Plugins v1 package. The plugin carries the skills and the hooks.
 
-```bash
-npx roblox-optimum install --global                             # ~/.agents/skills/
-codex mcp add roblox-optimum -- npx -y -p roblox-optimum roblox-mcp
-```
+1. Start `codex`, run `/plugins`, and install roblox-optimum from a marketplace or a local folder.
+2. Register the MCP server:
 
-| Component | Where it goes | Scope |
+   ```bash
+   codex mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp
+   ```
+
+3. In each Roblox project, write the rules:
+
+   ```bash
+   npx roblox-optimum install rules      # writes AGENTS.md
+   ```
+
+Without the plugin, `npx roblox-optimum install --global` copies the skills to `~/.agents/skills/`.
+
+| Component | Location | Scope |
 |---|---|---|
-| Skills | `~/.agents/skills/`, or `.agents/skills/` in a project | both |
-| Rules | `AGENTS.md` in the project root, or `~/.codex/AGENTS.md` | both |
-| MCP server | `~/.codex/config.toml`, under `[mcp_servers.roblox-optimum]` | machine |
-| Hook | `~/.codex/hooks.json`, or `.codex/hooks.json` in the project | both |
+| Skills | the plugin, `~/.agents/skills/`, or `.agents/skills/` in a project | machine or project |
+| Hooks | the plugin | machine |
+| Rules | `AGENTS.md` in the project root, or `~/.codex/AGENTS.md` | project or machine |
+| MCP server | `[mcp_servers.roblox-optimum]` in `~/.codex/config.toml` | machine |
 
-Codex reads skills from `.agents/skills` upwards to the repository root, and from
-`$HOME/.agents/skills` — never from `.codex/skills`. `npx roblox-optimum install rules` writes the
-`AGENTS.md` it reads alongside them.
+Codex reads skills from `.agents/skills` in each directory up to the repository root, and from
+`$HOME/.agents/skills`. It does not read `.codex/skills`.
 
-`.rules` files under `~/.codex/rules/` are something else: Starlark policies deciding which shell
-commands may run outside the sandbox, unrelated to the `rules` component here.
+Files under `~/.codex/rules/` are Codex sandbox policies, unrelated to the `rules` component.
 
-The hook takes the shape Claude Code documents, and reads the checker's stderr on exit 2:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          { "type": "command", "command": "npx -y -p roblox-optimum roblox-optimum" }
-        ]
-      }
-    ]
-  }
-}
-```
-
-`roblox-auditor` is not installed here: Codex reads subagents as TOML under `~/.codex/agents/`
-with a `developer_instructions` field, not as the Markdown every other host takes. Use the
-`code-review` skill directly instead.
+The installer does not install `roblox-auditor` for Codex, because Codex reads subagents as TOML
+with a `developer_instructions` field. Use the `code-review` skill instead.
 
 ### Kiro
 
-Run both, the first for the machine and the second inside the Roblox project:
+Run the first command once for the machine, and the second inside each Roblox project:
 
 ```bash
-npx roblox-optimum install --global   # skills, subagent, MCP server
+npx roblox-optimum install --global   # skills, subagent, and MCP server
 npx roblox-optimum install            # steering and the project hook
 ```
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
-| Skills | `~/.kiro/skills/`, or `.kiro/skills/` in a project | both |
+| Skills | `~/.kiro/skills/`, or `.kiro/skills/` in a project | machine or project |
 | Subagent | `~/.kiro/agents/roblox-auditor.md` | machine |
 | MCP server | `~/.kiro/settings/mcp.json` | machine |
-| Steering | `.kiro/steering/roblox-optimum.md` | project |
+| Steering | `.kiro/steering/roblox-optimum.md`, loaded on every request | project |
 | Hook | `.kiro/hooks/roblox-optimum.json` | project |
 
-The hook fires on `PostFileSave` and `PostFileCreate` for Luau files, reporting findings as agent
-context.
+The hook runs on `PostFileSave` and `PostFileCreate` for Luau files and adds its findings to the
+agent's context.
 
-This repository is also a valid Kiro power. In the powers panel, choose **Add Custom Power**, then
-**Import power from GitHub**:
-
-```text
-https://github.com/andrian-syh/roblox-optimum
-```
-
-or **Import power from a folder** pointing at a clone of it.
+To install the repository as a Kiro power instead, open the powers panel, click **Add Custom Power**,
+click **Import power from GitHub**, and enter `https://github.com/andrian-syh/roblox-optimum`. To use
+a local clone, click **Import power from a folder**.
 
 ### OpenCode
 
-An OpenCode plugin is a JavaScript module of event hooks, not a container for skills and agents,
-so each component installs on its own. Run the second inside the Roblox project:
+An OpenCode plugin is a JavaScript module of event hooks and cannot carry skills, so each component
+installs on its own. Run the first command once for the machine, and the second inside each Roblox
+project:
 
 ```bash
-npx roblox-optimum install --global   # skills, subagent, MCP server
-npx roblox-optimum install rules      # AGENTS.md in the project
+npx roblox-optimum install --global   # skills, subagent, and MCP server
+npx roblox-optimum install rules      # AGENTS.md
 ```
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
 | Skills | `~/.config/opencode/skills/` | machine |
 | Subagent | `~/.config/opencode/agents/` | machine |
 | MCP server | `~/.config/opencode/opencode.json` | machine |
 | Rules | `AGENTS.md` in the project root | project |
 
-Rules stay with the project: `~/.config/opencode/AGENTS.md` would apply Roblox standards to every
-repository OpenCode opens. Skills are also discovered from `.opencode/skills/`, `.claude/skills/`,
-and `.agents/skills/` on the way up to the worktree root.
+Keep the rules in the project. A `~/.config/opencode/AGENTS.md` applies Roblox standards to every
+repository OpenCode opens.
 
-Leave the version off the package name in an MCP entry: a pin freezes the server while the skills
-beside it move on.
+OpenCode also reads skills from `.opencode/skills/`, `.claude/skills/`, and `.agents/skills/` in
+each directory up to the worktree root.
 
 ### Qwen Code
 
-Qwen Code installs this repository as an extension, into `~/.qwen/extensions/roblox-optimum/`:
+Install the repository as an extension, into `~/.qwen/extensions/roblox-optimum/`:
 
 ```bash
 qwen extensions install https://github.com/andrian-syh/roblox-optimum
 qwen extensions install ./roblox-optimum      # from a local clone
-qwen extensions link ./roblox-optimum         # load it live while editing
+qwen extensions link ./roblox-optimum         # load a local clone as you edit it
 ```
 
-Its `qwen-extension.json` declares the skills, the subagent, the MCP server, and `QWEN.md`, so one
-install carries all four; only the hook is added by hand. Without the extension,
-`npx roblox-optimum install --global` writes the skills and the MCP entry:
+The extension carries the skills, the subagent, the MCP server, and `QWEN.md`. Without it,
+`npx roblox-optimum install --global` writes the skills and the MCP entry.
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
-| Skills | the extension, or `~/.qwen/skills/` and `.qwen/skills/` | both |
-| Subagent | the extension, or `~/.qwen/agents/` and `.qwen/agents/` | both |
-| MCP server | `mcpServers` in `~/.qwen/settings.json` or `.qwen/settings.json` | both |
-| Hook | `hooks` in the same settings file | both |
-| Rules | `QWEN.md` in the project root | project |
+| Skills | the extension, `~/.qwen/skills/`, or `.qwen/skills/` | machine or project |
+| Subagent | the extension, `~/.qwen/agents/`, or `.qwen/agents/` | machine or project |
+| MCP server | `mcpServers` in `~/.qwen/settings.json` or `.qwen/settings.json` | machine or project |
+| Hook | `hooks` in the same settings file | machine or project |
+| Rules | `QWEN.md` or `AGENTS.md` in the project root | project |
 
-Installed as an Agent Plugins v1 package instead, Qwen reads only `skills/` and the stdio MCP
-server.
+Installed as an Agent Plugins v1 package, Qwen Code reads only the skills and the MCP server.
+
+To add the hook, add this to `hooks` in your settings file:
 
 ```json
 {
@@ -500,7 +506,7 @@ server.
       {
         "matcher": "Write|Edit",
         "hooks": [
-          { "type": "command", "command": "npx -y -p roblox-optimum roblox-optimum" }
+          { "type": "command", "command": "npx -y -p roblox-optimum@latest roblox-optimum" }
         ]
       }
     ]
@@ -508,78 +514,69 @@ server.
 }
 ```
 
-`npx roblox-optimum install rules --all` writes `QWEN.md`. Qwen reads a repository's `AGENTS.md`
-as well, so a project that already has one needs nothing more.
+If the project has no `AGENTS.md`, write `QWEN.md` with `npx roblox-optimum install rules --all`.
 
 ### Cline
 
-A Cline plugin is a TypeScript module declared through the `cline` field of a `package.json`, not
-a container for skills and rules, so each component installs on its own:
+A Cline plugin is a TypeScript module and cannot carry skills or rules, so each component installs
+on its own:
 
 ```bash
-npx roblox-optimum install --global   # skills and the MCP server
+npx roblox-optimum install --global   # skills and MCP server
 npx roblox-optimum install rules      # .clinerules/roblox-optimum.md
 ```
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
-| Skills | `~/.cline/skills/`, or `.cline/skills/` in a project | both |
+| Skills | `~/.cline/skills/`, or `.cline/skills/` in a project | machine or project |
 | Rules | `.clinerules/roblox-optimum.md` | project |
 | MCP server | `mcpServers` in `~/.cline/mcp.json` | machine |
 
-Cline also reads `.claude/skills/` and `AGENTS.md`, and keeps global rules outside the dotfiles, in
-`Documents/Cline/Rules`. The IDE extension takes its MCP entry through **MCP Servers > Configure**
-in the Cline panel.
+Cline also reads `.claude/skills/` and `AGENTS.md`. In the IDE extension, add the MCP entry through
+**MCP Servers** > **Configure** in the Cline panel.
 
-There is no shell hook file: `beforeTool` and `afterTool` are TypeScript in an `AgentPlugin`, so
-the checker runs from the pre-commit hook or CI instead.
+Cline has no shell hook file, so run the checker from the [pre-commit hook](#add-the-pre-commit-hook)
+or [CI](#run-the-checker-in-ci).
 
 ### Windsurf
 
-Windsurf has no agent plugin format. Cascade reads skills, `AGENTS.md`, and MCP servers directly:
+Windsurf reads skills, `AGENTS.md`, and MCP servers directly:
 
 ```bash
-npx roblox-optimum install --global   # skills and the MCP server
+npx roblox-optimum install --global   # skills and MCP server
 npx roblox-optimum install rules      # AGENTS.md and .windsurf/rules/
 ```
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
-| Skills | `~/.codeium/windsurf/skills/`, or `.windsurf/skills/` in a workspace | both |
-| Rules | `AGENTS.md` at the workspace root, or `.windsurf/rules/roblox-optimum.md` | project |
+| Skills | `~/.codeium/windsurf/skills/`, or `.windsurf/skills/` in a workspace | machine or project |
+| Rules | `AGENTS.md`, or `.windsurf/rules/roblox-optimum.md`, loaded on every request | project |
 | MCP server | `mcpServers` in `~/.codeium/windsurf/mcp_config.json` | machine |
 
-`AGENTS.md` at the workspace root is always on; one in a subdirectory applies only to files under
-it. `~/.codeium/windsurf/memories/global_rules.md` holds rules for every workspace, Roblox or not,
-so it is yours to write rather than the installer's.
+The JetBrains and VS Code plugins read MCP servers from `~/.codeium/mcp_config.json`. The installer
+writes whichever of the two files exists.
 
-The JetBrains and VS Code plugin reads MCP servers from `~/.codeium/mcp_config.json`, one
-directory up. The installer writes whichever of the two already exists.
+Keep the rules in the workspace. `~/.codeium/windsurf/memories/global_rules.md` applies to every
+workspace, so the installer does not write it.
 
 ### Qoder
 
-A Qoder plugin bundles skills, MCP servers, agents, commands, rules, and hooks, and installs whole
-through **+ Create Plugin** in the Plugins panel, importing from a local folder. Qoder documents no
-manifest format, so the components are placed directly instead:
+Qoder documents no plugin manifest format, so each component installs on its own:
 
 ```bash
-npx roblox-optimum install --global   # skills and the subagent
+npx roblox-optimum install --global   # skills and subagent
 npx roblox-optimum install rules      # .qoder/rules/roblox-optimum.md
 ```
 
-| Component | Where it goes | Scope |
+| Component | Location | Scope |
 |---|---|---|
-| Skills | `~/.qoder/skills/`, or `.qoder/skills/` in a project | both |
-| Subagent | `~/.qoder/agents/roblox-auditor.md`, or `.qoder/agents/` | both |
+| Skills | `~/.qoder/skills/`, or `.qoder/skills/` in a project | machine or project |
+| Subagent | `~/.qoder/agents/roblox-auditor.md`, or `.qoder/agents/` | machine or project |
 | Rules | `.qoder/rules/roblox-optimum.md`, or `AGENTS.md` | project |
-| MCP server | added through **Settings > MCP** as a STDIO server | machine |
-| Hook | `hooks` in `~/.qoder/settings.json` or `.qoder/settings.json` | both |
+| MCP server | **Settings** > **MCP**, as a STDIO server | machine |
+| Hook | `hooks` in `~/.qoder/settings.json` or `.qoder/settings.json` | machine or project |
 
-The subagent needs no rewriting: Qoder reads the same `name`, `description`, `tools`, and `skills`
-front matter the shipped file carries.
-
-Qoder hooks take the shape Claude Code documents, and read stderr on exit 2 back into the
-conversation, which is what the checker writes:
+To add the hook, add this to `hooks` in your settings file:
 
 ```json
 {
@@ -588,7 +585,7 @@ conversation, which is what the checker writes:
       {
         "matcher": "Write|Edit",
         "hooks": [
-          { "type": "command", "command": "npx -y -p roblox-optimum roblox-optimum", "timeout": 30 }
+          { "type": "command", "command": "npx -y -p roblox-optimum@latest roblox-optimum", "timeout": 30 }
         ]
       }
     ]
@@ -596,41 +593,45 @@ conversation, which is what the checker writes:
 }
 ```
 
-### Any other editor
+### Other agents
 
-`npx roblox-optimum install rules` writes `AGENTS.md`, which most agents read. For one that wants
-its own path, `--all` writes every file this tool knows: `.cursor/rules/roblox-optimum.mdc`,
-`.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`, `.qoder/rules/`, `.agents/rules/`,
-`.github/copilot-instructions.md`, and `QWEN.md`.
-
----
-
-## Git Pre-Commit Hook
-
-`npx roblox-optimum install hook` writes this. To add it by hand, create `.git/hooks/pre-commit`:
-
-```sh
-#!/bin/sh
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.luau?$')
-[ -z "$files" ] || printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx roblox-optimum --check
-```
-
-Each path reaches the checker as one argument. Passing `$files` unquoted instead splits a path on
-its spaces, and a file under `src/Combat System/` is then skipped without a word.
-
-Make it executable:
+Most agents read `AGENTS.md`:
 
 ```bash
-chmod +x .git/hooks/pre-commit
+npx roblox-optimum install rules
 ```
 
-The commit is halted on a finding, naming the file, the line, and the replacement.
+If your agent reads its own path, `--all` writes every rule file this tool knows:
+`.cursor/rules/roblox-optimum.mdc`, `.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`,
+`.qoder/rules/`, `.agents/rules/`, `.github/copilot-instructions.md`, and `QWEN.md`.
 
----
+## Add the pre-commit hook
 
-## Continuous Integration (CI)
+`npx roblox-optimum install hook` writes the hook. To write it yourself:
 
-`.github/workflows/roblox.yml`:
+1. Create `.git/hooks/pre-commit`:
+
+   ```sh
+   #!/bin/sh
+   files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.luau?$')
+   [ -z "$files" ] || printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx roblox-optimum --check
+   ```
+
+   Each staged path reaches the checker as one argument, so a path that contains a space is still
+   checked.
+
+2. Make the hook executable:
+
+   ```bash
+   chmod +x .git/hooks/pre-commit
+   ```
+
+If a staged file breaks a rule, the commit stops and the checker names the file, the line, and the
+replacement.
+
+## Run the checker in CI
+
+Add `.github/workflows/roblox.yml`:
 
 ```yaml
 name: Roblox Standards
@@ -647,39 +648,85 @@ jobs:
       - run: npx roblox-optimum --check $(git ls-files '*.luau' '*.lua')
 ```
 
----
+## Run the checker from the command line
 
-## Manual Execution Reference
+To run the checker without a network after the first install, install it globally:
 
 ```bash
-npx roblox-optimum --check src/**/*.luau
+npm install -g roblox-optimum
+roblox-optimum --check src/**/*.luau
 ```
 
-On Windows PowerShell:
+In PowerShell, pass the file list from Git:
 
 ```powershell
 $files = git ls-files "*.luau" "*.lua"
 npx roblox-optimum --check $files
 ```
 
-### CLI Exit Codes
+| Exit code | Meaning |
+|---|---|
+| `0` | No findings. |
+| `1` | Findings: a deprecated API, sections out of order, a frozen loop, or a member used on the wrong side. |
+| `2` | Findings reported to an agent hook, or a command-line usage error. |
 
-| Code | Status | Description |
-|---|---|---|
-| `0` | Clean | All checked files adhere to the standards. |
-| `1` | Findings | Deprecated APIs, invalid section orders, a frozen loop, or a wrong-side member detected. |
-| `2` | Feedback / Error | Findings formatted for an agent hook, or invalid command-line usage. |
-
-### Environment Variables
-
-`ROBLOX_OPTIMUM=off` pauses every hook and CLI run. Clear it, or set it to `on`, to resume.
+To pause every hook and CLI run without uninstalling, set `ROBLOX_OPTIMUM` to `off`. To resume,
+clear the variable.
 
 ```bash
 export ROBLOX_OPTIMUM=off          # PowerShell: $env:ROBLOX_OPTIMUM="off"
 ```
 
----
+## Troubleshooting
 
-## Need Help?
+### `'roblox-mcp' is not recognized as an internal or external command`
 
-[Issue Tracker](https://github.com/andrian-syh/roblox-optimum/issues)
+The error comes from a plugin copy older than 1.10.0, whose MCP entry starts `npx` inside the plugin
+directory. Replace the copy:
+
+```bash
+npx roblox-optimum install --global --force
+```
+
+### Skills, rules, or tools are listed twice
+
+The agent reads roblox-optimum from two places, such as a plugin and a loose copy, or a checkout and
+a global MCP entry.
+
+1. List what is installed:
+
+   ```bash
+   npx roblox-optimum doctor --global
+   ```
+
+2. Remove the loose copies and keep the plugin:
+
+   ```bash
+   npx roblox-optimum uninstall skills agent --global
+   ```
+
+3. If the agent lists the MCP tools twice, turn off one of the two servers in its MCP panel.
+
+With Claude Code and Cursor on the same machine, install the plugin in Claude Code and let Cursor
+read it. Delete any `roblox-optimum` entry in `~/.cursor/mcp.json`.
+
+### The hooks report nothing
+
+1. Check that `ROBLOX_OPTIMUM` is not set to `off`.
+2. Check that the file is one the hooks check: a `.luau` file, or a `.lua` file that calls Roblox
+   APIs, outside `Packages` and other vendored folders.
+3. Run `npx roblox-optimum doctor` and confirm that the hook or plugin is at this release.
+
+### `Roblox_Studio` does not connect in Antigravity
+
+1. Check that Roblox Studio is running with **Studio as MCP server** turned on.
+2. Check that the `Roblox_Studio` entry points to `studio-mcp-antigravity.mjs` with an absolute path.
+3. In the Antigravity MCP panel, click **Refresh**.
+
+### `npx` is not recognized
+
+Install Node.js 18 or later, then close and reopen your terminal so that `npx` is on your `PATH`.
+
+## Get help
+
+Report a problem or ask a question in the [issue tracker](https://github.com/andrian-syh/roblox-optimum/issues).

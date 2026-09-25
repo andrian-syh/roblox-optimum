@@ -3,12 +3,13 @@
  * A stdio proxy that keeps Roblox's own Studio MCP server usable from Antigravity.
  *
  * Two things stand between the two of them. Antigravity opens a session with a `server/discover`
- * request, which is not an MCP method, so StudioMCP answers "expect initialized request" and
- * closes the pipe before `initialize` is ever sent. And the `mcp.bat` Roblox ships puts `else` on
- * its own line, which cmd rejects, so the launcher prints three errors on every run.
+ * probe, which MCP 2026-07-28 added and StudioMCP predates, so StudioMCP answers "expect
+ * initialized request" and closes the pipe before `initialize` is ever sent. And the `mcp.bat`
+ * Roblox ships puts `else` on its own line, which cmd rejects, so the launcher prints three
+ * errors on every run.
  *
- * This answers `server/discover` itself and spawns the executable directly, leaving every other
- * message untouched in both directions.
+ * This answers the probe itself, as the legacy server StudioMCP is, and spawns the executable
+ * directly, leaving every other message untouched in both directions.
  */
 
 import { spawn } from "node:child_process";
@@ -51,9 +52,9 @@ export function findStudioMcp(root = versionsRoot()) {
 }
 
 /**
- * The reply to send for a message, or null when it should be forwarded. Only the probe is
- * answered here; anything else is the real server's to handle, including messages this proxy
- * cannot parse, which are passed along so the server decides how to fail.
+ * The reply to send for a message, or null to forward it. The probe gets a legacy server's
+ * error, which the spec reads as a cue to fall back to `initialize`; an empty result would
+ * claim a modern server supporting no version.
  */
 export function interception(line) {
   let message;
@@ -66,7 +67,11 @@ export function interception(line) {
   if (message?.method !== PROBE) return null;
   if (message.id === undefined) return "";
 
-  return JSON.stringify({ jsonrpc: "2.0", id: message.id, result: {} });
+  return JSON.stringify({
+    jsonrpc: "2.0",
+    id: message.id,
+    error: { code: -32601, message: `Method not found: ${PROBE}` },
+  });
 }
 
 /**
@@ -120,6 +125,10 @@ function selftest() {
   const probe = interception('{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}');
   assert(probe !== null, "the probe is answered rather than forwarded");
   assert(JSON.parse(probe).id === 1, "the answer carries the id it was asked with");
+  assert(
+    JSON.parse(probe).error?.code === -32601 && !("result" in JSON.parse(probe)),
+    "the probe is refused as a legacy server refuses it, so the client falls back to initialize",
+  );
 
   assert(
     interception('{"jsonrpc":"2.0","method":"server/discover"}') === "",

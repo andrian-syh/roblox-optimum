@@ -124,7 +124,7 @@ function auditMcpManifests(manifest) {
     }
 
     const args = readJson(file)?.mcpServers?.["roblox-optimum"]?.args ?? [];
-    if (!args.includes("roblox-optimum")) {
+    if (!args.includes("roblox-optimum") && !args.includes("roblox-optimum@latest")) {
       problems.push(`${file} does not name roblox-optimum as the package to run`);
     }
   }

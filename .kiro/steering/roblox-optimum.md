@@ -1,6 +1,5 @@
 ---
-inclusion: fileMatch
-fileMatchPattern: ["**/*.luau", "**/*.lua"]
+inclusion: always
 ---
 <!-- Generated from AGENTS.md. Edit that file. -->
 

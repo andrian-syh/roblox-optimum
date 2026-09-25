@@ -1,7 +1,7 @@
 {
   "name": "roblox-optimum",
-  "version": "1.9.1",
-  "description": "Deterministic Roblox and Luau standards checks: deprecated APIs and out-of-order section headers, as an agent hook, a commit hook, or a CI step.",
+  "version": "1.10.0",
+  "description": "Roblox and Luau standards for AI agents, paired with a deterministic static checker.",
   "keywords": [
     "roblox",
     "luau",
