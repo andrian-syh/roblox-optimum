@@ -10,7 +10,8 @@ package, so they never reach an installed copy.
 ## Why the negatives matter more here than usual
 
 These four skills share one domain. A prompt about Roblox code could plausibly land in any of
-them, and the `Not for ...` clause in each description is the only thing keeping them apart. So
+them, and the boundary each description states, a `Not for ...` clause or the `Hand-offs:` sentence
+naming the sibling that owns a request, is the only thing keeping them apart. So
 almost every `should_trigger: false` entry is a **near miss owned by a sibling skill** — a real
 request that a slightly-too-broad description would swallow.
 
@@ -52,7 +53,7 @@ worth scripting before running the full set.
 - **A should-trigger query fails** → the description is too narrow. Broaden the *category* it
   misses, not the wording of that one query; copying the failed query's keywords in is overfitting.
 - **A should-not-trigger query fires** → the description is too broad, or its `Not for ...` clause
-  does not name the sibling that actually owns the prompt.
+  or `Hand-offs:` sentence does not name the sibling that actually owns the prompt.
 
 Change the description, rerun, and keep the version with the best rate — not necessarily the last
 one written. `scripts/audit.mjs` enforces the shape of these files (valid JSON, at least 8 of each

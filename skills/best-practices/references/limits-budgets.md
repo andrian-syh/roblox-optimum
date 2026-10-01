@@ -72,7 +72,7 @@ Consequences for design:
 
 MemoryStore is ephemeral coordination (queues, session locks, live leaderboards), never a database. Wrap calls in `pcall` with backoff exactly like DataStore.
 
-**Exceeding the memory quota fails writes** until items expire or are removed — it does not evict for you, so a structure with a long TTL and no cleanup path degrades into a wall of failures. **Per-partition throttling is separate from the quota**: a single hot key or one oversized structure throttles while the experience-wide quota still looks healthy, and the exact partition limit is not published. The fix is spreading load, not asking for more ([patterns/network.md](patterns/network.md#cross-server-communication)).
+**Exceeding the memory quota fails writes** until items expire or are removed — it does not evict for you, so a structure with a long TTL and no cleanup path degrades into a wall of failures. **Per-partition throttling is separate from the quota**: a single hot key or one oversized structure throttles while the experience-wide quota still looks healthy. The memory stores page gives estimates rather than guarantees: roughly 30,000 request units per minute for one partition, about 5,000 write and 15,000 read units per minute for one hash map key, and 100,000 units per minute for one data structure. The fix is spreading load, not asking for more ([patterns/network.md](patterns/network.md#cross-server-communication)).
 
 ## Messaging
 

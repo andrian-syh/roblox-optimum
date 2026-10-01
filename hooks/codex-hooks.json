@@ -2,12 +2,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--pre-write"],
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --pre-write",
             "timeout": 10
           }
         ]
@@ -15,12 +14,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs"],
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\"",
             "timeout": 10
           }
         ]
@@ -32,8 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--session"],
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --session",
             "timeout": 10
           }
         ]
@@ -43,8 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--compact"],
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --compact",
             "timeout": 10
           }
         ]
@@ -55,8 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--prompt"],
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --prompt",
             "timeout": 10
           }
         ]

@@ -15,16 +15,20 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { readdirSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { isAbsolute, join } from "node:path";
 
 import { ranAsScript } from "./roblox-optimum.mjs";
 
 /** The method Antigravity probes with, which no MCP server implements. */
 const PROBE = "server/discover";
 
-/** Where Studio keeps one directory per installed version, each with its own copy of the server. */
+/**
+ * Where Studio keeps one directory per installed version, each with its own copy of the server.
+ * An empty variable counts as unset, since it would make the path relative to wherever this runs.
+ */
 function versionsRoot() {
-  const local = process.env.LOCALAPPDATA ?? join(process.env.USERPROFILE ?? "", "AppData", "Local");
+  const local = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
   return join(local, "Roblox", "Versions");
 }
 
@@ -76,8 +80,8 @@ export function interception(line) {
 
 /**
  * Starts the real server and relays a session against it, answering the probe on its behalf.
- * Exits with the server's own status, so a host watching for a clean shutdown sees one. That
- * status is set, not forced: forcing it drops what stdout still holds.
+ * Exits with the server's own status, or 1 when there is no server to start. The status is
+ * set, not forced: forcing it drops what stdout still holds.
  */
 function run() {
   const exe = findStudioMcp();
@@ -86,7 +90,8 @@ function run() {
       "studio-mcp-antigravity: no StudioMCP.exe under " + versionsRoot() + ".\n" +
         "Install Roblox Studio, or start it once so it unpacks a version directory.\n",
     );
-    return 1;
+    process.exitCode = 1;
+    return;
   }
 
   const child = spawn(exe, process.argv.slice(2), { stdio: ["pipe", "pipe", "inherit"] });
@@ -140,6 +145,7 @@ function selftest() {
   );
   assert(interception("not json") === null, "an unparsable line is forwarded, not swallowed");
   assert(findStudioMcp("/no-such-directory") === null, "a missing Studio install reports null");
+  assert(isAbsolute(versionsRoot()), "the versions directory never resolves against the working directory");
 
   process.stdout.write("studio-mcp-antigravity selftest: all checks passed\n");
   return 0;

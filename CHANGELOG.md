@@ -6,6 +6,90 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-10-01
+
+Upgrading: rule files written by an earlier release carry no record of what they held, so
+`npx roblox-optimum install` reports them instead of replacing them. Run
+`npx roblox-optimum install rules --force` once to bring them across, after keeping any edits you
+made to them. For Cursor and Antigravity, run `npx roblox-optimum install --global --force` to
+move the plugin hook onto the bundled checker.
+
+### Added
+
+- Added `--force` to `uninstall`. Without it, `uninstall` now keeps a copy from an older release in
+  case you edited it, as `install` does.
+- Added explanations to `explain_finding` for a frozen loop and for each member used on the wrong
+  side of a `.server.luau` or `.client.luau` file.
+- Added `--hook cursor`, which reports findings as `additional_context` for Cursor's `postToolUse`
+  hook.
+- Added detection of `repeat ... until false`, `while 1 do`, and `while(true) do` loops that never
+  yield, and of `GetRankInGroup()` and `GetRoleInGroup()` without `Async`.
+- Added Indonesian forms to the prompt routing, so a request such as "buat sistem stamina" or
+  "leaderstats saya kadang hilang" names the skill it needs.
+- Added the MCP entries and the Copilot hook to `doctor --global`, and the plugin directories of
+  Codex, Copilot CLI, Qwen Code, and the Antigravity CLI to the plugins the installer looks for, so
+  a host that holds its own plugin no longer receives a second copy of each skill.
+
+### Changed
+
+- Changed `install --global` to install only the parts you name. Naming `rules` or `agent`, for
+  example, no longer installs plugins, MCP entries, or hooks. With no part named, nothing changes.
+- Changed `install hook` to ask Git where the commit hook goes, so it works in a worktree and
+  honours a `core.hooksPath` inside the project. A hooks directory outside the project is left
+  alone, and the installer prints the lines to add there.
+- Changed `install rules` to record what each rule file held when it was written. A file you
+  edited since, including `AGENTS.md`, is reported and kept until `--force`, and `uninstall` keeps
+  it too.
+- Changed the checker to report every use of a deprecated API rather than the first one only.
+- Changed the Cursor plugin hook from `afterFileEdit`, whose output never reaches the agent, to
+  `postToolUse`. The Cursor and Antigravity plugin hooks now run the checker the plugin carries
+  rather than downloading it on every edit.
+- Changed the MCP entries that `install --global` writes to start `roblox-optimum@latest`, as the
+  plugin entries do. An entry an earlier release wrote is updated in place.
+- Changed `rules/roblox-optimum.md` to be written only with `--all`, since a `rules/` directory is
+  no sign that an agent reads it.
+- Changed the ModuleScript template to fail loud when it cannot read a player's data: `Load`
+  reports it, the session is never saved, and the Server Script tells the player. `SaveAll` now
+  waits for every save, so `BindToClose` holds the server until the data is written. The
+  templates no longer start with `--!strict`.
+
+### Fixed
+
+- Fixed the Codex plugin hooks, which never ran the checker. Codex drops a hook's `args` list, so
+  each hook started `node` with no script.
+- Fixed `install` and `uninstall` treating any pre-commit hook that mentions roblox-optimum as
+  their own. Only a hook this tool wrote is replaced or removed now, so a hook you wrote, including
+  one you added the check to, is never overwritten or deleted.
+- Fixed the lines the installer offers for an existing pre-commit hook, which blocked every commit
+  that staged no Luau file under GNU `xargs`.
+- Fixed the pre-commit hook skipping a staged file whose name holds a non-ASCII character, and a
+  file that was renamed and edited.
+- Fixed `install --force` replacing a skill or agent copy that this tool did not write. A copy
+  from an older release is now replaced whole, so a file a release stopped shipping is removed.
+- Fixed `uninstall` deleting a Kiro hook you edited, and fixed the Kiro hook's timeout, which sat
+  where Kiro does not read it.
+- Fixed `install`, `doctor`, and `uninstall` ending in a stack trace when a write is refused. They
+  now print one line naming the cause.
+- Fixed false findings: text inside an interpolated string, a string continued with `\z`, a local
+  function named `wait`, `tick`, or `delay`, `:Preload()` and the badge methods on an object that
+  is not the service, and a type or folder named after a server service in a client file.
+- Fixed the frozen-loop check: it no longer counts a `return` inside a closure or a field named
+  `error` as the loop's exit, it counts lowercase `:wait()` as a yield, and it leaves alone a loop
+  that calls something that might yield.
+- Fixed the prompt routing for requests that share a word with another stack, such as "make the
+  NPC react" or "a unity bonus", for build requests named after a symptom, such as "add a reset
+  button", and for `c#` and `c++`, which never matched.
+- Fixed a file that Codex's `apply_patch` moves being checked at its old path.
+- Fixed `explain_finding` explaining a frozen-loop finding as the deprecated `wait()`.
+- Fixed `install --global` corrupting a host's MCP configuration whose server list was not an
+  object. The file is now reported and kept.
+- Fixed the Antigravity Studio proxy exiting with status 0 when it cannot find `StudioMCP.exe`, and
+  resolving the Studio directory against the working directory when `LOCALAPPDATA` is empty.
+- Corrected the references: `vector.lerp` exists, the published deprecation index now lists the
+  `GuiObject` tween methods, memory store partition limits are published as estimates, and the
+  Studio MCP tool list names `generate_texture` and `segment_mesh` and no longer names
+  `run_as_job`.
+
 ## [1.10.0] - 2026-09-26
 
 Upgrading: run `npx roblox-optimum install --global --force` to replace plugin copies from earlier
@@ -316,6 +400,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.8.0...v1.9.0

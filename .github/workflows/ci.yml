@@ -14,6 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        # The oldest Node package.json promises, and the current LTS line.
+        node: ["18", "24"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,35 +23,36 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
 
-      - name: Guard self-test
-        run: node scripts/roblox-optimum.mjs --selftest
-
-      - name: MCP server self-test
-        run: node scripts/roblox-mcp.mjs --selftest
-
-      - name: Structural audit
-        run: node scripts/audit.mjs
+      # The same chain a release is held to: version drift, the structural audit, and every
+      # self-test, so nothing passes here that npm test would stop.
+      - name: npm test
+        run: npm test
 
       - name: Per-agent rule copies match AGENTS.md
         run: node scripts/sync-rules.mjs --check
 
       - name: Shipped changes require a version bump
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24' && github.event_name == 'pull_request'
         shell: bash
         run: |
           base="origin/${{ github.base_ref }}"
-          changed=$(git diff --name-only "$base"...HEAD -- skills agents hooks scripts .claude-plugin AGENTS.md)
+          shipped="skills agents hooks scripts rules AGENTS.md QWEN.md package.json plugin.json
+            mcp.json mcp_config.json qwen-extension.json .claude-plugin .codex-plugin
+            .cursor-plugin .agents .github/plugin .github/agents .github/copilot-instructions.md
+            .cursor .windsurf .kiro .qoder .clinerules"
+          changed=$(git diff --name-only "$base"...HEAD -- $shipped)
           if [ -z "$changed" ]; then
             echo "No shipped files changed."
             exit 0
           fi
-          old=$(git show "$base:.claude-plugin/plugin.json" | jq -r .version)
-          new=$(jq -r .version .claude-plugin/plugin.json)
+          old=$(git show "$base:package.json" | jq -r .version)
+          new=$(jq -r .version package.json)
           echo "Changed:"; echo "$changed" | sed 's/^/  /'
           echo "Version: $old -> $new"
-          if [ "$old" = "$new" ]; then
-            echo "::error::These files ship to users, so plugin.json version must be raised above $old."
+          highest=$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)
+          if [ "$old" = "$new" ] || [ "$highest" != "$new" ]; then
+            echo "::error::These files ship to users, so the version must be raised above $old."
             exit 1
           fi

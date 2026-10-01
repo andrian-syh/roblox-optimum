@@ -68,7 +68,7 @@ end
 
 ## Device tiers
 
-Assume a wide spread of hardware and design for the bottom of it. The demographics and budgets below are Roblox's own published figures.
+Assume a wide spread of hardware and design for the bottom of it. The demographics and the low-tier draw-call and triangle budgets are Roblox's own published figures; the client RAM figure and the mid-tier row are this skill's heuristics ([api-currency.md](api-currency.md)), to plan with but never to quote as a limit.
 
 | Tier | Reality & Demographic | Hard Budgets & Ceilings |
 |---|---|---|

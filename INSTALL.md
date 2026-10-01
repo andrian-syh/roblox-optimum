@@ -47,7 +47,7 @@ npx roblox-optimum install hook      # the Git pre-commit hook
 | Flag | Effect |
 |---|---|
 | `--all` | Writes the files of every supported agent, whether or not the project shows a sign of it. |
-| `--force` | Replaces a skill, agent, or plugin copy that an older release installed. |
+| `--force` | Replaces a skill, agent, or plugin copy that an older release installed. A copy this tool did not write is never replaced. |
 | `--global` | Installs into each agent's home directory, for every project on this machine. |
 
 ### Where skills go in a project
@@ -98,6 +98,10 @@ skips Cursor when Claude Code holds the plugin, and leaves a plugin directory th
 alone.
 
 `rules` and `hook` belong to one project, so `--global` skips them and reports them as skipped.
+
+With no part named, `--global` also registers the MCP server and the hooks for the hosts that read
+them. Naming parts installs only those parts: a host with a plugin route gets the plugin when you
+name `skills` or `agent`, and no MCP entry or hook is written.
 
 ## Verify the installation
 
@@ -151,10 +155,12 @@ npx roblox-optimum uninstall                    # every component, this project
 npx roblox-optimum uninstall skills agent       # the named components only
 npx roblox-optimum uninstall --global           # this machine
 npx roblox-optimum uninstall --dry-run          # list what would be removed
+npx roblox-optimum uninstall --force            # also remove copies from older releases
 ```
 
 The uninstaller removes only files that carry this tool's stamp. It reports and keeps a file of
-yours that shares a name, and it never removes a host directory, only the copies inside it.
+yours that shares a name, and it never removes a host directory, only the copies inside it. A copy
+that an older release wrote is kept in case you edited it, until you add `--force`.
 
 With no component named, `uninstall --global` also removes the plugin directories and MCP entries
 this tool wrote:
@@ -248,8 +254,8 @@ The plugin carries the four skills, the review subagent, the MCP server, and the
 
 ### Cursor
 
-Install the plugin, which carries the skills, the subagent, the rules, the MCP server, and an
-`afterFileEdit` hook:
+Install the plugin, which carries the skills, the subagent, the rules, the MCP server, and a
+`postToolUse` hook that runs the plugin's own checker and returns its findings to the agent:
 
 ```bash
 npx roblox-optimum install --global
@@ -272,8 +278,8 @@ or `.cursor/hooks.json` for one project:
 {
   "version": 1,
   "hooks": {
-    "afterFileEdit": [
-      { "command": "roblox-optimum" }
+    "postToolUse": [
+      { "command": "npx -y -p roblox-optimum@latest roblox-optimum --hook cursor", "matcher": "Write" }
     ]
   }
 }
@@ -603,22 +609,31 @@ npx roblox-optimum install rules
 
 If your agent reads its own path, `--all` writes every rule file this tool knows:
 `.cursor/rules/roblox-optimum.mdc`, `.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`,
-`.qoder/rules/`, `.agents/rules/`, `.github/copilot-instructions.md`, and `QWEN.md`.
+`.qoder/rules/`, `.agents/rules/`, `.github/copilot-instructions.md`, `rules/roblox-optimum.md`,
+and `QWEN.md`. The last two have no directory of their own to show the agent is in use, so only
+`--all` writes them.
+
+Each rule file records what it held when it was written. If you edit one, the next install keeps
+your edit and reports it, and `--force` replaces it. A file written by a release before 1.11.0
+has no such record, so the first install after upgrading asks for `--force` once.
 
 ## Add the pre-commit hook
 
-`npx roblox-optimum install hook` writes the hook. To write it yourself:
+`npx roblox-optimum install hook` writes the hook where Git runs it, which also covers a worktree
+and a `core.hooksPath` inside the project. It leaves alone a hook it did not write, and a hooks
+directory outside the project, such as a global `core.hooksPath`, and prints the lines to add
+instead. To write it yourself:
 
 1. Create `.git/hooks/pre-commit`:
 
    ```sh
    #!/bin/sh
-   files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.luau?$')
+   files=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -E '\.luau?$')
    [ -z "$files" ] || printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx roblox-optimum --check
    ```
 
-   Each staged path reaches the checker as one argument, so a path that contains a space is still
-   checked.
+   Each staged path reaches the checker as one argument, so a path that contains a space or a
+   non-ASCII character is still checked, and so is a file that was renamed and edited.
 
 2. Make the hook executable:
 

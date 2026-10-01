@@ -26,12 +26,37 @@ function render(body, frontMatter) {
 }
 
 /**
- * The Codex hook file, which is the Claude one with the plugin root variable each host uses.
- * Two files rather than one because the variable is the only thing that differs, and a hook
- * that expands to nothing fails silently.
+ * The Codex hook file, made from the Claude one. Codex names its plugin root differently, and a
+ * hook that expands to nothing fails silently.
  */
 const HOOKS_SOURCE = "hooks/hooks.json";
 const HOOKS_TARGET = "hooks/codex-hooks.json";
+
+/**
+ * Rewrites the Claude hooks for Codex. Codex reads a command string and drops an argument list
+ * unread, so each argument is folded into the command, and its patch tool is matched by name.
+ */
+function codexHooks(text) {
+  const config = JSON.parse(text);
+
+  for (const entries of Object.values(config.hooks)) {
+    for (const entry of entries) {
+      if (entry.matcher === "Write|Edit|MultiEdit") entry.matcher = "apply_patch|Edit|Write";
+
+      for (const hook of entry.hooks) {
+        if (!Array.isArray(hook.args)) continue;
+
+        const args = hook.args
+          .map((arg) => arg.replaceAll("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"))
+          .map((arg) => (/[\s$]/.test(arg) ? `"${arg}"` : arg));
+        hook.command = [hook.command, ...args].join(" ");
+        delete hook.args;
+      }
+    }
+  }
+
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
 
 /**
  * The MCP entry, and the filename Antigravity reads it under. The two files are identical, and
@@ -61,7 +86,7 @@ function derive() {
 
   return [
     ...TARGETS.map(([path, frontMatter]) => [path, render(body, frontMatter)]),
-    [HOOKS_TARGET, hooks.replaceAll("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT")],
+    [HOOKS_TARGET, codexHooks(hooks)],
     [MCP_TARGET, readFileSync(join(ROOT, MCP_SOURCE), "utf8").replace(/\r\n/g, "\n")],
     ...copilotAgents,
   ];

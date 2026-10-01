@@ -4,7 +4,7 @@ argument-hint: "[ask|bal|go]"
 description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, sprint, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua or game design with no Luau to write."
 license: MIT
 metadata:
-  version: "1.10.0"
+  version: "1.11.0"
 ---
 
 # Roblox Game Development Best Practices
@@ -181,7 +181,7 @@ The ones that apply on nearly every task:
 
 ## Non-Negotiable Runtime Rules
 
-Card items 3-8 are the rules themselves and are always in context. Full statements, the scope that keeps each from being over-applied, and the domain file behind each: [references/runtime-rules.md](references/runtime-rules.md).
+Card items 3-7 are the rules themselves and are always in context; network budgeting is the one rule the card leaves to the file. Full statements, the scope that keeps each from being over-applied, and the domain file behind each: [references/runtime-rules.md](references/runtime-rules.md).
 
 Server authority · cleanup with a teardown path · no per-frame garbage · react instead of poll · `UpdateAsync` with backoff and a `BindToClose` flush · batched, delta-shaped network traffic · re-validation after every yield.
 

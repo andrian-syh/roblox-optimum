@@ -5,7 +5,28 @@ on:
     tags: ["v*"]
 
 jobs:
+  # A tag can point at a commit CI never saw, so the release runs the full chain itself, on both
+  # systems CI covers, before anything reaches the registry.
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: npm test
+        run: npm test
+
+      - name: Per-agent rule copies match AGENTS.md
+        run: node scripts/sync-rules.mjs --check
+
   publish:
+    needs: test
     runs-on: ubuntu-latest
 
     permissions:
@@ -23,18 +44,6 @@ jobs:
       # Trusted publishing needs a recent npm, and the runner image lags behind.
       - name: Use an npm that speaks OIDC
         run: npm install -g npm@latest
-
-      - name: Guard self-test
-        run: node scripts/roblox-optimum.mjs --selftest
-
-      - name: MCP server self-test
-        run: node scripts/roblox-mcp.mjs --selftest
-
-      - name: Structural audit
-        run: node scripts/audit.mjs
-
-      - name: Per-agent rule copies match AGENTS.md
-        run: node scripts/sync-rules.mjs --check
 
       - name: The tag must be the version being published
         run: |

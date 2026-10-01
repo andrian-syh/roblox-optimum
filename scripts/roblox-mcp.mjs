@@ -16,7 +16,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { inspect, DEPRECATED, HAZARDS, ranAsScript } from "./roblox-optimum.mjs";
+import { inspect, DEPRECATED, HAZARDS, CONTEXT_ERRORS, ranAsScript } from "./roblox-optimum.mjs";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -204,7 +204,7 @@ export const EXPLANATIONS = {
     instead: "Camera.CFrame, which is the same value under the name the rest of the API uses.",
     read: "style-rules.md",
   },
-  "Player:GetRankInGroupAsync() / GetRoleInGroupAsync()": {
+  "Player:GetRankInGroup() / GetRoleInGroup() (with or without Async)": {
     why:
       "Each is one web call per player per group, and calling both to learn a rank and its name " +
       "costs two round trips for one answer.",
@@ -233,6 +233,29 @@ export const EXPLANATIONS = {
       "headers a file does carry is judged.",
     read: "section-layout.md",
   },
+  "while true do": {
+    why:
+      "A loop that never yields keeps the scheduler from running anything else on its thread, " +
+      "and on the server that is every player. One that never exits cannot be stopped either.",
+    instead:
+      "A task.wait() or another yielding call inside the loop, or a condition that breaks it. " +
+      "Periodic work usually belongs on a signal or a timer rather than a spinning loop.",
+    read: "style-rules.md",
+  },
+  ...Object.fromEntries(
+    CONTEXT_ERRORS.flatMap(({ side, members }) =>
+      members.map(([, name, why]) => [
+        name,
+        {
+          why: `The filename says this file runs in ${side}, and ${why}.`,
+          instead:
+            "Move the code to the side that owns it and cross with a remote, or rename the file " +
+            "if its suffix names the wrong side.",
+          read: "style-rules.md",
+        },
+      ]),
+    ),
+  ),
 };
 
 const TOOLS = [
@@ -316,7 +339,14 @@ export function keyFor(finding) {
  * checker and reported for months with nothing behind it.
  */
 export function uncovered() {
-  return [...DEPRECATED, ...HAZARDS].map(([, name]) => name).filter((name) => keyFor(name) === null);
+  const sides = CONTEXT_ERRORS.flatMap(({ members }) => members.map(([, name]) => name));
+  const missing = [...DEPRECATED, ...HAZARDS]
+    .map(([, name]) => name)
+    .concat(sides)
+    .filter((name) => keyFor(name) === null);
+
+  const loop = inspect("while true do\nend")[0];
+  return keyFor(loop) === "while true do" ? missing : [...missing, "while true do"];
 }
 
 /**
@@ -616,6 +646,14 @@ function selftest() {
     "a longer key wins over a shorter one it contains",
   );
   ok(uncovered().length === 0, `every reported API has an explanation, missing: ${uncovered().join(", ")}`);
+  ok(
+    keyFor(inspect('local s = game:GetService("DataStoreService")', "Shop.client.luau")[0]) === "DataStoreService",
+    "a wrong-side finding resolves to the rule for that member",
+  );
+  ok(
+    keyFor(inspect("while true do\nend")[0]) === "while true do",
+    "a frozen loop resolves to its own rule rather than to the wait() inside its advice",
+  );
   ok(
     Object.values(EXPLANATIONS).every((e) => e.why && e.instead && e.read),
     "every explanation says why, what instead, and where to read more",

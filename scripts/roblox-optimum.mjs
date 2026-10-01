@@ -12,13 +12,16 @@ import {
   existsSync,
   readdirSync,
   statSync,
+  chmodSync,
   cpSync,
   mkdtempSync,
   rmSync,
   realpathSync,
 } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** The installed package, so `install` can read the standards it ships with. */
@@ -70,32 +73,48 @@ export function isRobloxProject(dir) {
 const ROBLOX_WORDS =
   /\b(?:roblox|robux|luau|rojo|wally|argon|azul|datastore(?:service)?|profilestore|remote(?:event|function)|serverscriptservice|replicatedstorage|starter(?:gui|player)|localscript|modulescript|leaderstats|humanoid|obby|tycoon|exploiters?)\b|\.luau\b|game:GetService/i;
 
-/** Languages and engines that say the work is not Luau, even in a Roblox project. */
+/**
+ * Languages and engines that say the work is not Luau, even in a Roblox project. Each is
+ * written so an English word sharing a name, such as react, rust, or unity, does not count.
+ */
 const OTHER_STACK =
-  /\b(?:python|javascript|typescript|react|node\.?js|npm|java|c#|c\+\+|rust|golang|php|ruby|swift|kotlin|love2d|lua 5\.\d|unity|unreal|godot)\b/i;
+  /(?<![\w#+])(?:python|javascript|typescript|node\.?js|npm|golang|php|kotlin|love2d|lua 5\.\d|godot|unreal engine|reactjs|react (?:native|component|hook|app)|rust (?:code|crate|program)|java (?:code|class|program)|unity (?:engine|editor|project|game|script)|c#|c\+\+)(?![\w#+])/i;
+
+/**
+ * A request that opens by asking for something to be built, which is authoring even when the
+ * thing built is named after a symptom, as a reset button or lag compensation is.
+ */
+const AUTHORING_LEAD =
+  /^\s*(?:(?:please|pls|can you|could you|tolong|coba)\s+)?(?:write|make(?! sure)|add|build|create|implement|refactor|buat\w*|bikin\w*|tambah\w*)\b/i;
 
 /**
  * Which skill a request reads as, first match winning, each with the phrase that says why.
- * English only: a request these miss gets every skill listed, and the model picks.
+ * English, with the common Indonesian forms; a request these miss gets every skill listed.
  */
 const PROMPT_ROUTES = [
   [
-    /\b(?:rojo|argon|azul|script sync|studio mcp|playtest|sync|clobber|overwrit|revert)\w*|\bconnect to studio|\brunning session|\bplace (?:file|back)|\btest\b.*\b(?:\d+|two|three|multiple) (?:players|clients)/i,
+    /\b(?:rojo|argon|azul|script sync|studio mcp|playtest)\w*|\bconnect to studio|\brunning session|\bplace (?:file|back)|\btest\b.*\b(?:\d+|two|three|multiple) (?:players|clients)/i,
     "studio-ops",
     "tooling or a playtest",
   ],
+  [AUTHORING_LEAD, "best-practices", "writing or changing Luau"],
   [
-    /\b(?:review|audit|judge|rank)\w*|\bscore (?:my|this)|\bhow (?:good|safe|bad)\b|\b(?:risky|take a look)\b|\bmemory leaks?\b|\bcheck (?:the|my) (?:diff|code)|\bis (?:this|it|my)\b[^.?!]{0,40}\b(?:safe|good|secure)\b/i,
+    /\b(?:review|audit|judge)\w*|\brank(?:ed)? (?:my|this|these|the|them|it|whatever|by)\b|\bscore (?:my|this)|\bhow (?:good|safe|bad)\b|\b(?:risky|take a look)\b|\bmemory leaks?\b|\bcheck (?:the|my) (?:diff|code)|\bis (?:this|it|my)\b[^.?!]{0,40}\b(?:safe|good|secure)\b|\b(?:cek|periksa|nilai)\b[^.?!]{0,30}\b(?:kode|script|skrip)\b|\baman (?:atau|gak|nggak|tidak|ga)\b/i,
     "code-review",
     "judging existing code",
   ],
   [
-    /^(?!.*\.luau?\b).*(?:\b(?:broken|bug|error|crash|reset|twice|duplicat|vanish|disappear|lag|freez|randomly|sometimes|occasionally|breaks|dies|wrong)\w*|\bfall(?:s|ing)? through|\bfps\b|\b(?:not|doesn'?t|isn'?t|won'?t) work)/is,
+    /\b(?:sync|clobber|overwrit|revert|sinkron|ketimpa|tertimpa|ditimpa)\w*/i,
+    "studio-ops",
+    "tooling or a playtest",
+  ],
+  [
+    /^(?!.*\.luau?\b).*(?:\b(?:broken|bug|error|crash|reset|twice|duplicat|vanish|disappear|lag|freez|randomly|sometimes|occasionally|breaks|dies|wrong|rusak|kadang|hilang|dobel|macet|kenapa)\w*|\bfall(?:s|ing)? through|\bfps\b|\b(?:not|doesn'?t|isn'?t|won'?t) work|\b(?:tidak|gak|nggak|ga) (?:jalan|berfungsi|bekerja|muncul)\b|\bbalik ke\b)/is,
     "diagnose",
     "a reported symptom",
   ],
   [
-    /\b(?:write|make|add|build|create|implement|refactor|fix|script|system|best practice)\w*/i,
+    /\b(?:write|make|add|build|create|implement|refactor|fix|spawn|script|system|best practice|sistem|skrip|perbaiki|ubah)\w*/i,
     "best-practices",
     "writing or changing Luau",
   ],
@@ -107,15 +126,14 @@ const PROMPT_ROUTES = [
  */
 export function routePrompt(prompt, inProject) {
   if (OTHER_STACK.test(prompt) || (!inProject && !ROBLOX_WORDS.test(prompt))) return null;
-
   const hit = PROMPT_ROUTES.find(([pattern]) => pattern.test(prompt));
   return hit === undefined ? { skill: null, why: null } : { skill: hit[1], why: hit[2] };
 }
 
 /**
  * APIs the skill forbids outright, each with the replacement to offer. A name community
- * libraries also expose is left out, since a hook cannot tell the two apart and a wrong
- * complaint costs more than a missed one.
+ * libraries also expose needs its service named as the receiver, since a wrong complaint costs
+ * more than a missed one.
  */
 export const DEPRECATED = [
   [/(?<![.:\w])wait\s*\(/, "wait()", "task.wait()"],
@@ -135,9 +153,21 @@ export const DEPRECATED = [
   [/\.CoordinateFrame\b/, "Camera.CoordinateFrame", "Camera.CFrame"],
   [/\.RotVelocity\b/, "BasePart.RotVelocity", "BasePart.AssemblyAngularVelocity"],
   [/\.WorldRotation\b/, "Attachment.WorldRotation", "Attachment.WorldOrientation"],
-  [/:Preload\s*\(/, "ContentProvider:Preload()", "ContentProvider:PreloadAsync()"],
-  [/:AwardBadge\s*\(/, "BadgeService:AwardBadge()", "BadgeService:AwardBadgeAsync()"],
-  [/:UserHasBadge\s*\(/, "BadgeService:UserHasBadge()", "BadgeService:UserHasBadgeAsync()"],
+  [
+    /(?:\w*[Cc]ontent[Pp]rovider\w*|GetService\s*\([^)]*\)):Preload\s*\(/,
+    "ContentProvider:Preload()",
+    "ContentProvider:PreloadAsync()",
+  ],
+  [
+    /(?:\w*[Bb]adge[Ss]ervice\w*|GetService\s*\([^)]*\)):AwardBadge\s*\(/,
+    "BadgeService:AwardBadge()",
+    "BadgeService:AwardBadgeAsync()",
+  ],
+  [
+    /(?:\w*[Bb]adge[Ss]ervice\w*|GetService\s*\([^)]*\)):UserHasBadge\s*\(/,
+    "BadgeService:UserHasBadge()",
+    "BadgeService:UserHasBadgeAsync()",
+  ],
   [
     /:FilterStringForPlayerAsync\s*\(/,
     "Chat:FilterStringForPlayerAsync()",
@@ -149,8 +179,8 @@ export const DEPRECATED = [
     "a WeldConstraint or HingeConstraint, created and destroyed directly",
   ],
   [
-    /:GetR(?:ank|ole)InGroupAsync\s*\(/,
-    "Player:GetRankInGroupAsync() / GetRoleInGroupAsync()",
+    /:GetR(?:ank|ole)InGroup(?:Async)?\s*\(/,
+    "Player:GetRankInGroup() / GetRoleInGroup() (with or without Async)",
     "GroupService:GetRolesInGroupAsync()",
   ],
   [
@@ -182,23 +212,23 @@ const SECTIONS = ["VARIABLES", "FUNCTIONS", "INITIALIZATION"];
  * suffix that states which side a file runs on. Only suffixes every sync tool agrees on are
  * listed, and only members whose wrong-side use fails outright rather than merely reading oddly.
  */
-const CONTEXT_ERRORS = [
+export const CONTEXT_ERRORS = [
   {
     suffix: /\.server\.luau?$/i,
     side: "a server Script",
     members: [
       [/\.LocalPlayer\b/, "Players.LocalPlayer", "it is nil on the server; take the player from the event that fired"],
-      [/\bUserInputService\b/, "UserInputService", "input is client-only; send the result over a remote instead"],
+      [/\bgame\s*\.\s*UserInputService\b/, "UserInputService", "input is client-only; send the result over a remote instead"],
     ],
   },
   {
     suffix: /\.client\.luau?$/i,
     side: "a LocalScript",
     members: [
-      [/\bDataStoreService\b/, "DataStoreService", "data stores are server-only; go through a remote"],
-      [/\bMessagingService\b/, "MessagingService", "cross-server messaging is server-only"],
-      [/\bServerStorage\b/, "ServerStorage", "it does not replicate, so the client sees nothing"],
-      [/\bServerScriptService\b/, "ServerScriptService", "it does not replicate, so the client sees nothing"],
+      [/\bgame\s*\.\s*DataStoreService\b/, "DataStoreService", "data stores are server-only; go through a remote"],
+      [/\bgame\s*\.\s*MessagingService\b/, "MessagingService", "cross-server messaging is server-only"],
+      [/\bgame\s*\.\s*ServerStorage\b/, "ServerStorage", "it does not replicate, so the client sees nothing"],
+      [/\bgame\s*\.\s*ServerScriptService\b/, "ServerScriptService", "it does not replicate, so the client sees nothing"],
     ],
   },
 ];
@@ -209,45 +239,121 @@ const CONTEXT_ERRORS = [
  * it kept is code while one it blanked is prose.
  */
 function serviceCall(name) {
-  return new RegExp(`GetService\\s*\\(\\s*["']${name}["']`);
+  return new RegExp(`(?:Get|Find)Service\\s*\\(\\s*["'\`]${name}["'\`]`);
 }
 
 /** Calls that hand the thread back to the scheduler, which is what keeps a loop from freezing it. */
-const YIELDS = /(?:\btask\.wait\b|(?<![.:\w])wait\s*\(|:Wait\s*\(|\bcoroutine\.yield\b|Async\s*\()/;
+const YIELDS = /(?:\btask\.wait\b|(?<![.:\w])wait\s*\(|:[Ww]ait\s*\(|\bcoroutine\.yield\b|Async\s*\()/;
 
-/** Keywords that open a block, and the ones that close one, for depth counting on stripped code. */
-const OPENS = /\b(?:function|do|then|repeat)\b/g;
-const CLOSES = /\b(?:end|until)\b/g;
-
-/** The loop this check is about, matched once to find it and again to find where its body starts. */
-const WHILE_TRUE = /\bwhile\s+(?:\(\s*)?true(?:\s*\))?\s+do\b/;
+/** What lets a loop body leave: a break, a return, or a raised error. A field named error is not one. */
+const EXITS = /\bbreak\b|\breturn\b|(?<![.:\w])error\s*\(/;
 
 /**
- * Reports every `while true do` that can neither yield nor exit, which freezes the thread.
- * A loop that can leave or yield is left alone; an ambiguous read reports nothing.
- * A one-line loop keeps its body after the `do`, so that line is read from there.
+ * Calls known never to yield. A loop calling anything else might yield inside it, and a read
+ * that cannot tell is not reported.
+ */
+const NEVER_YIELDS =
+  /^(?:print|warn|tostring|tonumber|type|typeof|select|pairs|ipairs|next|rawget|rawset|rawequal|rawlen|assert|setmetatable|getmetatable|unpack|(?:math|string|table|bit32|buffer|utf8|vector)\.\w+|os\.(?:clock|time|date)|(?:Vector3|Vector2|CFrame|Color3|UDim2|UDim|Instance)\.\w+|task\.(?:spawn|defer|cancel)|coroutine\.(?:create|wrap|resume|status|running))$/;
+
+/** Words that read like a call before a parenthesis but are syntax. */
+const NOT_CALLS = /^(?:if|elseif|while|until|and|or|not|return|in|local|function)$/;
+
+/** The block keywords, for matching each opener to its close on stripped code. */
+const BLOCK_WORDS = /\b(?:function|do|then|repeat|end|until|elseif)\b/g;
+
+/** The loops this check is about: a `while` on a constant truthy value, and a `repeat`. */
+const LOOP_START = /\bwhile\s*(?:\(\s*)?(?:true|\d+)(?:\s*\))?\s*do\b|\brepeat\b/g;
+
+/**
+ * Where the block opened just before `from` closes, with the keyword that closes it, or null
+ * when it never does. The `then` after an `elseif` continues a block rather than opening one.
+ */
+function blockClose(code, from) {
+  const words = new RegExp(BLOCK_WORDS.source, "g");
+  words.lastIndex = from;
+
+  let depth = 1;
+  let continues = false;
+  let word;
+
+  while ((word = words.exec(code)) !== null) {
+    const token = word[0];
+    if (token === "elseif") {
+      continues = true;
+      continue;
+    }
+    if (token === "then" && continues) {
+      continues = false;
+      continue;
+    }
+
+    depth += token === "end" || token === "until" ? -1 : 1;
+    if (depth === 0) return { at: word.index, end: word.index + token.length, token };
+  }
+
+  return null;
+}
+
+/** A loop body with every function defined inside it removed, since what a closure does is not the loop's. */
+function withoutClosures(body) {
+  const opener = /\bfunction\b/g;
+  let out = "";
+  let last = 0;
+  let found;
+
+  while ((found = opener.exec(body)) !== null) {
+    const close = blockClose(body, found.index + found[0].length);
+    if (close === null) return out + body.slice(last, found.index);
+
+    out += `${body.slice(last, found.index)} `;
+    last = close.end;
+    opener.lastIndex = close.end;
+  }
+
+  return out + body.slice(last);
+}
+
+/** Whether a loop body can yield or leave, or calls something that might, which settles nothing. */
+function mayYieldOrLeave(body) {
+  if (YIELDS.test(body) || EXITS.test(body)) return true;
+
+  const calls = body.matchAll(/([A-Za-z_]\w*(?:\s*[.:]\s*[A-Za-z_]\w*)*)\s*\(/g);
+  for (const [, callee] of calls) {
+    const name = callee.replace(/\s+/g, "");
+    if (!NOT_CALLS.test(name) && !NEVER_YIELDS.test(name)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Reports every loop on a constant condition that can neither yield nor exit, which freezes the
+ * thread. A loop that can leave or yield is left alone, and so is one an ambiguous read leaves open.
  */
 function frozenLoops(lines) {
+  const code = lines.join("\n");
   const found = [];
+  const starts = new RegExp(LOOP_START.source, "g");
+  let line = 1;
+  let counted = 0;
+  let loop;
 
-  for (let start = 0; start < lines.length; start++) {
-    if (!WHILE_TRUE.test(lines[start])) continue;
+  while ((loop = starts.exec(code)) !== null) {
+    for (; counted < loop.index; counted++) if (code[counted] === "\n") line++;
 
-    let depth = 0;
-    let body = "";
+    const isRepeat = loop[0] === "repeat";
+    const close = blockClose(code, loop.index + loop[0].length);
+    if (close === null || close.token !== (isRepeat ? "until" : "end")) continue;
+    if (isRepeat && !/^\s*(?:\(\s*)?false\b/.test(code.slice(close.end))) continue;
 
-    for (let k = start; k < lines.length; k++) {
-      const withoutElseif = lines[k].replace(/\belseif\b(.*?)\bthen\b/g, "$1");
-      depth += (withoutElseif.match(OPENS) || []).length - (withoutElseif.match(CLOSES) || []).length;
-      const opener = k === start ? WHILE_TRUE.exec(withoutElseif) : null;
-      body += (opener ? withoutElseif.slice(opener.index + opener[0].length) : withoutElseif) + "\n";
-      if (depth > 0) continue;
+    const body = withoutClosures(code.slice(loop.index + loop[0].length, close.at));
+    if (mayYieldOrLeave(body)) continue;
 
-      if (depth === 0 && !YIELDS.test(body) && !/\b(?:break|return|error)\b/.test(body)) {
-        found.push(`Line ${start + 1}: this while true do never yields and never exits, which freezes the thread. Add task.wait(), or a condition that breaks.`);
-      }
-      break;
-    }
+    const shape = isRepeat ? "repeat ... until false, like a while true do," : "while true do";
+    found.push(
+      `Line ${line}: this ${shape} never yields and never exits, which freezes the thread. ` +
+        `Add task.wait(), or a condition that breaks.`,
+    );
   }
 
   return found;
@@ -275,6 +381,23 @@ const SKIP_REASON = {
 /** Marks a file this tool wrote, so it may be replaced without asking. */
 export const GENERATED = "<!-- Generated from AGENTS.md. Edit that file. -->";
 
+/** The line recording what a rules file held when this tool wrote it, so a later edit shows. */
+function bodyDigest(body) {
+  return `<!-- roblox-optimum body ${createHash("sha256").update(body).digest("hex").slice(0, 16)} -->`;
+}
+
+/**
+ * Whether a rules file this tool wrote still holds what it wrote: unedited, edited, or written
+ * before the digest existed, which cannot be told apart from an edit and is treated as one.
+ */
+function ruleEdits(text) {
+  const after = text.replace(/\r\n/g, "\n").split(GENERATED).slice(1).join(GENERATED);
+  const found = /^\n(<!-- roblox-optimum body [0-9a-f]+ -->)\n\n/.exec(after);
+  if (found === null) return "legacy";
+
+  return found[1] === bodyDigest(after.slice(found[0].length)) ? "unedited" : "edited";
+}
+
 /**
  * Where each agent reads its instructions, the front matter that loads them on every request,
  * and the directory that says the host is in use. Rules reach only a project they were
@@ -300,7 +423,7 @@ inclusion: always
 ---
 `,
   },
-  { path: "rules/roblox-optimum.md", marker: "rules", agent: "a plugin rules directory", frontMatter: "" },
+  { path: "rules/roblox-optimum.md", marker: null, agent: "a plugin rules directory", frontMatter: "" },
   {
     path: ".windsurf/rules/roblox-optimum.md",
     marker: ".windsurf",
@@ -325,22 +448,28 @@ Usage:
                                      skills, agent, and hook; naming none writes rules and hook,
                                      since a host that reads skills installs the plugin instead.
                                      --all writes every agent's rule file whether or not the
-                                     project shows a sign of that agent. --force replaces a
-                                     skill or agent copy that is already there.
+                                     project shows a sign of that agent. --force replaces an
+                                     older skill or agent copy this tool wrote; a copy it did
+                                     not write is never replaced.
                                      --global writes the skills and the agent into every agent
                                      home directory instead, so they load in every project.
+                                     Naming no part also registers the MCP server and the
+                                     hooks; naming parts writes only those.
                                      Rules and the hook stay with the project that needs them.
   roblox-optimum doctor              Report what is installed and how old it is, for this project
                                      and this machine. --project or --global narrows it to one.
                                      Reads only; it changes nothing.
   roblox-optimum uninstall [part...] Remove what this tool wrote, in this project or, with
                                      --global, on this machine. A file it did not write is
-                                     reported and left. --dry-run lists without removing.
+                                     reported and left, and so is an older copy it wrote,
+                                     until --force. --dry-run lists without removing.
   roblox-optimum --selftest          Run the built-in assertions.
   roblox-optimum                     Read a post-write hook payload on stdin. Exit 2 reports
                                      findings back to the agent.
   roblox-optimum --hook copilot      The same check, reporting on stdout as additionalContext,
                                      which is how Copilot reads a hook back.
+  roblox-optimum --hook cursor       The same check, reporting on stdout as additional_context,
+                                     which is how Cursor's postToolUse reads a hook back.
   roblox-optimum --hook kiro         The same check, reporting on stdout and exiting 0, which is
                                      how Kiro adds a command's output to the agent's context.
   roblox-optimum --session           Read a session-start payload on stdin. In a Roblox project,
@@ -360,7 +489,7 @@ Standards: ${HOME_PAGE}
 
 /**
  * Blanks the prose in a source file so that a rule named in a comment or a string is never
- * mistaken for a use of it. Line and column positions are preserved.
+ * mistaken for a use of it. An interpolated string keeps the code inside its braces.
  */
 export function stripNonCode(source, keepLineComments = false) {
   const out = source.split("");
@@ -373,9 +502,12 @@ export function stripNonCode(source, keepLineComments = false) {
     }
   };
 
+  const longOpen = /(--)?\[(=*)\[/y;
+
   while (i < n) {
     const two = source.slice(i, i + 2);
-    const long = /^(--)?\[(=*)\[/.exec(source.slice(i, i + 12));
+    longOpen.lastIndex = i;
+    const long = longOpen.exec(source);
 
     if (long && (two === "--" || source[i] === "[")) {
       const close = "]" + long[2] + "]";
@@ -398,9 +530,42 @@ export function stripNonCode(source, keepLineComments = false) {
       const quote = source[i];
       let j = i + 1;
       while (j < n && source[j] !== quote && source[j] !== "\n") {
+        if (source[j] === "\\" && source[j + 1] === "z") {
+          j += 2;
+          while (j < n && /\s/.test(source[j])) j++;
+          continue;
+        }
         j += source[j] === "\\" ? 2 : 1;
       }
       blank(i, Math.min(j + 1, n));
+      i = Math.min(j + 1, n);
+      continue;
+    }
+
+    if (source[i] === "`") {
+      let j = i + 1;
+      let from = i;
+      while (j < n && source[j] !== "`" && source[j] !== "\n") {
+        if (source[j] === "\\") {
+          j += 2;
+          continue;
+        }
+        if (source[j] !== "{") {
+          j++;
+          continue;
+        }
+
+        blank(from, j + 1);
+        let depth = 1;
+        j++;
+        while (j < n && depth > 0 && source[j] !== "\n") {
+          if (source[j] === "{") depth++;
+          else if (source[j] === "}") depth--;
+          j++;
+        }
+        from = j - 1;
+      }
+      blank(from, Math.min(j + 1, n));
       i = Math.min(j + 1, n);
       continue;
     }
@@ -409,6 +574,17 @@ export function stripNonCode(source, keepLineComments = false) {
   }
 
   return out.join("");
+}
+
+/**
+ * Whether a file defines its own function under a deprecated global's name, such as a local
+ * `wait`, in which case a call to it is the file's own and not the legacy API.
+ */
+function shadowed(code, name) {
+  const global = /^(\w+)\(\)$/.exec(name)?.[1];
+  if (global === undefined) return false;
+
+  return new RegExp(`\\b(?:local\\s+function\\s+|function\\s+|local\\s+)${global}\\b`).test(code);
 }
 
 /**
@@ -457,10 +633,10 @@ export function inspect(source, path = "") {
   const deprecated = [];
 
   for (const [pattern, name, replacement] of DEPRECATED) {
+    if (shadowed(code, name)) continue;
     for (let k = 0; k < lines.length; k++) {
       if (pattern.test(lines[k])) {
         deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is deprecated. Use ${replacement}.` });
-        break;
       }
     }
   }
@@ -469,7 +645,6 @@ export function inspect(source, path = "") {
     for (let k = 0; k < lines.length; k++) {
       if (pattern.test(lines[k])) {
         deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is unsafe: ${why}.` });
-        break;
       }
     }
   }
@@ -487,7 +662,6 @@ export function inspect(source, path = "") {
             line: k + 1,
             text: `Line ${k + 1}: ${name} in ${side}. The filename says which side this runs on, and ${why}.`,
           });
-          break;
         }
       }
     }
@@ -501,7 +675,7 @@ export function inspect(source, path = "") {
 }
 
 /** Files named by an apply_patch body, which is how Codex reports an edit. */
-const PATCH_TARGET = /^\*\*\* (?:Add|Update|Move to) File:\s*(.+?)\s*$/gm;
+const PATCH_TARGET = /^\*\*\* (?:Add File|Update File|Move to):\s*(.+?)\s*$/gm;
 
 /** The keys a host has been seen to name a written file under, inside its tool arguments. */
 const PATH_KEYS = ["file_path", "filePath", "path", "TargetFile", "target_file"];
@@ -615,6 +789,11 @@ async function runPostToolUse(shape) {
 
   if (shape === "copilot") {
     process.stdout.write(JSON.stringify({ additionalContext: formatReport(reports) }));
+    return 0;
+  }
+
+  if (shape === "cursor") {
+    process.stdout.write(JSON.stringify({ additional_context: formatReport(reports) }));
     return 0;
   }
 
@@ -745,13 +924,17 @@ const GLOBAL_TARGETS = [
 /**
  * Where each host keeps a plugin it has installed. A plugin carries the skills, the agent and
  * the rules in one directory the host reads for itself, so a copy of any of them beside it is
- * read twice. Claude Code files its cache by marketplace and version where the others hold one
- * directory per plugin, so each root is searched a few levels down rather than by a fixed shape.
+ * read twice. Hosts file plugins by marketplace and version or one directory per plugin, so each
+ * root is searched a few levels down rather than by a fixed shape.
  */
 const PLUGIN_HOMES = [
   { host: "Claude Code", path: join(".claude", "plugins", "cache") },
-  { host: "Cursor", path: join(".cursor", "plugins", "local") },
+  { host: "Cursor", path: join(".cursor", "plugins") },
   { host: "Antigravity", path: join(".gemini", "config", "plugins") },
+  { host: "Antigravity", path: join(".gemini", "antigravity-cli", "plugins") },
+  { host: "Codex", path: join(".codex", "plugins", "cache") },
+  { host: "Copilot CLI", path: join(".copilot", "installed-plugins") },
+  { host: "Qwen Code", path: join(".qwen", "extensions") },
 ];
 
 /** Where a workspace keeps a plugin, for the hosts that read one from the project. */
@@ -765,6 +948,9 @@ const PLUGIN_MANIFESTS = [
   "plugin.json",
   join(".claude-plugin", "plugin.json"),
   join(".cursor-plugin", "plugin.json"),
+  join(".codex-plugin", "plugin.json"),
+  join(".github", "plugin", "plugin.json"),
+  "qwen-extension.json",
 ];
 
 /**
@@ -982,29 +1168,29 @@ const HOOK_COMMAND = "npx -y -p roblox-optimum@latest roblox-optimum";
 const ANTIGRAVITY_WRITES = "write_to_file|replace_file_content|multi_replace_file_content";
 
 /**
- * The hook file each host reads, in the shape that host documents. Both run the same command on
- * the same event; only the schema around it differs, which is why neither can be a shipped file.
+ * The hook file each host reads, in the shape that host documents, given the command that runs
+ * the checker. Cursor's postToolUse is its one edit event whose output reaches the agent.
  */
 const PLUGIN_HOOKS = {
-  cursor: {
+  cursor: (command) => ({
     version: 1,
-    hooks: { afterFileEdit: [{ command: HOOK_COMMAND }] },
-  },
-  antigravity: {
+    hooks: { postToolUse: [{ command: `${command} --hook cursor`, matcher: "Write" }] },
+  }),
+  antigravity: (command) => ({
     [PLUGIN]: {
       PostToolUse: [
         {
           matcher: ANTIGRAVITY_WRITES,
-          hooks: [{ type: "command", command: HOOK_COMMAND, timeout: 15 }],
+          hooks: [{ type: "command", command, timeout: 15 }],
         },
       ],
     },
-  },
+  }),
 };
 
 /**
- * What a plugin carries wherever it is installed. The scripts travel with it so the checker and
- * both MCP servers start by path rather than by download, and they read AGENTS.md beside them.
+ * What a plugin carries wherever it is installed. The scripts travel with it so its hooks start
+ * the checker by path rather than by download, and they read AGENTS.md beside them.
  */
 const PLUGIN_PAYLOAD = [
   "skills",
@@ -1038,10 +1224,9 @@ const PLUGIN_ROUTES = {
 
 /** The live copy of this plugin a host already holds, if it holds one. */
 function installedPlugin(host, home) {
-  const where = PLUGIN_HOMES.find((h) => h.host === host);
-  if (where === undefined) return undefined;
-
-  return pluginsUnder(join(home, where.path)).sort((a, b) => order(b.version) - order(a.version))[0];
+  return PLUGIN_HOMES.filter((h) => h.host === host)
+    .flatMap((where) => pluginsUnder(join(home, where.path)))
+    .sort((a, b) => order(b.version) - order(a.version))[0];
 }
 
 /**
@@ -1101,10 +1286,11 @@ function installPlugin(root, route, force, report) {
     if (!existsSync(source)) continue;
 
     mkdirSync(dirname(join(dir, part)), { recursive: true });
-    cpSync(source, join(dir, part), { recursive: true });
+    cpSync(source, join(dir, part), { recursive: true, filter: notDevelopmentOnly });
   }
 
-  writeFileSync(join(dir, "hooks.json"), `${JSON.stringify(PLUGIN_HOOKS[route.hooks], null, 2)}\n`);
+  const command = `node "${join(dir, "scripts", "roblox-optimum.mjs")}"`;
+  writeFileSync(join(dir, "hooks.json"), `${JSON.stringify(PLUGIN_HOOKS[route.hooks](command), null, 2)}\n`);
   writeFileSync(stamp, stamped(""));
   report.written.push(shown);
 }
@@ -1147,9 +1333,44 @@ const KIRO_HOOK_BODY = {
     name: `roblox-optimum ${trigger}`,
     trigger,
     matcher: "\\.luau?$",
-    action: { type: "command", command: `${HOOK_COMMAND} --hook kiro`, timeout: 15 },
+    timeout: 15,
+    action: { type: "command", command: `${HOOK_COMMAND} --hook kiro` },
   })),
 };
+
+/**
+ * Bodies earlier releases wrote for a file this tool owns whole, so an upgrade still knows the
+ * file as its own. Kiro's had the timeout inside the action, where Kiro does not read it.
+ */
+const EARLIER_BODIES = new Map([
+  [
+    KIRO_HOOK_BODY,
+    [
+      {
+        version: "v1",
+        hooks: KIRO_HOOK_BODY.hooks.map(({ timeout, action, ...hook }) => ({ ...hook, action: { ...action, timeout } })),
+      },
+    ],
+  ],
+]);
+
+/**
+ * A written configuration with what releases differ by taken out: line endings, and whether the
+ * package was pinned to its latest version, which earlier releases left off.
+ */
+function releaseNeutral(text) {
+  return text.replace(/\r\n/g, "\n").replaceAll(`${PLUGIN}@latest`, PLUGIN);
+}
+
+/**
+ * Whether text is what this tool writes for a body, in this release or an earlier one. Any other
+ * difference is an edit, and the file is its owner's.
+ */
+function ownText(found, body) {
+  return [body, ...(EARLIER_BODIES.get(body) ?? [])].some(
+    (written) => releaseNeutral(found) === releaseNeutral(`${JSON.stringify(written, null, 2)}\n`),
+  );
+}
 
 /**
  * Writes a file this tool owns whole, leaving a changed one alone. The file is its own marker:
@@ -1165,7 +1386,7 @@ function writeOwned(file, body, force, report) {
       report.current.push(shown);
       return;
     }
-    if (!force) {
+    if (!force && !ownText(found, body)) {
       report.kept.push(shown);
       return;
     }
@@ -1184,7 +1405,7 @@ function removeOwned(file, body, dry, removed, kept) {
   if (!existsSync(file)) return;
 
   const shown = shownAs(file);
-  if (readFileSync(file, "utf8") !== `${JSON.stringify(body, null, 2)}\n`) {
+  if (!ownText(readFileSync(file, "utf8"), body)) {
     kept.push(shown);
     return;
   }
@@ -1203,37 +1424,37 @@ const MCP_CONFIGS = [
     host: "Antigravity",
     paths: [join(".gemini", "config", "mcp_config.json")],
     key: "mcpServers",
-    entry: { command: "npx", args: ["-y", "-p", PLUGIN, "roblox-mcp"] },
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"] },
   },
   {
     host: "OpenCode",
     paths: [join(".config", "opencode", "opencode.json"), join(".config", "opencode", "opencode.jsonc")],
     key: "mcp",
-    entry: { type: "local", command: ["npx", "-y", "-p", PLUGIN, "roblox-mcp"], enabled: true },
+    entry: { type: "local", command: ["npx", "-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"], enabled: true },
   },
   {
     host: "Kiro",
     paths: [join(".kiro", "settings", "mcp.json")],
     key: "mcpServers",
-    entry: { command: "npx", args: ["-y", "-p", PLUGIN, "roblox-mcp"], disabled: false },
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"], disabled: false },
   },
   {
     host: "Cline",
     paths: [join(".cline", "mcp.json")],
     key: "mcpServers",
-    entry: { command: "npx", args: ["-y", "-p", PLUGIN, "roblox-mcp"], disabled: false, autoApprove: [] },
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"], disabled: false, autoApprove: [] },
   },
   {
     host: "Qwen Code",
     paths: [join(".qwen", "settings.json")],
     key: "mcpServers",
-    entry: { command: "npx", args: ["-y", "-p", PLUGIN, "roblox-mcp"] },
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"] },
   },
   {
     host: "Windsurf",
     paths: [join(".codeium", "windsurf", "mcp_config.json"), join(".codeium", "mcp_config.json")],
     key: "mcpServers",
-    entry: { command: "npx", args: ["-y", "-p", PLUGIN, "roblox-mcp"] },
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"] },
   },
   {
     host: "Copilot CLI",
@@ -1242,7 +1463,7 @@ const MCP_CONFIGS = [
     entry: {
       type: "local",
       command: "npx",
-      args: ["-y", "-p", PLUGIN, "roblox-mcp"],
+      args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"],
       env: {},
       tools: ["*"],
     },
@@ -1250,9 +1471,8 @@ const MCP_CONFIGS = [
 ];
 
 /**
- * Registers the MCP server in one host's configuration, keeping every other server in it.
- * A file this tool cannot read is reported, not rewritten: one that will not parse, and one
- * whose JSON is not an object, since `null` and an array wreck the merge.
+ * Registers the MCP server in one host's configuration, keeping every other server. An entry an
+ * earlier release wrote is updated; an edited one, or a file that is not a JSON object, is kept.
  */
 function registerMcp(root, config, force, report) {
   const file = config.paths.map((p) => join(root, p)).find(existsSync) ?? join(root, config.paths[0]);
@@ -1273,9 +1493,21 @@ function registerMcp(root, config, force, report) {
   }
 
   const servers = read[config.key] ?? {};
-  if (servers[PLUGIN] !== undefined && !force) {
-    report.current.push(shown);
+  if (servers === null || typeof servers !== "object" || Array.isArray(servers)) {
+    report.kept.push(`${shown}, whose ${config.key} is not an object`);
     return;
+  }
+
+  const existing = servers[PLUGIN];
+  if (existing !== undefined && !force) {
+    if (JSON.stringify(existing) === JSON.stringify(config.entry)) {
+      report.current.push(shown);
+      return;
+    }
+    if (releaseNeutral(JSON.stringify(existing)) !== releaseNeutral(JSON.stringify(config.entry))) {
+      report.kept.push(`${shown}, whose ${PLUGIN} server was edited`);
+      return;
+    }
   }
 
   if (existsSync(file) && !existsSync(`${file}.bak`)) cpSync(file, `${file}.bak`);
@@ -1286,16 +1518,44 @@ function registerMcp(root, config, force, report) {
   report.written.push(shown);
 }
 
+/** The header line that marks a commit hook as this tool's, written since the first release. */
+const PRE_COMMIT_MARK = "# Installed by roblox-optimum. Delete this file to remove it.";
+
+/**
+ * The lines that run the check, shared by the hook this tool writes and the snippet it offers
+ * for a hook someone else wrote. A commit staging no Luau must pass, which is why the guard
+ * travels with the pipe rather than trusting `xargs` to skip an empty input.
+ */
+const PRE_COMMIT_CHECK = `files=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -E '\\.luau?$')
+[ -z "$files" ] || printf '%s\\n' "$files" | tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check
+`;
+
 /**
  * The commit hook, which is the one setup that works whoever wrote the file. The paths go to the
  * checker one per argument rather than as a bare word split, which dropped every path holding a
  * space and let the commit through with the file unchecked.
  */
-const PRE_COMMIT = `#!/bin/sh
-# Installed by roblox-optimum. Delete this file to remove it.
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$')
-[ -z "$files" ] || printf '%s\\n' "$files" | tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check
-`;
+const PRE_COMMIT = `#!/bin/sh\n${PRE_COMMIT_MARK}\n${PRE_COMMIT_CHECK}`;
+
+/**
+ * Where git runs a project's commit hook from, asked of git itself, since a worktree keeps
+ * `.git` as a file and a hook manager can move the directory. Falls back to the usual path.
+ */
+function preCommitPath(cwd) {
+  const usual = { path: join(cwd, ".git", "hooks", "pre-commit"), inside: true };
+  if (!existsSync(join(cwd, ".git"))) return usual;
+
+  const asked = spawnSync("git", ["rev-parse", "--git-common-dir", "--git-path", "hooks/pre-commit"], {
+    cwd,
+    encoding: "utf8",
+  });
+  const [common, hook] = (asked.status === 0 ? asked.stdout : "").trim().split(/\r?\n/);
+  if (!common || !hook) return usual;
+
+  const path = resolve(cwd, hook);
+  const within = (root) => !relative(root, path).startsWith("..") && !isAbsolute(relative(root, path));
+  return { path, inside: within(resolve(cwd, common)) || within(cwd) };
+}
 
 /**
  * Writes each agent where a host with front matter of its own reads one, retitled like any other
@@ -1309,7 +1569,7 @@ function copyAgents(dir, form, force, report) {
     const full = join(dir, agentAs(name, form));
     const shown = shownAs(full);
 
-    if (!force && !writable(full, DERIVED_AGENT)) {
+    if (!writable(full, DERIVED_AGENT)) {
       report.kept.push(shown);
       continue;
     }
@@ -1359,7 +1619,7 @@ function runInstall(args) {
   const report = { written: [], kept: [], stale: [], current: [] };
   const { written, kept } = report;
 
-  if (global) return runGlobalInstall(parts, all, force, report);
+  if (global) return runGlobalInstall(parts, all, force, explicit, report);
 
   if (parts.has("rules")) {
     const source = join(PACKAGE_ROOT, "AGENTS.md");
@@ -1372,7 +1632,7 @@ function runInstall(args) {
 
     for (const target of [{ path: "AGENTS.md", marker: null, frontMatter: "" }, ...RULE_TARGETS]) {
       if (!all && target.marker && !existsSync(join(cwd, target.marker))) continue;
-      if (!all && target.path === "QWEN.md") continue;
+      if (!all && target.marker === null && target.path !== "AGENTS.md") continue;
 
       const full = join(cwd, target.path);
       if (!writable(full, GENERATED)) {
@@ -1380,8 +1640,24 @@ function runInstall(args) {
         continue;
       }
 
+      const text = `${target.frontMatter}${GENERATED}\n${bodyDigest(body)}\n\n${body}`;
+      if (existsSync(full)) {
+        const was = readFileSync(full, "utf8").replace(/\r\n/g, "\n");
+        if (was === text) {
+          report.current.push(target.path);
+          continue;
+        }
+
+        const edits = was === `${target.frontMatter}${GENERATED}\n\n${body}` ? "unedited" : ruleEdits(was);
+        if (edits !== "unedited" && !force) {
+          const why = edits === "edited" ? "edited since this tool wrote it" : "written before edits were tracked";
+          report.stale.push(`${target.path}, ${why}`);
+          continue;
+        }
+      }
+
       mkdirSync(dirname(full), { recursive: true });
-      writeFileSync(full, `${target.frontMatter}${GENERATED}\n\n${body}`);
+      writeFileSync(full, text);
       written.push(target.path);
     }
   }
@@ -1405,18 +1681,26 @@ function runInstall(args) {
     writeOwned(join(cwd, KIRO_HOOK), KIRO_HOOK_BODY, force, report);
   }
 
-  const hook = join(cwd, ".git", "hooks", "pre-commit");
   let hookNote = "";
   if (parts.has("hook") && existsSync(join(cwd, ".git"))) {
-    if (writable(hook, "roblox-optimum")) {
-      mkdirSync(dirname(hook), { recursive: true });
-      writeFileSync(hook, PRE_COMMIT, { mode: 0o755 });
-      written.push(".git/hooks/pre-commit");
-    } else {
-      hookNote =
-        "\nA pre-commit hook already exists, so it was left alone. To add the check to it:\n" +
-        "  git diff --cached --name-only --diff-filter=ACM | grep -E '\\.luau?$' |" +
-        " tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check\n";
+    const hook = preCommitPath(cwd);
+    const snippet = PRE_COMMIT_CHECK.replace(/^/gm, "  ").trimEnd();
+
+    try {
+      if (!hook.inside) {
+        hookNote =
+          `\nGit runs commit hooks from ${hook.path}, outside this project, so none was written.\n` +
+          `To add the check to the hook there:\n${snippet}\n`;
+      } else if (!writable(hook.path, PRE_COMMIT_MARK)) {
+        hookNote = `\nA pre-commit hook already exists, so it was left alone. To add the check to it:\n${snippet}\n`;
+      } else {
+        mkdirSync(dirname(hook.path), { recursive: true });
+        writeFileSync(hook.path, PRE_COMMIT);
+        chmodSync(hook.path, 0o755);
+        written.push(shownAs(hook.path));
+      }
+    } catch (error) {
+      hookNote = `\nThe commit hook could not be written to ${shownAs(hook.path)}: ${error.message}\n`;
     }
   }
 
@@ -1475,7 +1759,7 @@ const SHIPPED_AGENTS = (() => {
  */
 export function places({ global = false, cwd = process.cwd(), home = homedir() } = {}) {
   const out = [];
-  const add = (part, path, mark) => out.push({ part, path, mark });
+  const add = (part, path, mark, owned) => out.push({ part, path, mark, owned });
 
   if (global) {
     for (const target of GLOBAL_TARGETS) {
@@ -1505,8 +1789,8 @@ export function places({ global = false, cwd = process.cwd(), home = homedir() }
     add("agent", join(cwd, COPILOT_AGENTS, namespaced(name).replace(/\.md$/, ".agent.md")), DERIVED_AGENT);
   }
 
-  add("hook", join(cwd, ".git", "hooks", "pre-commit"), "roblox-optimum");
-  add("hook", join(cwd, KIRO_HOOK), PLUGIN);
+  add("hook", preCommitPath(cwd).path, PRE_COMMIT_MARK);
+  add("hook", join(cwd, KIRO_HOOK), null, KIRO_HOOK_BODY);
 
   return out;
 }
@@ -1517,10 +1801,15 @@ export function places({ global = false, cwd = process.cwd(), home = homedir() }
  */
 export function condition(place) {
   if (!existsSync(place.path)) return { state: "absent" };
+  if (place.owned !== undefined) {
+    return ownText(readFileSync(place.path, "utf8"), place.owned) ? { state: "ours" } : { state: "foreign" };
+  }
 
   if (place.mark !== null) {
     const text = readFileSync(place.path, "utf8");
-    return text.includes(place.mark) ? { state: "ours" } : { state: "foreign" };
+    if (!text.includes(place.mark)) return { state: "foreign" };
+    if (place.mark === GENERATED && ruleEdits(text) !== "unedited") return { state: "edited" };
+    return { state: "ours" };
   }
 
   const file = stampOf(place.path);
@@ -1594,9 +1883,20 @@ function runDoctor(args) {
             ? `copied from ${place.from}, now ${VERSION}`
             : place.state === "ours"
               ? "written by this tool"
-              : "not written by this tool";
+              : place.state === "edited"
+                ? `written by this tool, edited since or by an older release; install ${place.part} --force replaces it`
+                : "not written by this tool";
 
       out += `  ${place.part.padEnd(6)} ${shownAs(place.path)} - ${note}\n`;
+    }
+  }
+
+  if (scopes.some(([, global]) => global)) {
+    const entries = registrations(homedir());
+    found += entries.length;
+    if (entries.length > 0) {
+      out += `\nregistered in a host's own configuration: ${entries.length}\n`;
+      for (const entry of entries) out += `  ${entry.host.padEnd(12)} ${shownAs(entry.file)} - ${entry.note}\n`;
     }
   }
 
@@ -1697,7 +1997,7 @@ function removeMcp(home, dry, removed, kept) {
     const server = read?.[config.key]?.[PLUGIN];
     if (server === undefined) continue;
 
-    if (JSON.stringify(server) !== JSON.stringify(config.entry)) {
+    if (releaseNeutral(JSON.stringify(server)) !== releaseNeutral(JSON.stringify(config.entry))) {
       kept.push(`${shownAs(file)}, whose ${PLUGIN} server was edited since`);
       continue;
     }
@@ -1712,6 +2012,40 @@ function removeMcp(home, dry, removed, kept) {
 }
 
 /**
+ * The MCP entries and hook files this tool registers inside a host's own configuration, which
+ * no copy or plugin directory shows, each with whether it is still as this tool wrote it.
+ */
+function registrations(home) {
+  const out = [];
+
+  for (const config of MCP_CONFIGS) {
+    const file = config.paths.map((p) => join(home, p)).find(existsSync);
+    if (file === undefined) continue;
+
+    let server;
+    try {
+      server = JSON.parse(readFileSync(file, "utf8"))?.[config.key]?.[PLUGIN];
+    } catch {
+      continue;
+    }
+    if (server === undefined) continue;
+
+    const ours = releaseNeutral(JSON.stringify(server)) === releaseNeutral(JSON.stringify(config.entry));
+    out.push({ host: config.host, file, note: ours ? "MCP server, as this tool wrote it" : "MCP server, edited since" });
+  }
+
+  for (const hook of COPY_HOOKS) {
+    const file = join(home, hook.path);
+    if (!existsSync(file)) continue;
+
+    const ours = ownText(readFileSync(file, "utf8"), hook.body);
+    out.push({ host: hook.host, file, note: ours ? "hook, as this tool wrote it" : "hook, edited since" });
+  }
+
+  return out;
+}
+
+/**
  * Removes what this tool wrote and nothing else. A file carrying no mark of ours is reported and
  * left, since a standards tool that deletes someone's work has already cost more than it saves.
  */
@@ -1719,12 +2053,12 @@ function runUninstall(args) {
   const named = args.filter((a) => !a.startsWith("--"));
   const flags = args.filter((a) => a.startsWith("--"));
 
-  const known = ["--global", "--dry-run"];
+  const known = ["--global", "--dry-run", "--force"];
   const error = flags.find((f) => !known.includes(f)) ?? named.find((n) => !COMPONENTS.includes(n));
   if (error !== undefined) {
     process.stderr.write(
       `roblox-optimum uninstall: ${error} is not a component or a flag.\n\n` +
-        `Components: ${COMPONENTS.join(", ")}\nFlags: --global, --dry-run\n`,
+        `Components: ${COMPONENTS.join(", ")}\nFlags: --global, --dry-run, --force\n`,
     );
     return 2;
   }
@@ -1732,8 +2066,10 @@ function runUninstall(args) {
   const parts = new Set(named.length > 0 ? named : COMPONENTS);
   const dry = flags.includes("--dry-run");
   const global = flags.includes("--global");
+  const force = flags.includes("--force");
   const removed = [];
   const kept = [];
+  const older = [];
 
   if (global && named.length === 0) {
     removePlugins(homedir(), dry, removed, kept);
@@ -1746,10 +2082,18 @@ function runUninstall(args) {
   for (const place of places({ global })) {
     if (!parts.has(place.part)) continue;
 
-    const { state } = condition(place);
+    const { state, from } = condition(place);
     if (state === "absent") continue;
     if (state === "foreign") {
       kept.push(shownAs(place.path));
+      continue;
+    }
+    if (state === "stale" && !force) {
+      older.push(`${shownAs(place.path)}, copied from ${from}`);
+      continue;
+    }
+    if (state === "edited" && !force) {
+      older.push(`${shownAs(place.path)}, which may hold your edits`);
       continue;
     }
 
@@ -1764,6 +2108,11 @@ function runUninstall(args) {
       : "roblox-optimum found nothing of its own to remove.\n") +
       (kept.length > 0
         ? `\nLeft alone, because this tool did not write them:\n` + kept.map((p) => `  ${p}\n`).join("")
+        : "") +
+      (older.length > 0
+        ? `\nOlder copies this tool wrote, kept in case you edited them:\n` +
+          older.map((p) => `  ${p}\n`).join("") +
+          `Add --force to remove them too.\n`
         : "") +
       (dry && removed.length > 0 ? `\nRun again without --dry-run to remove them.\n` : ""),
   );
@@ -1802,11 +2151,10 @@ function shownAs(full) {
 }
 
 /**
- * Writes the skills and the agent into every host on this machine, so one run reaches all of
- * them instead of one project. A host with no directory of its own is passed over, never
- * created.
+ * Writes the parts named into every host on this machine; naming none also registers the MCP
+ * server and hooks. A host with no directory of its own is passed over unless `--all` is given.
  */
-function runGlobalInstall(parts, all, force, report) {
+function runGlobalInstall(parts, all, force, explicit, report) {
   const home = homedir();
   const seen = GLOBAL_TARGETS.filter((t) => all || existsSync(join(home, t.home)));
 
@@ -1835,6 +2183,7 @@ function runGlobalInstall(parts, all, force, report) {
     const taken = routeFor(target.host, home);
 
     if (taken.kind === "plugin") {
+      if (!parts.has("skills") && !parts.has("agent")) continue;
       wrote(target.host, () => installPlugin(home, taken.route, force, report));
       routed.push(target.host);
       continue;
@@ -1856,12 +2205,12 @@ function runGlobalInstall(parts, all, force, report) {
     }
   }
 
-  for (const config of MCP_CONFIGS) {
+  for (const config of explicit ? [] : MCP_CONFIGS) {
     const target = seen.find((t) => t.host === config.host);
     if (target !== undefined) wrote(config.host, () => registerMcp(home, config, force, report));
   }
 
-  for (const hook of COPY_HOOKS) {
+  for (const hook of explicit ? [] : COPY_HOOKS) {
     const target = seen.find((t) => t.host === hook.host);
     if (target !== undefined) wrote(hook.host, () => writeOwned(join(home, hook.path), hook.body, force, report));
   }
@@ -1911,9 +2260,9 @@ function notDevelopmentOnly(source) {
 }
 
 /**
- * Copies each entry of a directory this package ships into a project, leaving anything
- * already there alone. A skill carries no line saying who wrote it, so a name that exists
- * is kept until someone asks for it to be replaced.
+ * Copies each entry of a directory this package ships. A copy without this tool's stamp is
+ * someone's own and never touched; an older stamped one waits for `--force`, which replaces it
+ * whole.
  */
 function copyTree(source, dest, force, report) {
   if (!existsSync(source)) return;
@@ -1922,13 +2271,20 @@ function copyTree(source, dest, force, report) {
     const full = join(dest, namespaced(name));
     const shown = shownAs(full);
 
-    if (existsSync(full) && !force) {
+    if (existsSync(full)) {
       const was = existsSync(stampOf(full)) ? stampedFrom(readFileSync(stampOf(full), "utf8")) : null;
 
-      if (was === null) report.kept.push(shown);
-      else if (was === VERSION) report.current.push(shown);
-      else report.stale.push(`${shown}, copied from ${was}`);
-      continue;
+      if (was === null) {
+        report.kept.push(shown);
+        continue;
+      }
+      if (!force) {
+        if (was === VERSION) report.current.push(shown);
+        else report.stale.push(`${shown}, copied from ${was}`);
+        continue;
+      }
+
+      rmSync(full, { recursive: true, force: true });
     }
 
     mkdirSync(dest, { recursive: true });
@@ -2060,7 +2416,7 @@ async function runPromptRoute() {
   const load =
     route.skill === null
       ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
-      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code) before reading any file or answering, even though it was not named.`;
+      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
   addContext("UserPromptSubmit", `${load} Mention roblox-optimum to the user the first time it shapes an answer.`);
   return 0;
 }
@@ -2119,9 +2475,15 @@ Players.PlayerAdded:Connect(greet)
   );
   ok(
     inspect(good.replace("Players.PlayerAdded:Connect(greet)", "player:GetRoleInGroupAsync(1)")).some(
-      (p) => p.includes("GetRoleInGroupAsync()"),
+      (p) => p.includes("GetRoleInGroup()"),
     ),
     "either half of the group lookup pair is caught",
+  );
+  ok(
+    inspect(good.replace("Players.PlayerAdded:Connect(greet)", "player:GetRankInGroup(1)")).some((p) =>
+      p.includes("GetRankInGroup()"),
+    ),
+    "the older group lookup without Async is caught too",
   );
   ok(
     !inspect(`-- never call wait() here\nlocal x = "spawn("\nreturn { a = 1 }`).some((p) =>
@@ -2165,6 +2527,35 @@ Players.PlayerAdded:Connect(greet)
     ),
     "a one-line loop that neither yields nor exits is still caught",
   );
+  const ruleBody = "# Rules\n\nBe kind.\n";
+  const ruleFile = `---\nalwaysApply: true\n---\n${GENERATED}\n${bodyDigest(ruleBody)}\n\n${ruleBody}`;
+  ok(ruleEdits(ruleFile) === "unedited", "a rules file as this tool wrote it reads as unedited");
+  ok(ruleEdits(`${ruleFile}My own note.\n`) === "edited", "a line added to a rules file reads as an edit");
+  ok(ruleEdits(ruleFile.replace(/\n/g, "\r\n")) === "unedited", "line endings a checkout rewrote are not an edit");
+  ok(ruleEdits(`${GENERATED}\n\n${ruleBody}`) === "legacy", "a rules file from before the digest is told apart");
+  const freezes = (body) => inspect(`-- // INITIALIZATION // --\n${body}`).some((p) => p.includes("freezes the thread"));
+  ok(freezes("while(true) do\n\tlocal n = 1\nend"), "a loop with no space before its parenthesis is caught");
+  ok(freezes("while 1 do\n\tlocal n = 1\nend"), "a loop on a constant number is caught");
+  ok(freezes("repeat\n\tlocal n = 1\nuntil false"), "a repeat that never ends is caught");
+  ok(!freezes("repeat\n\tlocal n = 1\nuntil n > 0"), "a repeat with a real condition is left alone");
+  ok(freezes("while true do\n\tlocal cb = function() return 1 end\nend"), "a return inside a closure is not the loop's exit");
+  ok(freezes("while true do\n\tx.error = 1\nend"), "a field named error is not an exit");
+  ok(!freezes("while true do\n\tstepAndWait()\nend"), "a call that might yield leaves the loop unreported");
+  ok(!freezes("while true do\n\theartbeat:wait()\nend"), "the lowercase wait method still yields");
+  ok(freezes("while true do x = x + 1 end task.wait()"), "a yield after the loop's end is not inside it");
+  ok(!freezes("while true do\n\tprint(x)\n\ttask.wait()\nend"), "a loop calling known calls and yielding is left alone");
+  const lint = (body, path) => inspect(`-- // INITIALIZATION // --\n${body}`, path);
+  ok(lint("print(`wait(1)`)").length === 0, "an interpolated string's text is prose");
+  ok(lint("local s = `it's`\nwait(1)").length === 1 && lint("local s = `it's`; wait(1)").length === 1, "a quote inside an interpolated string hides no code");
+  ok(lint("print(`{wait(1)}`)").length === 1, "code inside an interpolation's braces is still checked");
+  ok(lint('local s = "abc\\z\n   def wait(1)"\nlocal y = 1').length === 0, "a string continued with \\z stays a string");
+  ok(lint("--[=========[\nwait(1)\n]=========]").length === 0, "a long comment with many equals signs is prose");
+  ok(lint("local function wait() end\nwait()").length === 0, "a local function named wait is the file's own");
+  ok(lint("wait(1)\nwait(2)").length === 2, "every use of a deprecated call is reported, not only the first");
+  ok(lint("loader:Preload(list)\npromise:AwardBadge()").length === 0, "a method on a custom object is not the deprecated service method");
+  ok(lint('local CP = game:GetService("ContentProvider")\nContentProvider:Preload(ids)').length === 1, "the service's own deprecated method is caught");
+  ok(lint("local t: ServerStorage = nil\nlocal f = ReplicatedStorage.ServerStorage", "a.client.luau").length === 0, "a type or a folder named after a service is not that service");
+  ok(lint("local s = game.ServerStorage", "a.client.luau").length === 1, "reaching a server service from the client is caught");
   ok(
     inspect(`-- // INITIALIZATION // --\nlocal Players = game:GetService("Players")\nlocal p = Players.LocalPlayer`, "src/Main.server.luau").some((p) =>
       p.includes("Players.LocalPlayer"),
@@ -2240,6 +2631,13 @@ Players.PlayerAdded:Connect(greet)
       tool_input: { command: "*** Begin Patch\n*** Update File: src/a.luau\n*** Add File: src/b.luau\n*** End Patch" },
     }).length === 2,
     "both files in an apply_patch body are read",
+  );
+  ok(
+    targetsFromPayload({
+      cwd: "/proj",
+      tool_input: { command: "*** Begin Patch\n*** Update File: src/a.luau\n*** Move to: src/c.luau\n*** End Patch" },
+    }).some((p) => p.endsWith("c.luau")),
+    "a file an apply_patch moves is checked at its new path",
   );
   ok(
     targetsFromPayload({ tool_input: { command: "ls -la" } }).length === 0,
@@ -2408,8 +2806,16 @@ Players.PlayerAdded:Connect(greet)
     "no two places claim the same path, so nothing is removed twice",
   );
   ok(
-    projectPlaces.some((p) => p.part === "hook" && p.mark === "roblox-optimum"),
-    "the commit hook is found by the line this tool writes into it",
+    projectPlaces.some((p) => p.part === "hook" && p.mark === PRE_COMMIT_MARK),
+    "the commit hook is found by the header line this tool writes into it",
+  );
+  ok(
+    !PRE_COMMIT_CHECK.includes(PRE_COMMIT_MARK) && PRE_COMMIT_CHECK.includes('[ -z "$files" ] ||'),
+    "the snippet offered for another hook passes a commit with no Luau and never marks that hook as ours",
+  );
+  ok(
+    preCommitPath(ROOT_ABSENT).path === join(ROOT_ABSENT, ".git", "hooks", "pre-commit"),
+    "outside a repository the commit hook is looked for at the usual path",
   );
   ok(
     condition({ path: join(ROOT_ABSENT, "nothing"), mark: null }).state === "absent",
@@ -2438,7 +2844,13 @@ Players.PlayerAdded:Connect(greet)
 
   ok(routePrompt("write a python script that parses my csv", false) === null, "work outside Roblox is left alone");
   ok(routePrompt("bikin sistem stamina", false) === null, "outside a project, a request must name Roblox");
-  ok(routePrompt("bikin sistem stamina", true)?.skill === null, "inside a project, it need not, and the model picks");
+  ok(routePrompt("stamina regen rate?", true)?.skill === null, "inside a project, it need not, and the model picks");
+  ok(routePrompt("bikin sistem stamina", true)?.skill === "best-practices", "an Indonesian request to build routes to authoring");
+  ok(routePrompt("leaderstats saya kadang hilang", true)?.skill === "diagnose", "an Indonesian symptom routes to diagnose");
+  ok(routePrompt("make the NPC react when hit", true)?.skill === "best-practices", "an English word sharing a stack's name is not that stack");
+  ok(routePrompt("write c# code for my tool", true) === null, "c# is recognised as another stack");
+  ok(routePrompt("add a reset button to the shop", true)?.skill === "best-practices", "a build request named after a symptom is authoring");
+  ok(routePrompt("build a ranking leaderboard", true)?.skill === "best-practices", "a ranking feature is not a review");
   ok(
     routePrompt("ServerScriptServiceでNPCをスポーンするスクリプトを作って", false)?.skill === null &&
       routePrompt("почему мои leaderstats сбрасываются", false)?.skill === null,
@@ -2622,6 +3034,17 @@ Players.PlayerAdded:Connect(greet)
     KIRO_HOOK_BODY.hooks.every((hook) => hook.matcher === "\\.luau?$"),
     "the Kiro hook runs only for Luau files",
   );
+  ok(
+    KIRO_HOOK_BODY.hooks.every((hook) => hook.timeout > 0 && hook.action.timeout === undefined),
+    "the Kiro timeout sits on the hook, where Kiro reads it",
+  );
+  const kiroBefore = JSON.stringify(EARLIER_BODIES.get(KIRO_HOOK_BODY)[0], null, 2).replaceAll(`${PLUGIN}@latest`, PLUGIN);
+  ok(ownText(`${kiroBefore}\n`.replace(/\n/g, "\r\n"), KIRO_HOOK_BODY), "a Kiro hook an earlier release wrote is still known as ours");
+  ok(!ownText(`${kiroBefore.replace('"timeout": 15', '"timeout": 30')}\n`, KIRO_HOOK_BODY), "a Kiro hook someone edited is theirs");
+  ok(
+    PLUGIN_HOOKS.cursor('node "x"').hooks.postToolUse[0].command.endsWith("--hook cursor"),
+    "the Cursor plugin hook reports through the shape Cursor reads back",
+  );
 
   ok(writable(join(ROOT_ABSENT, "nothing.md"), GENERATED), "an absent file may be written");
   ok(!writable("package.json", GENERATED), "a file this tool did not write is left alone");
@@ -2640,6 +3063,22 @@ Players.PlayerAdded:Connect(greet)
   if (!process.exitCode) console.log("roblox-optimum selftest: all checks passed");
 }
 
+/**
+ * Runs a command that touches the disk, so a refused write ends in one line naming the cause
+ * rather than a stack trace. Doctor then shows what was written before it stopped.
+ */
+function guarded(command, run) {
+  try {
+    return run();
+  } catch (error) {
+    process.stderr.write(
+      `roblox-optimum ${command} stopped: ${error.message}\n` +
+        `Run roblox-optimum doctor to see what is in place.\n`,
+    );
+    return 1;
+  }
+}
+
 const invokedDirectly = ranAsScript(import.meta.url);
 
 if (invokedDirectly) {
@@ -2650,9 +3089,9 @@ if (invokedDirectly) {
   else if (mode === "--prompt") process.exit(await runPromptRoute());
   else if (mode === "--pre-write") process.exit(await runPreWrite());
   else if (mode === "--check") process.exit(runCheck(rest));
-  else if (mode === "install") process.exit(runInstall(rest));
-  else if (mode === "doctor") process.exit(runDoctor(rest));
-  else if (mode === "uninstall") process.exit(runUninstall(rest));
+  else if (mode === "install") process.exit(guarded(mode, () => runInstall(rest)));
+  else if (mode === "doctor") process.exit(guarded(mode, () => runDoctor(rest)));
+  else if (mode === "uninstall") process.exit(guarded(mode, () => runUninstall(rest)));
   else if (mode === "--help" || mode === "-h") process.stdout.write(USAGE);
   else if (mode === "--hook") process.exit(await runPostToolUse(rest[0]));
   else if (mode === undefined) process.exit(await runPostToolUse());
