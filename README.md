@@ -66,11 +66,12 @@ To install a single component, update, or uninstall, and for the steps for each 
 copilot plugin marketplace add andrian-syh/roblox-optimum
 copilot plugin install roblox-optimum@andrian-syh
 
+# Codex, then install roblox-optimum from /plugins
+codex plugin marketplace add andrian-syh/roblox-optimum
+
 # Qwen Code
 qwen extensions install https://github.com/andrian-syh/roblox-optimum
 ```
-
-In Codex, run `/plugins` and install roblox-optimum from a marketplace or a local folder.
 
 ## How the agent uses it
 
@@ -113,7 +114,8 @@ To set the level for one request, pass it to the skill:
 /roblox-optimum:best-practices go
 ```
 
-To set it for every request in Claude Code, run `/plugin configure roblox-optimum@andrian-syh`.
+To set it for every request in Claude Code, run `/plugin`, open roblox-optimum on the **Installed**
+tab, and choose **Configure options**. The level is also a row in `/config`.
 
 ## Check Luau with the checker
 

@@ -991,6 +991,12 @@ export function order(version) {
 }
 
 /**
+ * The marker Claude Code leaves in a plugin version it replaced or uninstalled. It deletes that
+ * directory 14 days later, so until then the copy sits on disk but no longer loads.
+ */
+const ORPHANED = ".orphaned_at";
+
+/**
  * Every copy of this plugin under a root. The depth a host files plugins at is the host's to
  * change, so the search walks down a few levels instead of assuming one shape.
  */
@@ -1008,6 +1014,7 @@ function pluginsUnder(root, depth = 3) {
   for (const entry of entries.filter((e) => e.isDirectory() || e.isSymbolicLink())) {
     const full = join(root, entry.name);
     if (!entry.isDirectory() && !isDirectory(full)) continue;
+    if (existsSync(join(full, ORPHANED))) continue;
     const version = pluginVersion(full);
 
     if (version === null) out.push(...pluginsUnder(full, depth - 1));
@@ -1749,7 +1756,7 @@ Agents that install themselves, run whichever you use:
   Claude Code    /plugin marketplace add andrian-syh/roblox-optimum
                  /plugin install roblox-optimum@andrian-syh
   Codex          codex plugin marketplace add andrian-syh/roblox-optimum
-                 codex plugin add roblox-optimum@andrian-syh
+                 then /plugins in codex, and install roblox-optimum
   Copilot CLI    copilot plugin marketplace add andrian-syh/roblox-optimum
                  copilot plugin install roblox-optimum@andrian-syh
   Qwen Code      qwen extensions install ${HOME_PAGE}
@@ -3068,6 +3075,16 @@ Players.PlayerAdded:Connect(greet)
     PLUGIN_HOOKS.cursor('node "x"').hooks.postToolUse[0].command.endsWith("--hook cursor"),
     "the Cursor plugin hook reports through the shape Cursor reads back",
   );
+
+  const cache = mkdtempSync(join(tmpdir(), "roblox-optimum-cache-"));
+  for (const v of ["1.0.0", "1.1.0"]) {
+    mkdirSync(join(cache, "m", PLUGIN, v, ".claude-plugin"), { recursive: true });
+    writeFileSync(join(cache, "m", PLUGIN, v, ".claude-plugin", "plugin.json"), JSON.stringify({ name: PLUGIN, version: v }));
+  }
+  writeFileSync(join(cache, "m", PLUGIN, "1.0.0", ORPHANED), "");
+  const cached = pluginsUnder(cache);
+  rmSync(cache, { recursive: true, force: true });
+  ok(cached.length === 1 && cached[0].version === "1.1.0", "a copy Claude Code marked orphaned is not counted");
 
   ok(writable(join(ROOT_ABSENT, "nothing.md"), GENERATED), "an absent file may be written");
   ok(!writable("package.json", GENERATED), "a file this tool did not write is left alone");

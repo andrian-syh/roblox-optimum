@@ -198,8 +198,8 @@ The Claude Code plugin registers the server, and `install --global` writes the M
 host that keeps one in a file. For the other hosts, register it yourself:
 
 ```bash
-claude mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp   # Claude Code without the plugin
-codex mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp    # Codex
+claude mcp add --scope user roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp   # Claude Code without the plugin
+codex mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp                 # Codex
 ```
 
 Most hosts that keep MCP servers in a JSON file take this entry:
@@ -248,9 +248,32 @@ Install the plugin from the marketplace:
 The plugin carries the four skills, the review subagent, the MCP server, and the hooks.
 
 ```bash
-/plugin configure roblox-optimum@andrian-syh   # set the supervision level
-/roblox-optimum:best-practices                 # run a skill by name
+/roblox-optimum:best-practices   # run a skill by name
 ```
+
+To set the supervision level, run `/plugin`, open roblox-optimum on the **Installed** tab, and
+choose **Configure options**.
+
+Auto-update is off for this marketplace, as for every marketplace outside Anthropic's own. To
+update, run these in your shell, then `/reload-plugins` in an open session:
+
+```bash
+claude plugin marketplace update andrian-syh
+claude plugin update roblox-optimum@andrian-syh
+```
+
+Optional: to have Claude Code update the plugin automatically, run `/plugin`, open **andrian-syh**
+on the **Marketplaces** tab, and choose **Enable auto-update**.
+
+To uninstall:
+
+```bash
+claude plugin uninstall roblox-optimum@andrian-syh
+claude plugin marketplace remove andrian-syh   # optional: also remove the marketplace
+```
+
+`npx roblox-optimum install` and `uninstall` do not manage the Claude Code plugin. Claude Code
+keeps a replaced version on disk for 14 days, and `doctor` does not count it.
 
 ### Cursor
 
@@ -400,20 +423,44 @@ npx roblox-optimum install rules --all
 
 ### Codex
 
-This repository is an Agent Plugins v1 package. The plugin carries the skills and the hooks.
+The plugin carries the skills and the hooks.
 
-1. Start `codex`, run `/plugins`, and install roblox-optimum from a marketplace or a local folder.
-2. Register the MCP server:
+1. Add the marketplace:
+
+   ```bash
+   codex plugin marketplace add andrian-syh/roblox-optimum
+   ```
+
+2. Start `codex`, run `/plugins`, and install roblox-optimum from the andrian-syh marketplace.
+   Start a new session before you use it.
+3. When Codex asks, review and trust the plugin's hooks. Codex skips hooks you have not trusted, so
+   without this step the standards are not restated before a write and files are not checked.
+4. Register the MCP server:
 
    ```bash
    codex mcp add roblox-optimum -- npx -y -p roblox-optimum@latest roblox-mcp
    ```
 
-3. In each Roblox project, write the rules:
+5. In each Roblox project, write the rules:
 
    ```bash
    npx roblox-optimum install rules      # writes AGENTS.md
    ```
+
+To update, refresh the marketplace, then start a new session. If a release changes the hooks, Codex
+asks you to trust them again.
+
+```bash
+codex plugin marketplace upgrade andrian-syh
+```
+
+To uninstall, open roblox-optimum in `/plugins` and choose **Uninstall plugin**. Press Space there
+to turn it off without uninstalling it. To also remove the marketplace and the MCP server:
+
+```bash
+codex plugin marketplace remove andrian-syh
+codex mcp remove roblox-optimum
+```
 
 Without the plugin, `npx roblox-optimum install --global` copies the skills to `~/.agents/skills/`.
 

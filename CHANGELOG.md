@@ -6,6 +6,22 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.2] - 2026-10-02
+
+### Fixed
+
+- Fixed `doctor` counting a plugin version that Claude Code replaced or uninstalled as a cached
+  copy, and the installer skipping Cursor because of such a copy.
+- Fixed the supervision-level instructions for Claude Code, which named a `/plugin configure`
+  command that does not exist.
+- Fixed the Claude Code steps in INSTALL.md, which did not say how to update or uninstall the
+  plugin, or that auto-update is off for this marketplace.
+- Fixed the `claude mcp add` command in INSTALL.md, which registered the server for the current
+  project only. It now passes `--scope user`.
+- Fixed the Codex steps in README.md and INSTALL.md, which left out adding the marketplace, how to
+  update and uninstall the plugin, and that Codex runs a plugin's hooks only after you trust them.
+- Fixed the installer's usage text, which named a `codex plugin add` command that does not exist.
+
 ## [1.11.1] - 2026-10-02
 
 ### Changed
@@ -430,6 +446,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.1...v1.11.2
 [1.11.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.1...v1.10.0
