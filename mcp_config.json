@@ -1,8 +1,15 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "roblox-optimum": {
+      "type": "stdio",
       "command": "npx",
-      "args": ["-y", "-p", "roblox-optimum@latest", "roblox-mcp"]
+      "args": [
+        "-y",
+        "-p",
+        "roblox-optimum@latest",
+        "roblox-mcp"
+      ]
     }
   }
 }

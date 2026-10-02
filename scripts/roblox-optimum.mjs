@@ -6,6 +6,7 @@
  */
 
 import {
+  appendFileSync,
   readFileSync,
   writeFileSync,
   mkdirSync,
@@ -191,9 +192,8 @@ export const DEPRECATED = [
 ];
 
 /**
- * Calls that are current, documented, and still forbidden, each with what goes wrong. Separate
- * from DEPRECATED because calling one of these deprecated would be false, and a checker that
- * misstates why a line is wrong teaches the wrong lesson even when it points at the right line.
+ * Calls that are current and documented, yet still forbidden, each with what goes wrong. Kept
+ * apart from DEPRECATED, since calling these deprecated would misstate why the line is wrong.
  */
 export const HAZARDS = [
   [
@@ -209,8 +209,7 @@ const SECTIONS = ["VARIABLES", "FUNCTIONS", "INITIALIZATION"];
 
 /**
  * Members that raise or read nil on one side of the network boundary, keyed by the filename
- * suffix that states which side a file runs on. Only suffixes every sync tool agrees on are
- * listed, and only members whose wrong-side use fails outright rather than merely reading oddly.
+ * suffix that states the side. Only suffixes every sync tool agrees on, and only outright failures.
  */
 export const CONTEXT_ERRORS = [
   {
@@ -399,6 +398,18 @@ function ruleEdits(text) {
 }
 
 /**
+ * Front matter for a rules directory Antigravity reads, which drops a rule with no `trigger`.
+ * A plugin's rules reach every project, so they load only beside Luau. Cursor reads the same
+ * `description` and `globs`.
+ */
+const LUAU_GLOB = `---
+description: Roblox and Luau coding standards
+trigger: glob
+globs: "*.luau, *.lua, **/*.luau, **/*.lua"
+---
+`;
+
+/**
  * Where each agent reads its instructions, the front matter that loads them on every request,
  * and the directory that says the host is in use. Rules reach only a project they were
  * installed into, so always loading them costs nothing outside Roblox work.
@@ -423,7 +434,7 @@ inclusion: always
 ---
 `,
   },
-  { path: "rules/roblox-optimum.md", marker: null, agent: "a plugin rules directory", frontMatter: "" },
+  { path: "rules/roblox-optimum.md", marker: null, agent: "a plugin rules directory", frontMatter: LUAU_GLOB },
   {
     path: ".windsurf/rules/roblox-optimum.md",
     marker: ".windsurf",
@@ -435,7 +446,7 @@ trigger: always_on
   },
   { path: ".clinerules/roblox-optimum.md", marker: ".clinerules", agent: "Cline", frontMatter: "" },
   { path: ".qoder/rules/roblox-optimum.md", marker: ".qoder", agent: "Qoder", frontMatter: "" },
-  { path: ".agents/rules/roblox-optimum.md", marker: ".agents", agent: "Antigravity", frontMatter: "" },
+  { path: ".agents/rules/roblox-optimum.md", marker: ".agents", agent: "Antigravity", frontMatter: LUAU_GLOB },
   { path: ".github/copilot-instructions.md", marker: ".github", agent: "GitHub Copilot", frontMatter: "" },
   { path: "QWEN.md", marker: null, agent: "Qwen Code", frontMatter: "" },
 ];
@@ -466,6 +477,8 @@ Usage:
   roblox-optimum --selftest          Run the built-in assertions.
   roblox-optimum                     Read a post-write hook payload on stdin. Exit 2 reports
                                      findings back to the agent.
+  roblox-optimum --hook antigravity  The same check after a write, stored until PreInvocation,
+                                     which injects it. Antigravity drops PostToolUse output.
   roblox-optimum --hook copilot      The same check, reporting on stdout as additionalContext,
                                      which is how Copilot reads a hook back.
   roblox-optimum --hook cursor       The same check, reporting on stdout as additional_context,
@@ -698,8 +711,8 @@ function fromToolArgs(args) {
 }
 
 /**
- * Returns the files a post-write hook payload says were written. Five hosts each report the path
- * differently, so every shape is read and one hook entry serves any of them.
+ * Returns the files a post-write hook payload says were written. Hosts report the path in
+ * different shapes, so every known shape is read and one hook entry serves any of them.
  */
 export function targetsFromPayload(payload) {
   const direct =
@@ -770,7 +783,28 @@ async function readStdin() {
 }
 
 /** The output shapes `--hook` speaks, one per host that cannot read a plain exit 2. */
-const HOOK_SHAPES = ["copilot", "cursor", "kiro"];
+const HOOK_SHAPES = ["antigravity", "copilot", "cursor", "kiro"];
+
+/**
+ * Where Antigravity findings wait for the next model call. Its PostToolUse output is discarded,
+ * so the check stores what it found and PreInvocation hands it to the agent.
+ */
+function pendingFile(payload) {
+  const id = String(payload?.conversationId ?? "none").replace(/[^\w-]/g, "_");
+  return join(tmpdir(), `roblox-optimum-${id}.txt`);
+}
+
+/** Injects and clears the findings stored for this conversation, as PreInvocation reads them. */
+function injectPending(payload) {
+  const file = pendingFile(payload);
+  let text = "";
+  try {
+    text = readFileSync(file, "utf8");
+    rmSync(file, { force: true });
+  } catch {}
+  process.stdout.write(JSON.stringify(text ? { injectSteps: [{ ephemeralMessage: text }] } : {}));
+  return 0;
+}
 
 /**
  * Checks the file the agent just wrote and prints what it must fix. Anything unreadable,
@@ -786,9 +820,18 @@ async function runPostToolUse(shape) {
     return 0;
   }
 
+  if (shape === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
+
   const reports = targetsFromPayload(payload)
     .map(checkFile)
     .filter((r) => r.status === "problems");
+
+  if (shape === "antigravity") {
+    if (reports.length > 0) appendFileSync(pendingFile(payload), formatReport(reports));
+    process.stdout.write("{}");
+    return 0;
+  }
+
   if (reports.length === 0) return 0;
 
   if (shape === "copilot") {
@@ -860,11 +903,8 @@ const DEFAULT_PARTS = ["rules", "hook"];
 const GLOBAL_PARTS = ["skills", "agent"];
 
 /**
- * Where a project keeps skills, with the directory whose presence says a host that reads them
- * is in use here. `.agents/skills` is the shared location Codex, Cursor, Antigravity, and
- * OpenCode all read; `.claude/skills` is Claude Code's own, which Cursor and OpenCode also
- * read for compatibility. A project showing no sign of either gets the shared directory alone,
- * rather than a directory for a tool that has never run here.
+ * Where a project keeps skills, with the directory whose presence shows a host that reads them.
+ * A project showing no sign of any host gets the shared `.agents/skills` alone.
  */
 const SKILL_TARGETS = [
   { dir: join(".claude", "skills"), markers: [".claude"] },
@@ -890,9 +930,6 @@ export function stampedFrom(text) {
   return /<!-- Copied by roblox-optimum ([^\s]+) -->/.exec(text)?.[1] ?? null;
 }
 
-/**
- * The same text carrying this package's stamp, replacing an older one.
- */
 export function stamped(text) {
   const mark = `<!-- Copied by roblox-optimum ${VERSION} -->`;
   return stampedFrom(text) === null
@@ -901,22 +938,23 @@ export function stamped(text) {
 }
 
 /**
- * Where each host keeps the skills and agents it reads for every project, under the user's home
- * directory. Only hosts whose directory is already there are written to, since its presence is
- * the one honest sign that the host runs on this machine.
- *
- * Rules are not listed. A rules file is scoped to a project in every host that reads one, so a
- * global copy would apply Roblox standards to work that is not Roblox.
- *
- * A host carrying a `form` documents front matter of its own and takes the agent rewritten to
- * it. Antigravity names no agent directory because it reads none.
+ * Where each host keeps the skills and agents it reads for every project. Only hosts whose
+ * directory exists are written to. Rules stay per project, so they are not listed here. A `form`
+ * names the agent front matter a host documents.
  */
 const GLOBAL_TARGETS = [
   { host: "Claude Code", home: ".claude", skills: "skills", agents: "agents" },
   { host: "Cursor", home: ".cursor", skills: "skills", agents: "agents" },
   { host: "Copilot CLI", home: ".copilot", skills: "skills", agents: "agents", form: "copilot" },
   { host: "Antigravity", home: join(".gemini", "config"), skills: "skills" },
-  { host: "OpenCode", home: join(".config", "opencode"), skills: "skills", agents: "agents", form: "opencode" },
+  {
+    host: "OpenCode",
+    home: join(".config", "opencode"),
+    skills: "skills",
+    agents: "agents",
+    form: "opencode",
+    alsoReads: join(".agents", "skills"),
+  },
   { host: "Kiro", home: ".kiro", skills: "skills", agents: "agents", form: "kiro" },
   { host: "Qoder", home: ".qoder", skills: "skills", agents: "agents" },
   { host: "Cline", home: ".cline", skills: "skills" },
@@ -926,10 +964,8 @@ const GLOBAL_TARGETS = [
 ];
 
 /**
- * Where each host keeps a plugin it has installed. A plugin carries the skills, the agent and
- * the rules in one directory the host reads for itself, so a copy of any of them beside it is
- * read twice. Hosts file plugins by marketplace and version or one directory per plugin, so each
- * root is searched a few levels down rather than by a fixed shape.
+ * Where each host keeps a plugin it installed. A plugin carries every component, so a copy beside
+ * it is read twice. Roots are searched a few levels down, since hosts file plugins differently.
  */
 const PLUGIN_HOMES = [
   { host: "Claude Code", path: join(".claude", "plugins", "cache") },
@@ -1024,7 +1060,6 @@ function pluginsUnder(root, depth = 3) {
   return out;
 }
 
-/** Whether a path leads to a directory, following a link to one. */
 function isDirectory(path) {
   try {
     return statSync(path).isDirectory();
@@ -1062,13 +1097,35 @@ function splitFront(text) {
 }
 
 /**
- * The Copilot form of an agent file: the two keys it documents, then the body unchanged. The
- * rest of the front matter is Claude Code's, and naming a tool Copilot does not have would
- * leave the agent holding none.
+ * The Copilot form of an agent file: the keys it documents, then the body unchanged. Copilot reads
+ * tool aliases, so the read-only agent keeps to `read` and `search`.
  */
 export function forCopilot(text) {
   const { read, body } = splitFront(text);
-  const front = ["---", `name: ${read("name")}`, `description: ${read("description")}`, "---"];
+  const front = ["---", `name: ${read("name")}`, `description: ${read("description")}`, 'tools: ["read", "search"]', "---"];
+  return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;
+}
+
+/** The agent as Cursor reads it, which has no tool list but can hold an agent to reading. */
+export function forCursor(text) {
+  const { read, body } = splitFront(text);
+  const front = ["---", `name: ${read("name")}`, `description: ${read("description")}`, "readonly: true", "---"];
+  return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;
+}
+
+/**
+ * The agent as Antigravity reads it. It takes native tool names in a list and grants none when
+ * the list is missing, so the read-only tools are named one by one.
+ */
+export function forAntigravity(text) {
+  const { read, body } = splitFront(text);
+  const front = [
+    "---",
+    `name: ${read("name")}`,
+    `description: ${read("description")}`,
+    'tools: ["view_file", "list_dir", "find_by_name", "grep_search"]',
+    "---",
+  ];
   return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;
 }
 
@@ -1108,7 +1165,7 @@ export function forKiro(text) {
 }
 
 /** The form each host with front matter of its own takes an agent in. */
-const AGENT_FORMS = { copilot: forCopilot, opencode: forOpenCode, kiro: forKiro };
+const AGENT_FORMS = { antigravity: forAntigravity, copilot: forCopilot, cursor: forCursor, opencode: forOpenCode, kiro: forKiro };
 
 /**
  * What an agent file is called for a host. Copilot searches for the `.agent.md` suffix and finds
@@ -1204,9 +1261,10 @@ const PLUGIN_HOOKS = {
       PostToolUse: [
         {
           matcher: ANTIGRAVITY_WRITES,
-          hooks: [{ type: "command", command, timeout: 15 }],
+          hooks: [{ type: "command", command: `${command} --hook antigravity`, timeout: 15 }],
         },
       ],
+      PreInvocation: [{ type: "command", command: `${command} --hook antigravity`, timeout: 15 }],
     },
   }),
 };
@@ -1227,9 +1285,8 @@ const PLUGIN_PAYLOAD = [
 ];
 
 /**
- * Where each host reads a plugin from, and which of this package's files it reads there. A host
- * with a route gets one directory instead of a copy of each part. Antigravity's carries no MCP
- * file, since its server is registered globally and a second copy would duplicate every tool.
+ * Where each host reads a plugin from, and which files of this package go there. Antigravity's
+ * carries no MCP file, since its server is registered globally and a second copy would duplicate it.
  */
 const PLUGIN_ROUTES = {
   Cursor: {
@@ -1237,15 +1294,17 @@ const PLUGIN_ROUTES = {
     manifest: join(".cursor-plugin", "plugin.json"),
     mcp: "mcp.json",
     hooks: "cursor",
+    hooksFile: join("hooks", "hooks.json"),
+    agents: "cursor",
   },
   Antigravity: {
     dir: join(".gemini", "config", "plugins", PLUGIN),
     manifest: "plugin.json",
     hooks: "antigravity",
+    agents: "antigravity",
   },
 };
 
-/** The live copy of this plugin a host already holds, if it holds one. */
 function installedPlugin(host, home) {
   return PLUGIN_HOMES.filter((h) => h.host === host)
     .flatMap((where) => pluginsUnder(join(home, where.path)))
@@ -1312,8 +1371,15 @@ function installPlugin(root, route, force, report) {
     cpSync(source, join(dir, part), { recursive: true, filter: notDevelopmentOnly });
   }
 
+  for (const name of route.agents === undefined ? [] : readdirSync(join(dir, "agents"))) {
+    const file = join(dir, "agents", name);
+    writeFileSync(file, AGENT_FORMS[route.agents](readFileSync(file, "utf8").replace(/\r\n/g, "\n")));
+  }
+
   const command = `node "${join(dir, "scripts", "roblox-optimum.mjs")}"`;
-  writeFileSync(join(dir, "hooks.json"), `${JSON.stringify(PLUGIN_HOOKS[route.hooks](command), null, 2)}\n`);
+  const hooksFile = join(dir, route.hooksFile ?? "hooks.json");
+  mkdirSync(dirname(hooksFile), { recursive: true });
+  writeFileSync(hooksFile, `${JSON.stringify(PLUGIN_HOOKS[route.hooks](command), null, 2)}\n`);
   writeFileSync(stamp, stamped(""));
   report.written.push(shown);
 }
@@ -1343,7 +1409,7 @@ const COPY_HOOKS = [
   },
 ];
 
-/** Where Kiro keeps the hooks for one project, which is the only scope it reads them at. */
+/** Where Kiro keeps the hooks for one project. The hook is written per project, beside its steering. */
 const KIRO_HOOK = join(".kiro", "hooks", "roblox-optimum.json");
 
 /**
@@ -1438,9 +1504,8 @@ function removeOwned(file, body, dry, removed, kept) {
 }
 
 /**
- * Where a host without a plugin route keeps the MCP servers it starts, the key they sit under,
- * and the entry that host reads. Antigravity is listed too: it validates a plugin's own file
- * but does not always surface the server from it, so the copy it manages is written as well.
+ * Where a host without a plugin route keeps its MCP servers, the key, and the entry it reads.
+ * Antigravity is listed too, since it does not always surface a server from a plugin's own file.
  */
 const MCP_CONFIGS = [
   {
@@ -1550,9 +1615,8 @@ function registerMcp(root, config, force, report) {
 const PRE_COMMIT_MARK = "# Installed by roblox-optimum. Delete this file to remove it.";
 
 /**
- * The lines that run the check, shared by the hook this tool writes and the snippet it offers
- * for a hook someone else wrote. A commit staging no Luau must pass, which is why the guard
- * travels with the pipe rather than trusting `xargs` to skip an empty input.
+ * The lines that run the check, shared by the hook this tool writes and the snippet it offers.
+ * A commit staging no Luau must pass, so the guard travels with the pipe instead of `xargs`.
  */
 const PRE_COMMIT_CHECK = `files=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -E '\\.luau?$')
 [ -z "$files" ] || printf '%s\\n' "$files" | tr '\\n' '\\0' | xargs -0 npx roblox-optimum --check
@@ -2221,7 +2285,12 @@ function runGlobalInstall(parts, all, force, explicit, report) {
       continue;
     }
 
-    if (parts.has("skills")) {
+    const sharer = seen.find(
+      (t) => t !== target && target.alsoReads === join(t.home, t.skills) && routeFor(t.host, home).kind === "copies",
+    );
+    if (parts.has("skills") && sharer !== undefined) {
+      covered.push(`${target.host} skills, which it reads from the ${sharer.host} copies in ~/${target.alsoReads}`);
+    } else if (parts.has("skills")) {
       wrote(target.host, () => copyTree(join(PACKAGE_ROOT, "skills"), join(root, target.skills), force, report));
     }
     if (parts.has("agent") && target.agents !== undefined) {
@@ -2257,7 +2326,7 @@ function runGlobalInstall(parts, all, force, explicit, report) {
             : "")
         : "") +
       (covered.length > 0
-        ? `\nNothing was installed for these, which a plugin already reaches:\n` +
+        ? `\nNothing was installed for these, which already read another copy:\n` +
           covered.map((line) => `  ${line}\n`).join("")
         : "") +
       (report.kept.length > 0
@@ -2334,9 +2403,6 @@ function stampOf(path) {
   return existsSync(path) && statSync(path).isDirectory() ? join(path, "SKILL.md") : path;
 }
 
-/**
- * Applies `retitle` to every Markdown file under a path just copied into a project.
- */
 function retitleTree(path) {
   if (statSync(path).isDirectory()) {
     for (const name of readdirSync(path)) retitleTree(join(path, name));
@@ -2373,7 +2439,6 @@ const AFTER_SUMMARY =
   "layout, comment rules, and runtime non-negotiables do not survive a summary, " +
   "and reconstructing them from memory produces confidently wrong files.";
 
-/** Parses the hook payload on stdin, or returns null when it is not JSON. */
 async function readPayload() {
   try {
     return JSON.parse((await readStdin()) || "{}");
@@ -2449,7 +2514,6 @@ async function runPromptRoute() {
   return 0;
 }
 
-/** Asserts the checker still behaves, so a regression fails here and not in a user's session. */
 function selftest() {
   const ok = (cond, label) => {
     if (!cond) {
@@ -2984,7 +3048,13 @@ Players.PlayerAdded:Connect(greet)
     copilot.includes("description: Audits a whole Roblox project"),
     "the Copilot agent keeps its whole description",
   );
-  ok(!copilot.includes("tools:"), "the Copilot agent drops a tool list it cannot honour");
+  ok(copilot.includes('tools: ["read", "search"]'), "the Copilot agent keeps to the read-only tool aliases");
+  const antigravity = forAntigravity(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8"));
+  ok(
+    antigravity.includes('tools: ["view_file", "list_dir", "find_by_name", "grep_search"]') &&
+      !antigravity.includes("skills:"),
+    "the Antigravity agent names its read-only tools natively",
+  );
   ok(!copilot.includes("skills:"), "the Copilot agent drops a key Copilot does not read");
   ok(copilot.includes("You audit Roblox projects"), "the Copilot agent keeps its body");
   ok(copilot.includes(DERIVED_AGENT), "the Copilot agent says a later install may replace it");
@@ -3039,6 +3109,11 @@ Players.PlayerAdded:Connect(greet)
     Object.values(PLUGIN_ROUTES).every((route) => PLUGIN_HOOKS[route.hooks] !== undefined),
     "every plugin route names a hook file this package can write",
   );
+  ok(PLUGIN_ROUTES.Cursor.hooksFile === join("hooks", "hooks.json"), "the Cursor plugin hook sits where Cursor finds it");
+  ok(
+    forCursor(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8")).includes("readonly: true"),
+    "the Cursor agent only reads",
+  );
   ok(
     PLUGIN_PAYLOAD.every((part) => existsSync(join(PACKAGE_ROOT, part))),
     "every directory a plugin carries is in this package",
@@ -3085,6 +3160,26 @@ Players.PlayerAdded:Connect(greet)
   const cached = pluginsUnder(cache);
   rmSync(cache, { recursive: true, force: true });
   ok(cached.length === 1 && cached[0].version === "1.1.0", "a copy Claude Code marked orphaned is not counted");
+
+  ok(
+    RULE_TARGETS.filter((t) => t.path.includes("rules/") && !t.path.startsWith(".")).concat(
+      RULE_TARGETS.filter((t) => t.agent === "Antigravity"),
+    ).every((t) => /^---\n(?:.*\n)*trigger: (always_on|glob|model_decision|manual)\n/.test(t.frontMatter.replace(/\r\n/g, "\n"))),
+    "a rule Antigravity reads names a trigger, without which it is dropped",
+  );
+
+  const conversation = { conversationId: `selftest-${process.pid}` };
+  appendFileSync(pendingFile(conversation), "finding");
+  const written = process.stdout.write;
+  let injected = "";
+  process.stdout.write = (text) => ((injected += text), true);
+  injectPending(conversation);
+  injectPending(conversation);
+  process.stdout.write = written;
+  ok(
+    injected === '{"injectSteps":[{"ephemeralMessage":"finding"}]}{}',
+    "Antigravity findings are injected once at the next model call",
+  );
 
   ok(writable(join(ROOT_ABSENT, "nothing.md"), GENERATED), "an absent file may be written");
   ok(!writable("package.json", GENERATED), "a file this tool did not write is left alone");

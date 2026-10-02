@@ -26,7 +26,6 @@ function readJson(file) {
   }
 }
 
-/** Returns every file under a directory whose name matches, as paths relative to the root. */
 function walk(dir, match, found = []) {
   if (!existsSync(dir)) return found;
   for (const entry of readdirSync(dir)) {
@@ -37,7 +36,6 @@ function walk(dir, match, found = []) {
   return found;
 }
 
-/** Splits a markdown file into its YAML frontmatter block and full text. */
 function frontmatter(path) {
   const text = readFileSync(path, "utf8");
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text);
@@ -50,7 +48,6 @@ function field(head, name) {
   return m ? m[1].trim().replace(/^"|"$/g, "") : "";
 }
 
-/** Checks the plugin manifest and every other file that has to agree with it. */
 function auditManifest() {
   const path = join(ROOT, ".claude-plugin", "plugin.json");
   if (!existsSync(path)) return problems.push("plugin.json is missing");
@@ -159,7 +156,6 @@ function auditMarketplace(manifest) {
   }
 }
 
-/** Checks every skill's frontmatter and size against what the hosts accept. */
 function auditSkills() {
   for (const path of walk(join(ROOT, "skills"), /^SKILL\.md$/)) {
     const folder = relative(join(ROOT, "skills"), dirname(path)).split(/[\\/]/)[0];
@@ -385,16 +381,18 @@ function auditHooks() {
   notes.push(`${Object.keys(config.hooks || {}).length} hook events configured`);
 }
 
-/** How long a documentation description may run before it stops being read. */
+/** How long a comment may run before it stops being read. */
 const DESCRIPTION_LIMIT = 250;
 
-/** A line that begins a function this repository documents. */
-const DECLARES = /^(export (default )?)?(async function\b|function\b|const [A-Za-z]\w* = (\(|async|function))/;
+/**
+ * A comment after code on the same line. A URL's `//` and a Luau section header in a test
+ * string are text, not comments.
+ */
+const TRAILING = /[;,)\]}]\s*\/\/|^\s*[^\s/*"'`].*\s\/\/\s/;
 
 /**
- * Checks the scripts against the comment rules this repository ships: a documentation block
- * above every function, no note inside a body, and a description short enough to read. The
- * plugin has no standing to demand of others what it does not do itself.
+ * Checks the scripts against the comment rules this repository ships: every block short enough to
+ * read, carrying description only, and no comment beside or inside code. A function needs none.
  */
 function auditComments() {
   let blocks = 0;
@@ -404,56 +402,43 @@ function auditComments() {
     const lines = readFileSync(path, "utf8").split("\n");
 
     lines.forEach((line, index) => {
-      if (/^\s*\/\//.test(line)) {
-        problems.push(`${name}:${index + 1}: comment inside a body; say it above, or rename`);
+      if (/^\s*\/\//.test(line) || (TRAILING.test(line) && !line.includes("-- //"))) {
+        problems.push(`${name}:${index + 1}: a line comment; put it in a block above, or rename`);
+      }
+      if (/^\s*\/\*\*/.test(line)) {
+        blocks++;
+        auditBlock(name, lines, index);
       }
     });
-
-    for (let k = 0; k < lines.length; k++) {
-      if (!DECLARES.test(lines[k])) continue;
-
-      if (!(lines[k - 1] ?? "").trim().endsWith("*/")) {
-        problems.push(`${name}:${k + 1}: no documentation block above ${lines[k].trim().slice(0, 40)}`);
-        continue;
-      }
-
-      blocks++;
-      auditBlock(name, lines, k);
-    }
   }
 
   notes.push(`${blocks} documentation blocks within the comment rules`);
 }
 
 /**
- * Checks one documentation block against the length rule, and that it carries description only.
- * A tag restating a signature is read on every pass and drifts from it silently, so what the
- * signature already shows is left to the signature.
+ * Checks one block against the length rules, and that it carries description only. A tag that
+ * restates a signature drifts from it silently.
  */
-function auditBlock(name, lines, at) {
-  let open = at - 1;
-  while (open > 0 && !lines[open].trim().startsWith("/**")) open--;
+function auditBlock(name, lines, open) {
+  let close = open;
+  while (close < lines.length - 1 && !lines[close].includes("*/")) close++;
 
   const said = lines
-    .slice(open, at - 1)
-    .map((l) => l.replace(/^\s*\/?\*+\s?/, "").trim())
-    .filter((l) => l !== "" && !l.startsWith("@"));
+    .slice(open, close + 1)
+    .map((l) => l.replace(/^\s*\/?\*+\/?\s?/, "").replace(/\*\/\s*$/, "").trim())
+    .filter((l) => l !== "");
   const description = said.join(" ");
 
   if (description.length > DESCRIPTION_LIMIT) {
-    problems.push(
-      `${name}:${at + 1}: description is ${description.length} characters, over ${DESCRIPTION_LIMIT}`,
-    );
+    problems.push(`${name}:${open + 1}: comment is ${description.length} characters, over ${DESCRIPTION_LIMIT}`);
   }
   if (said.length > 3) {
-    problems.push(`${name}:${at + 1}: description is ${said.length} lines, over 3`);
+    problems.push(`${name}:${open + 1}: comment is ${said.length} lines, over 3`);
   }
 
-  const tag = /@(param|return)\b/.exec(lines.slice(open, at).join("\n"));
+  const tag = /@(param|return)\b/.exec(said.join("\n"));
   if (tag) {
-    problems.push(
-      `${name}:${at + 1}: carries @${tag[1]}; state the purpose and let the signature speak`,
-    );
+    problems.push(`${name}:${open + 1}: carries @${tag[1]}; state the purpose and let the signature speak`);
   }
 }
 

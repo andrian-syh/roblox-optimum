@@ -1,14 +1,7 @@
 #!/usr/bin/env node
 /**
- * An MCP server exposing the standards checks over stdio.
- *
- * The file hooks only reach code that lands on disk. A place edited entirely inside Studio
- * has no files to read, so its scripts have never been checked by anything here. This server
- * takes the source as text instead, which is what Studio's own MCP server hands back from
- * `script_read`, and answers with the same findings the hooks would have reported.
- *
- * It is a separate file from the checker because the protocol owns stdout: a stray line of
- * output there is a protocol violation, and the checker prints findings for a living.
+ * An MCP server exposing the standards checks over stdio, for scripts that live only in Studio.
+ * A separate file from the checker, because the protocol owns stdout.
  */
 
 import { createInterface } from "node:readline";
@@ -42,9 +35,8 @@ const VERSION = (() => {
 const HOME_PAGE = "https://github.com/andrian-syh/roblox-optimum";
 
 /**
- * Where a reference page can be read by a client that has no copy of this package. The server
- * exists for places with no files on disk, so a bare filename is an answer such a caller
- * cannot act on. Raw rather than rendered, since what fetches this is an agent.
+ * Where a client with no copy of this package can read a reference page. The server serves
+ * places with no files on disk, so a bare filename is no answer. Raw, since an agent fetches it.
  */
 const REFERENCE_BASE =
   "https://raw.githubusercontent.com/andrian-syh/roblox-optimum/main/skills/best-practices/references";
@@ -349,9 +341,6 @@ export function uncovered() {
   return keyFor(loop) === "while true do" ? missing : [...missing, "while true do"];
 }
 
-/**
- * Runs one tool and returns its result content.
- */
 export function runTool(name, args) {
   const given = args ?? {};
 
@@ -409,7 +398,6 @@ export function runTool(name, args) {
   return null;
 }
 
-/** A successful tool result carrying one block of text. */
 function text(body) {
   return { content: [{ type: "text", text: body }], isError: false };
 }
@@ -467,7 +455,6 @@ export function handle(message) {
   return error(id, -32601, `Unknown method: ${method}`);
 }
 
-/** A JSON-RPC result envelope. */
 function reply(id, result) {
   return { jsonrpc: "2.0", id, result };
 }
@@ -524,7 +511,6 @@ function send(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
-/** Proves the protocol shapes and the tools, without a client. */
 function selftest() {
   let failed = 0;
   const ok = (cond, what) => {

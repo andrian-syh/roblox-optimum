@@ -1,6 +1,7 @@
 ---
 name: roblox-auditor
 description: Audits a whole Roblox project and returns a scored report instead of file contents. Use when the user asks to audit, assess, or score a place, codebase, or system that spans more than a handful of files, or when a review would otherwise mean reading a large part of the project into the main conversation. Read-only. For a single file or a diff, skip this agent and use the code-review skill directly.
+tools: ["read", "search"]
 ---
 <!-- Generated from the agent of the same name. Edit that file. -->
 

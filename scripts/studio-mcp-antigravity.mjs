@@ -1,15 +1,7 @@
 #!/usr/bin/env node
 /**
- * A stdio proxy that keeps Roblox's own Studio MCP server usable from Antigravity.
- *
- * Two things stand between the two of them. Antigravity opens a session with a `server/discover`
- * probe, which MCP 2026-07-28 added and StudioMCP predates, so StudioMCP answers "expect
- * initialized request" and closes the pipe before `initialize` is ever sent. And the `mcp.bat`
- * Roblox ships puts `else` on its own line, which cmd rejects, so the launcher prints three
- * errors on every run.
- *
- * This answers the probe itself, as the legacy server StudioMCP is, and spawns the executable
- * directly, leaving every other message untouched in both directions.
+ * A stdio proxy that keeps Roblox's Studio MCP server usable from Antigravity. It answers the
+ * `server/discover` probe that StudioMCP predates, and starts the executable without `mcp.bat`.
  */
 
 import { spawn } from "node:child_process";
@@ -118,7 +110,6 @@ function run() {
   process.stdin.on("end", () => child.stdin.end());
 }
 
-/** Runs the built-in assertions, so a change to the interception rules cannot ship unproven. */
 function selftest() {
   const assert = (ok, what) => {
     if (!ok) {

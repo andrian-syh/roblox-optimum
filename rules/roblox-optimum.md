@@ -1,3 +1,8 @@
+---
+description: Roblox and Luau coding standards
+trigger: glob
+globs: "*.luau, *.lua, **/*.luau, **/*.lua"
+---
 <!-- Generated from AGENTS.md. Edit that file. -->
 
 # Roblox and Luau standards

@@ -6,6 +6,43 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.3] - 2026-10-02
+
+To upgrade from 1.11.2:
+
+- Run `npx roblox-optimum install --global --force` once, to replace the Antigravity and Cursor
+  plugins and the Copilot CLI agent.
+- Run `npx roblox-optimum install rules --force` in each project that uses Antigravity.
+- In Codex, remove an MCP entry you added with `codex mcp add roblox-optimum`, since the plugin now
+  carries the server.
+- Delete the `roblox-*` folders in `~/.config/opencode/skills/` if Codex is installed too.
+
+### Changed
+
+- Changed the root `plugin.json` and `mcp.json` to follow the Agent Plugins schema, which Kiro
+  powers and Codex read. The Codex plugin now carries the MCP server.
+- Changed `install --global` to skip OpenCode's skill copies when it writes the Codex copies to
+  `~/.agents/skills/`, which OpenCode also reads.
+
+### Fixed
+
+- Fixed Antigravity never showing the agent what the checker found. Antigravity drops the output
+  of a `PostToolUse` hook, so the plugin's hook now stores each finding and a `PreInvocation` hook
+  hands it to the agent before the next model call.
+- Fixed Antigravity ignoring the rule in `.agents/rules/` and the plugin's `rules/`. Antigravity
+  drops a rule with no `trigger` in its front matter, so both now load beside Luau files.
+- Fixed the Cursor plugin hook never running. Cursor reads a plugin's hooks from
+  `hooks/hooks.json`, and the installer wrote them to `hooks.json` at the plugin root.
+- Fixed importing the repository as a Kiro power, which Kiro rejected because the root
+  `plugin.json` was not a valid manifest.
+- Fixed OpenCode listing each skill twice when Codex is installed.
+- Fixed the `roblox-auditor` agent's access in three hosts. Antigravity gave it no tools, Copilot
+  CLI gave it every tool, and Cursor let it edit files. It now holds read-only tools in each.
+- Fixed the Antigravity, Cursor, and Kiro steps in INSTALL.md, which did not say how to update or
+  uninstall. They also replace an undocumented `agy plugin validate` with `agy plugin list`, say how
+  to stop Cursor reading Claude Code's plugins, and note that Kiro CLI 3 does not show a file hook's
+  output to the agent.
+
 ## [1.11.2] - 2026-10-02
 
 ### Fixed
@@ -446,6 +483,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.2...v1.11.3
 [1.11.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.1...v1.11.2
 [1.11.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.10.0...v1.11.0

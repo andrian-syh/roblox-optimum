@@ -1,11 +1,7 @@
 #!/usr/bin/env node
 /**
- * Proves that every manifest in this repository carries the version package.json declares, and
- * that no shipped configuration pins one.
- *
- * A release touches nine files. Bumping eight of them and missing the ninth ships a manifest
- * that names a version the package no longer is, which a host reads and a user copies. This runs
- * in the test chain so that mistake fails the build instead of the install.
+ * Proves every manifest carries the version package.json declares, and no shipped configuration
+ * pins one. A manifest missed in a bump names a version the package no longer is.
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs";
@@ -37,11 +33,9 @@ const SKIP = new Set(["node_modules", ".git", "dist", "coverage"]);
  */
 const PIN = /roblox-optimum@\d+\.\d+\.\d+/;
 
-/** The value at a key path, or undefined when any step of it is missing. */
 function at(value, path) {
   return path.reduce((here, key) => (here === undefined || here === null ? undefined : here[key]), value);
 }
-/** Every file under a directory, as paths relative to the repository root. */
 function walk(dir, found = []) {
   for (const entry of readdirSync(dir)) {
     if (SKIP.has(entry)) continue;
@@ -84,7 +78,6 @@ export function drifted(version, root = ROOT) {
   return out;
 }
 
-/** Every skill's SKILL.md, which carries the version in YAML frontmatter rather than JSON. */
 function skillCards(root = ROOT) {
   const dir = join(root, "skills");
   if (!existsSync(dir)) return [];

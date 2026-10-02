@@ -1,9 +1,14 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "roblox-optimum",
+  "version": "1.11.3",
   "description": "Professional Roblox and Luau standards for AI agents: server-authoritative, leak-free, framework-agnostic, and laid out the same way in every file.",
-  "version": "1.11.2",
-  "author": "andrian-syh",
+  "author": {
+    "name": "andrian-syh",
+    "url": "https://github.com/andrian-syh"
+  },
   "homepage": "https://github.com/andrian-syh/roblox-optimum",
+  "repository": "https://github.com/andrian-syh/roblox-optimum",
   "license": "MIT",
   "keywords": [
     "roblox",

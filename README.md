@@ -26,6 +26,17 @@ It has two parts:
 
 The project is maintained and follows [Semantic Versioning](https://semver.org/).
 
+## Contents
+
+* [Quick start](#quick-start)
+* [How the agent uses it](#how-the-agent-uses-it)
+* [Check Luau with the checker](#check-luau-with-the-checker)
+* [Check Luau in Roblox Studio](#check-luau-in-roblox-studio)
+* [What the standards cover](#what-the-standards-cover)
+* [Documentation](#documentation)
+* [Get help and contribute](#get-help-and-contribute)
+* [License](#license)
+
 ## Quick start
 
 You need Node.js 18 or later.
@@ -40,7 +51,8 @@ You need Node.js 18 or later.
    The installer detects the agents your repository uses, writes their rule files, and installs a
    pre-commit hook. It never overwrites a file it did not write.
 
-3. Install the skills, the subagent, and the MCP server for every project on this machine:
+3. Install the skills, the subagent, and the MCP server for every project on this machine. An
+   agent that takes a plugin, such as Cursor or Antigravity, gets one plugin instead of copies:
 
    ```bash
    npx roblox-optimum install --global
@@ -73,6 +85,10 @@ codex plugin marketplace add andrian-syh/roblox-optimum
 qwen extensions install https://github.com/andrian-syh/roblox-optimum
 ```
 
+In Cursor, search for `https://github.com/andrian-syh/roblox-optimum` under **Settings** >
+**Plugins**. In Kiro, import the same URL as a power. For the update and uninstall steps of each
+agent, see [Set up each agent](INSTALL.md#set-up-each-agent).
+
 ## How the agent uses it
 
 The standards reach the agent in three ways:
@@ -83,7 +99,8 @@ The standards reach the agent in three ways:
   request names roblox-optimum.
 * Hooks: in Claude Code and Codex, the plugin points each session at the skills in a Roblox
   project, names the skill each prompt needs, restates the standards before a Luau file is written,
-  and checks the file after. The hooks for other agents check each Luau file after it is written.
+  and checks the file after. The hooks for Cursor, Antigravity, Copilot CLI, and Kiro check each
+  Luau file after it is written and return the findings to the agent.
 
 | Skill | Use it to |
 |---|---|
@@ -156,8 +173,9 @@ Roblox's Studio MCP server:
 | `get_standards` | Returns the invariant standards card. |
 
 The agent reads a script with `script_read`, checks it with `check_luau`, and writes it back with
-`multi_edit`. The Claude Code and Cursor plugins register the server, and `install --global`
-registers it for the other hosts that keep MCP servers in a file. For the rest, see
+`multi_edit`. The Claude Code, Cursor, and Codex plugins and the Kiro power carry the server, and
+`install --global` registers it for the other hosts that keep MCP servers in a file. For the rest,
+see
 [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp).
 
 ## What the standards cover
@@ -184,7 +202,7 @@ registers it for the other hosts that keep MCP servers in a file. For the rest, 
 | [INSTALL.md](INSTALL.md) | Installation, update, and removal for every supported agent, and troubleshooting. |
 | [AGENTS.md](AGENTS.md) | The standards card that every rule file is generated from. |
 | [CHANGELOG.md](CHANGELOG.md) | The changes in each release. |
-| [MAINTAINING.md](MAINTAINING.md) | Procedures for maintaining the skills and their references. |
+| [MAINTAINING.md](MAINTAINING.md) | Procedures for maintaining the repository and releasing a version. |
 
 ## Get help and contribute
 

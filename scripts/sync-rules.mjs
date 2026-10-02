@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * Writes the per-agent copies of AGENTS.md, and proves they have not drifted.
- *
- * Every agent reads its instructions from a path of its own, and a copy that quietly falls
- * behind teaches one agent a rule the others have dropped. AGENTS.md is the only text anyone
- * edits; this file puts it everywhere else and CI runs it with --check.
+ * Writes the per-agent copies of AGENTS.md and proves they have not drifted. AGENTS.md is the only
+ * text anyone edits, so a copy that falls behind teaches one agent a rule the others dropped.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
@@ -74,7 +71,6 @@ const MCP_TARGET = "mcp_config.json";
 const AGENTS_SOURCE = "agents";
 const AGENTS_TARGET = ".github/agents";
 
-/** Every derived file, as the path and the text it should hold. */
 function derive() {
   const body = readFileSync(join(ROOT, SOURCE), "utf8").replace(/\r\n/g, "\n");
   const hooks = readFileSync(join(ROOT, HOOKS_SOURCE), "utf8").replace(/\r\n/g, "\n");
@@ -94,7 +90,6 @@ function derive() {
   ];
 }
 
-/** Compares or rewrites every derived file, and returns the exit code that reports the outcome. */
 function sync(check) {
   const files = derive();
   const drifted = [];
