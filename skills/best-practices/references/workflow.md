@@ -37,9 +37,9 @@ Only stylistic and structural conventions adapt. The Non-Negotiable Runtime Rule
 
 ## Supervision levels
 
-Set the level at invocation — `/roblox-optimum:best-practices bal` — or with an inline token anywhere in a message. The argument accepts the bare word or the token form (`ask` and `!ask` are the same thing), is case-insensitive, and the long names `supervised`/`balanced`/`autonomous` work too. **An empty or unrecognized argument is Balanced**; never ask the user to pick one, and never treat an unrecognized argument as an error — take the default and carry on.
+Set the level at invocation — `/roblox-optimum:best-practices bal` — or with an inline token anywhere in a message. The argument accepts the bare word or the token form (`ask` and `!ask` are the same thing), is case-insensitive, and the long names `supervised`/`balanced`/`autonomous` work too. **Precedence, highest first:** an inline token in the current message, then the invocation argument, then the configured level (`${user_config.supervision}`, when it names `ask`, `bal`, or `go`), then **Balanced**. An unrecognized argument counts as no argument and falls through to the next tier; never ask the user to pick one, and never treat it as an error.
 
-Invoking with no argument at all is [advisory invocation](#advisory-invocation-no-specific-task): acknowledge that the standards are active, at Balanced, and stop.
+Invoking with an empty argument, or none, is [advisory invocation](#advisory-invocation-no-specific-task): acknowledge that the standards are active, at the level the precedence above resolves to, and stop.
 
 | Level | Token | Behavior |
 |---|---|---|

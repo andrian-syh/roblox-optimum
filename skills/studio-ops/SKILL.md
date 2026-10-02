@@ -3,7 +3,7 @@ name: studio-ops
 description: "Operates a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change works in the running engine. Use whenever the user asks why their edits are being overwritten, how to set up or fix a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Hand-offs: authoring Luau goes to the best-practices skill, judging existing code to the code-review skill, working out why a reported symptom happens to the diagnose skill, which calls on this one to run the probe."
 license: MIT
 metadata:
-  version: "1.11.0"
+  version: "1.11.1"
 ---
 
 # Roblox Studio Operations

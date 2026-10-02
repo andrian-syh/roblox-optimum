@@ -424,10 +424,18 @@ function fail(body) {
  * returns null and the caller writes nothing.
  */
 export function handle(message) {
-  const { id, method, params } = message ?? {};
-  const isRequest = id !== undefined && id !== null;
+  if (message === null || typeof message !== "object" || Array.isArray(message)) {
+    return error(null, -32600, "Invalid Request");
+  }
 
-  if (!isRequest) return null;
+  const { id, method, params } = message;
+  if (id === undefined) return null;
+
+  const idValid = id === null || typeof id === "string" || typeof id === "number";
+  if (message.jsonrpc !== "2.0" || !idValid || typeof method !== "string") {
+    return error(idValid ? id : null, -32600, "Invalid Request");
+  }
+  if (id === null) return null;
 
   if (method === "initialize") {
     const asked = params?.protocolVersion;
@@ -529,7 +537,7 @@ function selftest() {
   const init = handle({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: PROTOCOL } });
   ok(init.result.protocolVersion === PROTOCOL, "the asked-for protocol version is echoed back");
   ok(
-    handle({ id: 1, method: "initialize", params: { protocolVersion: "1999-01-01" } }).result
+    handle({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "1999-01-01" } }).result
       .protocolVersion === PROTOCOL,
     "a version this server does not speak is answered with the one it does",
   );
@@ -556,8 +564,11 @@ function selftest() {
     "a batch owed no answer is written nothing, as a single notification is",
   );
   ok(answer([]).error.code === -32600, "an empty batch is an invalid request");
+  ok(answer(42).error.code === -32600, "a message that is not an object is an invalid request");
+  ok(answer({ id: 5, method: "ping" }).error.code === -32600, "a request without jsonrpc 2.0 is refused");
+  ok(answer({ jsonrpc: "2.0", id: {}, method: "ping" }).id === null, "an id that is not a string or number is refused");
 
-  const list = handle({ id: 2, method: "tools/list" }).result.tools;
+  const list = handle({ jsonrpc: "2.0", id: 2, method: "tools/list" }).result.tools;
   ok(list.length === TOOLS.length && list.length === 3, "every tool this server carries is listed");
   ok(
     list.every((t) => t.name && t.description && t.inputSchema?.type === "object"),
@@ -572,18 +583,18 @@ function selftest() {
     "the standards are readable without arguments",
   );
 
-  const bad = handle({ id: 3, method: "tools/call", params: { name: "no_such_tool" } });
+  const bad = handle({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "no_such_tool" } });
   ok(bad.error.code === -32602, "an unknown tool is a protocol error, not a result");
-  ok(handle({ id: 4, method: "no_such_method" }).error.code === -32601, "an unknown method is refused");
+  ok(handle({ jsonrpc: "2.0", id: 4, method: "no_such_method" }).error.code === -32601, "an unknown method is refused");
 
-  const clean = handle({
+  const clean = handle({ jsonrpc: "2.0",
     id: 5,
     method: "tools/call",
     params: { name: "check_luau", arguments: { source: "local a = 1\nreturn a" } },
   }).result;
   ok(clean.isError === false && clean.content[0].text.includes("No findings"), "clean source reports nothing");
 
-  const dirty = handle({
+  const dirty = handle({ jsonrpc: "2.0",
     id: 6,
     method: "tools/call",
     params: { name: "check_luau", arguments: { source: "local function f()\n\twait(1)\nend\nf()", path: "Workspace.A" } },
@@ -592,7 +603,7 @@ function selftest() {
   ok(dirty.content[0].text.includes("Workspace.A"), "the given path labels the findings");
   ok(dirty.isError === false, "a finding is a result, not a tool failure");
 
-  const sided = handle({
+  const sided = handle({ jsonrpc: "2.0",
     id: 13,
     method: "tools/call",
     params: {
@@ -602,7 +613,7 @@ function selftest() {
   }).result;
   ok(sided.content[0].text.includes("DataStoreService"), "a path naming a side turns on that side's checks");
   ok(
-    handle({
+    handle({ jsonrpc: "2.0",
       id: 14,
       method: "tools/call",
       params: {
@@ -614,16 +625,16 @@ function selftest() {
   );
 
   ok(
-    handle({ id: 7, method: "tools/call", params: { name: "check_luau", arguments: {} } }).result.isError,
+    handle({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "check_luau", arguments: {} } }).result.isError,
     "a missing source is a tool failure the caller can correct",
   );
   ok(
-    handle({ id: 8, method: "tools/call", params: { name: "check_luau", arguments: { source: 42 } } })
+    handle({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "check_luau", arguments: { source: 42 } } })
       .result.isError,
     "a source that is not a string is refused rather than coerced",
   );
 
-  const why = handle({
+  const why = handle({ jsonrpc: "2.0",
     id: 9,
     method: "tools/call",
     params: { name: "explain_finding", arguments: { finding: "Line 2: wait() is deprecated. Use task.wait()." } },
@@ -631,12 +642,12 @@ function selftest() {
   ok(why.content[0].text.includes("task.wait()"), "a finding line resolves to its rule");
   ok(why.content[0].text.includes("luau-language.md"), "the explanation names where to read more");
   ok(
-    handle({ id: 10, method: "tools/call", params: { name: "explain_finding", arguments: { finding: "tick()" } } })
+    handle({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "explain_finding", arguments: { finding: "tick()" } } })
       .result.content[0].text.startsWith("tick()"),
     "a bare API name resolves too",
   );
   ok(
-    handle({ id: 11, method: "tools/call", params: { name: "explain_finding", arguments: { finding: "nothing" } } })
+    handle({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "explain_finding", arguments: { finding: "nothing" } } })
       .result.isError,
     "a finding no rule matches is reported as such",
   );
@@ -674,7 +685,7 @@ function selftest() {
     "the card runs to its last rule, so the fence was read whole",
   );
 
-  const served = handle({
+  const served = handle({ jsonrpc: "2.0",
     id: 20,
     method: "tools/call",
     params: { name: "get_standards", arguments: {} },
@@ -684,7 +695,7 @@ function selftest() {
     "get_standards hands back a rule check_luau cannot enforce on its own",
   );
 
-  const multiline = handle({
+  const multiline = handle({ jsonrpc: "2.0",
     id: 12,
     method: "tools/call",
     params: { name: "check_luau", arguments: { source: "local function f()\n\ttick()\nend\nf()" } },

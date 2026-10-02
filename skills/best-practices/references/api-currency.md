@@ -106,7 +106,6 @@ Never assert existence or nonexistence from training memory alone. Name which st
 | 64-bit integer type | **RFC merged only** | Accepted design from the same February–March 2026 RFC batch as the constants. **No implementation confirmed.** Do not write code against these |
 | `class` syntax | **RFC merged only** | RFC #191 accepted April 2026. Upstream prototype work continues behind a debug flag — constructors were wired into the type system in 0.737 (September 2026) — and it is absent from `luau.org/syntax`. Keep using metatable OOP |
 | `if local` statement | **Prototype only** | Implemented behind a debug flag in Luau 0.737 (September 2026) and absent from `luau.org/syntax`. Not reachable from Studio. Do not write it, and do not describe it as coming |
-
 | **Dynamic-key table access, metamethod dispatch, frozen-metatable lookup** | **[Verify]** — pending | Release notes 739: `t[x]` reads 10–18% faster and writes 18–25% faster, rehash on new-key insertion is faster, metamethod dispatch costs 5–25% less, and metamethod lookup on a `table.freeze`-frozen metatable is "greatly" cheaper. Also: a non-numeric key insertion no longer shrinks a pre-allocated array part (`t = table.create(N); t.x = y`). All **Pending** at this snapshot — a version page lists introduction, not availability. Treat as a reason to freeze class metatables, never as a reason to restructure working code ([performance.md](performance.md)) |
 | **Stricter checking inside generic function bodies** | **[GA]** — behavior change | Release notes 739 fixed type analysis that was too permissive in the bodies of generic functions under `--!strict`. `function call<T>(f: (T) -> T) f(nil) end` **no longer type checks**, because `nil` is not of `T`. This surfaces new errors in code that previously passed. The error is correct; see [false-positives.md](false-positives.md) before calling it a regression |
 
@@ -237,7 +236,7 @@ Tool names, limits, and variants are recorded in [studio-mcp.md](studio-mcp.md) 
 - `Body*` movers, `Humanoid:LoadAnimation`, `Part.Velocity`/`RotVelocity`
 - `AnimationController:LoadAnimation` → `Animator:LoadAnimation`, `AnimationClipProvider:GetAnimationClip`/`GetAnimationClipById` → `GetAnimationClipAsync`
 - `MakeJoints`/`BreakJoints` → a `WeldConstraint` or `HingeConstraint`, `Attachment.WorldRotation` → `WorldOrientation`
-- Pre-`Async` web calls: `ContentProvider:Preload` → `PreloadAsync`, `BadgeService:AwardBadge`/`UserHasBadge` → their `Async` names, `Chat:FilterStringForPlayerAsync` → `TextService:FilterStringAsync`
+- Pre-`Async` web calls: `ContentProvider:Preload` → `PreloadAsync`, `BadgeService:AwardBadge`/`UserHasBadge` → their `Async` names, `Chat:FilterStringForPlayerAsync` → `Chat:FilterStringAsync` or `Chat:FilterStringForBroadcast`, as the deprecated index names them; new work filters through `TextService:FilterStringAsync`
 - `SetPrimaryPartCFrame`/`GetPrimaryPartCFrame`, `Camera.CoordinateFrame`
 - `Player:GetRankInGroupAsync`/`GetRoleInGroupAsync` → `GroupService:GetRolesInGroupAsync`
 - InputContext/InputAction camera replication → `Player:GetCameraState()`

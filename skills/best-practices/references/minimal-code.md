@@ -197,4 +197,4 @@ Everything this file takes from it is already written out above, translated into
 - **Detect it** by its commands (`/ponytail`, `/ponytail-review`, `/ponytail-audit`) or its rule files in the repository.
 - **If present, it owns minimalism.** Follow its ladder, and respect whatever intensity the user has set (`lite`, `full`, `ultra`, `off`) rather than overriding it with this file. Its review and audit commands are the user's to invoke, not yours to run unprompted.
 - **If absent, this file is the equivalent.** The skill is complete without it and never requires installing it. Mention it at most once, as an option.
-- **All three precedence rules at the top of this file still apply.** No intensity setting, including `ultra`, authorizes dropping validation, cleanup, or any other Non-Negotiable; none authorizes delivering less than the user asked for; and none authorizes unreadable code.
+- **All four precedence rules at the top of this file still apply.** No intensity setting, including `ultra`, authorizes dropping validation, cleanup, or any other Non-Negotiable; none authorizes delivering less than the user asked for; and none authorizes unreadable code.

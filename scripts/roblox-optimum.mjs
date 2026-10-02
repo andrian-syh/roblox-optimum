@@ -707,12 +707,12 @@ export function targetsFromPayload(payload) {
     fromToolArgs(payload) ??
     fromToolArgs(payload?.toolCall?.args) ??
     fromToolArgs(payload?.toolArgs);
-  if (typeof direct === "string") return [direct];
+  const base = typeof payload?.cwd === "string" ? payload.cwd : process.cwd();
+  if (typeof direct === "string") return [isAbsolute(direct) ? direct : resolve(base, direct)];
 
   const command = payload?.tool_input?.command;
   if (typeof command !== "string") return [];
 
-  const base = typeof payload?.cwd === "string" ? payload.cwd : process.cwd();
   return [...command.matchAll(PATCH_TARGET)].map((m) => resolve(base, m[1]));
 }
 
@@ -759,6 +759,7 @@ export function formatReport(reports) {
  * Synchronous reads are not portable when stdin is a pipe.
  */
 async function readStdin() {
+  if (process.stdin.isTTY) return "";
   try {
     const chunks = [];
     for await (const chunk of process.stdin) chunks.push(chunk);
@@ -767,6 +768,9 @@ async function readStdin() {
     return "";
   }
 }
+
+/** The output shapes `--hook` speaks, one per host that cannot read a plain exit 2. */
+const HOOK_SHAPES = ["copilot", "cursor", "kiro"];
 
 /**
  * Checks the file the agent just wrote and prints what it must fix. Anything unreadable,
@@ -980,8 +984,10 @@ function pluginVersion(path) {
  * minor cannot carry into the field above it.
  */
 export function order(version) {
-  const parts = /^(\d+)\.(\d+)\.(\d+)/.exec(version ?? "");
-  return parts === null ? -1 : Number(parts[1]) * 1e12 + Number(parts[2]) * 1e6 + Number(parts[3]);
+  const parts = /^(\d+)\.(\d+)\.(\d+)(-)?/.exec(version ?? "");
+  if (parts === null) return -1;
+  const release = Number(parts[1]) * 1e12 + Number(parts[2]) * 1e6 + Number(parts[3]);
+  return parts[4] === undefined ? release : release - 0.5;
 }
 
 /**
@@ -999,8 +1005,9 @@ function pluginsUnder(root, depth = 3) {
   }
 
   const out = [];
-  for (const entry of entries.filter((e) => e.isDirectory())) {
+  for (const entry of entries.filter((e) => e.isDirectory() || e.isSymbolicLink())) {
     const full = join(root, entry.name);
+    if (!entry.isDirectory() && !isDirectory(full)) continue;
     const version = pluginVersion(full);
 
     if (version === null) out.push(...pluginsUnder(full, depth - 1));
@@ -1008,6 +1015,15 @@ function pluginsUnder(root, depth = 3) {
   }
 
   return out;
+}
+
+/** Whether a path leads to a directory, following a link to one. */
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 /** Where a project keeps agents. Claude Code and Cursor both read this one. */
@@ -1470,6 +1486,11 @@ const MCP_CONFIGS = [
   },
 ];
 
+/** Parses a host's JSON file. An editor on Windows may save one with a byte order mark. */
+function readJson(file) {
+  return JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, ""));
+}
+
 /**
  * Registers the MCP server in one host's configuration, keeping every other server. An entry an
  * earlier release wrote is updated; an edited one, or a file that is not a JSON object, is kept.
@@ -1481,7 +1502,7 @@ function registerMcp(root, config, force, report) {
   let read = {};
   if (existsSync(file)) {
     try {
-      read = JSON.parse(readFileSync(file, "utf8"));
+      read = readJson(file);
     } catch {
       read = null;
     }
@@ -1988,7 +2009,7 @@ function removeMcp(home, dry, removed, kept) {
 
     let read;
     try {
-      read = JSON.parse(readFileSync(file, "utf8"));
+      read = readJson(file);
     } catch {
       kept.push(`${shownAs(file)}, which this tool could not read`);
       continue;
@@ -2024,7 +2045,7 @@ function registrations(home) {
 
     let server;
     try {
-      server = JSON.parse(readFileSync(file, "utf8"))?.[config.key]?.[PLUGIN];
+      server = readJson(file)?.[config.key]?.[PLUGIN];
     } catch {
       continue;
     }
@@ -2394,7 +2415,7 @@ async function runPreWrite() {
 
   const cwd = payload.cwd || process.cwd();
   const luau = targetsFromPayload(payload).some(
-    (p) => p.endsWith(".luau") || (p.endsWith(".lua") && isRobloxProject(cwd)),
+    (p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)),
   );
   if (luau) addContext("PreToolUse", PRE_WRITE);
   return 0;
@@ -2994,6 +3015,8 @@ Players.PlayerAdded:Connect(greet)
   ok(order("not a version") === -1, "a version that cannot be read sorts below every one that can");
   ok(order("1.1.0") > order("1.0.1000"), "a patch in the thousands does not carry into the minor");
   ok(order("2.0.0") > order("1.1000.0"), "a minor in the thousands does not carry into the major");
+  ok(order("1.11.0-beta.1") < order("1.11.0") && order("1.11.0-beta.1") > order("1.10.9"), "a prerelease sorts below its release and above the one before");
+  ok(targetsFromPayload({ cwd: "/proj", tool_input: { file_path: "src/a.luau" } }).join() === resolve("/proj", "src/a.luau"), "a relative path is read against the payload cwd");
   ok(pluginVersion(PACKAGE_ROOT) === VERSION, "this package is recognized as a copy of the plugin");
   ok(pluginVersion(ROOT_ABSENT) === null, "a directory that is not a plugin is not called one");
 
@@ -3093,7 +3116,11 @@ if (invokedDirectly) {
   else if (mode === "doctor") process.exit(guarded(mode, () => runDoctor(rest)));
   else if (mode === "uninstall") process.exit(guarded(mode, () => runUninstall(rest)));
   else if (mode === "--help" || mode === "-h") process.stdout.write(USAGE);
-  else if (mode === "--hook") process.exit(await runPostToolUse(rest[0]));
+  else if (mode === "--hook" && !HOOK_SHAPES.includes(rest[0])) {
+    process.stderr.write(`roblox-optimum: --hook takes one of ${HOOK_SHAPES.join(", ")}, not ${rest[0] ?? "nothing"}
+`);
+    process.exit(2);
+  } else if (mode === "--hook") process.exit(await runPostToolUse(rest[0]));
   else if (mode === undefined) process.exit(await runPostToolUse());
   else {
     process.stderr.write(`roblox-optimum: unknown option ${mode}\n\n${USAGE}`);

@@ -6,6 +6,36 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-10-02
+
+### Changed
+
+- Changed the supervision guidance to state one order of precedence: an inline token, then the
+  invocation argument, then the configured level, then Balanced. An empty argument now reads the
+  same as none.
+- Changed the `Chat:FilterStringForPlayerAsync` row in `api-currency.md` to name the replacements
+  the deprecated index gives, `Chat:FilterStringAsync` and `Chat:FilterStringForBroadcast`, while
+  new work still filters through `TextService:FilterStringAsync`.
+
+### Fixed
+
+- Fixed the MCP server ignoring a message that is not a JSON object, lacks `"jsonrpc": "2.0"`, or
+  carries an id that is not a string or number. Each now gets an `Invalid Request` error.
+- Fixed `roblox-optimum` with no argument waiting forever when run by hand, since it read a
+  terminal as if it were a hook payload.
+- Fixed `--hook` accepting a shape it does not know and reporting nothing. It now names the
+  shapes it takes and exits 2.
+- Fixed the pre-write reminder missing `.LUAU` and `.LUA` files, and the post-write check
+  resolving a relative path against the wrong directory when the payload names its own `cwd`.
+- Fixed host configuration files saved with a byte order mark being reported as unreadable, so
+  the MCP server was never registered in them.
+- Fixed a plugin reached through a symbolic link being invisible to the installer and `doctor`,
+  and a prerelease copy sorting level with its release.
+- Fixed broken pointers in `adaptive-mode.md`, `templates.md`, and `verification.md`, the
+  precedence count in `minimal-code.md`, a table in `api-currency.md` split by a blank line, a
+  skipped heading level in `section-layout.md`, and a line holding two statements in the
+  `security.md` rate limiter.
+
 ## [1.11.0] - 2026-10-01
 
 Upgrading: rule files written by an earlier release carry no record of what they held, so
@@ -400,6 +430,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.9.0...v1.9.1

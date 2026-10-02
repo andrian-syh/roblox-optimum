@@ -58,7 +58,10 @@ local function allowRate(player: Player, action: string, maxPerWindow: number, w
 	local now = os.clock()
 	local windowSize = window or 1
 	local playerBuckets = buckets[player]
-	if not playerBuckets then playerBuckets = {}; buckets[player] = playerBuckets end
+	if not playerBuckets then
+		playerBuckets = {}
+		buckets[player] = playerBuckets
+	end
 	local bucket = playerBuckets[action]
 	if not bucket or now - bucket.windowStart > windowSize then
 		playerBuckets[action] = {count = 1, windowStart = now}

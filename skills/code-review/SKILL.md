@@ -3,7 +3,7 @@ name: code-review
 description: "Reviews and audits existing Roblox/Luau code. Use whenever the user asks to review, check, or audit a file, diff, pull request, place, or system, asks whether their code is safe, good, or exploitable, or wants its architectural health or maturity scored - even when Roblox or Luau is never named but the code is a game script. Finds leaks, exploits, and data-loss risks, reports one severity per finding (Blocker / Correctness / Advisory) behind a confidence gate, and scores one system 1-5 across security, lifecycle, CPU, network, data safety, and structure. Hand-offs: writing or refactoring code goes to the best-practices skill, chasing a reported symptom with no file named to the diagnose skill, Studio tooling, sync, or playtest questions to the studio-ops skill."
 license: MIT
 metadata:
-  version: "1.11.0"
+  version: "1.11.1"
 ---
 
 # Roblox Code Review

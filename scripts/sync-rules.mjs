@@ -16,8 +16,10 @@ import { RULE_TARGETS, GENERATED, forCopilot, ranAsScript } from "./roblox-optim
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = "AGENTS.md";
 
-// The checker owns the list, because it is the file that ships and installs these copies for
-// other people. This script keeps the repository's own copies in step with the same map.
+/**
+ * The checker owns the list, because it is the file that ships and installs these copies for
+ * other people. This script keeps the repository's own copies in step with the same map.
+ */
 const TARGETS = RULE_TARGETS.map((t) => [t.path, t.frontMatter]);
 
 /** The text one target should hold: its front matter, a line saying not to edit it, then the shared body. */

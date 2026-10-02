@@ -389,7 +389,7 @@ function auditHooks() {
 const DESCRIPTION_LIMIT = 250;
 
 /** A line that begins a function this repository documents. */
-const DECLARES = /^(export )?(function |const [A-Za-z]\w* = (\(|async|function))/;
+const DECLARES = /^(export (default )?)?(async function\b|function\b|const [A-Za-z]\w* = (\(|async|function))/;
 
 /**
  * Checks the scripts against the comment rules this repository ships: a documentation block
@@ -404,7 +404,7 @@ function auditComments() {
     const lines = readFileSync(path, "utf8").split("\n");
 
     lines.forEach((line, index) => {
-      if (/^\s+\/\//.test(line)) {
+      if (/^\s*\/\//.test(line)) {
         problems.push(`${name}:${index + 1}: comment inside a body; say it above, or rename`);
       }
     });

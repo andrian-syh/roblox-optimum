@@ -160,13 +160,16 @@ function fix(version, reports, root = ROOT) {
   const files = new Set(reports.map((r) => r.path).filter((p) => p !== "package.json"));
 
   for (const file of files) {
+    const stale = new Set(reports.filter((r) => r.path === file).map((r) => r.found));
     const full = join(root, file);
     if (!existsSync(full)) continue;
 
     const before = readFileSync(full, "utf8");
     const after = /\.md$/.test(file)
       ? before.replace(/^(\s+version:\s*")\d+\.\d+\.\d+(")/m, `$1${version}$2`)
-      : before.replace(/("version"\s*:\s*")\d+\.\d+\.\d+(")/g, `$1${version}$2`);
+      : before.replace(/("version"\s*:\s*")(\d+\.\d+\.\d+)(")/g, (whole, open, found, close) =>
+          stale.has(found) ? `${open}${version}${close}` : whole,
+        );
 
     if (after === before) {
       process.stdout.write(`  ${file} holds no version to replace, left alone\n`);
@@ -230,4 +233,4 @@ function main(fixing = process.argv.includes("--fix")) {
   return 1;
 }
 
-process.exit(main());
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) process.exit(main());
