@@ -36,7 +36,7 @@ roblox-optimum has two parts. You can install them together or separately:
   * [OpenCode](#opencode)
   * [Qwen Code](#qwen-code)
   * [Cline](#cline)
-  * [Windsurf](#windsurf)
+  * [Windsurf (Devin Desktop)](#windsurf-devin-desktop)
   * [Qoder](#qoder)
   * [Other agents](#other-agents)
 * [Add the pre-commit hook](#add-the-pre-commit-hook)
@@ -119,9 +119,9 @@ where it does not.
 | Copilot CLI | copies, MCP entry, and hook | `~/.copilot/skills/`, `agents/`, `mcp-config.json`, `hooks/` |
 | OpenCode | copies and MCP entry | `~/.config/opencode/skills/` or `~/.agents/skills/`, `agents/`, `opencode.json` |
 | Kiro | copies and MCP entry, or a power | `~/.kiro/skills/`, `agents/`, `settings/mcp.json` |
-| Qoder | copies | `~/.qoder/skills/`, `agents/` |
-| Cline | copies and MCP entry | `~/.cline/skills/`, `mcp.json` |
-| Qwen Code | copies and MCP entry | `~/.qwen/skills/`, `settings.json` |
+| Qoder | copies and MCP entry | `~/.qoder/skills/`, `agents/`, `settings.json` |
+| Cline | copies, MCP entry, and hook | `~/.cline/skills/`, `mcp.json`, `hooks/` |
+| Qwen Code | extension, or copies, plus the subagent and MCP entry | `~/.qwen/skills/`, `agents/`, `settings.json` |
 | Windsurf | copies and MCP entry | `~/.codeium/windsurf/skills/`, `mcp_config.json` |
 | Codex | plugin, from the marketplace, or copies | `/plugins` in Codex, or `~/.agents/skills/` |
 
@@ -275,6 +275,7 @@ plugin carries differ by host:
 | Cursor | Check a Luau file after each edit. |
 | Antigravity | Check a Luau file after each write, and hand the findings to the agent before its next model call. |
 | Copilot CLI | Check a Luau file after the `create` and `edit` tools. |
+| Cline | Check a Luau file after each write. |
 | Kiro | Check a Luau file when it is saved or created. The findings reach the agent in the IDE only. |
 
 ### Claude Code
@@ -604,97 +605,24 @@ qwen extensions install ./roblox-optimum      # from a local clone
 qwen extensions link ./roblox-optimum         # load a local clone as you edit it
 ```
 
-The extension carries the skills, the subagent, the MCP server, and `QWEN.md`. Without it,
-`npx roblox-optimum install --global` writes the skills and the MCP entry.
+Qwen Code reads the repository as an Agent Plugins package, which carries the skills and the MCP
+server only. Add the subagent and the rules with the installer, and the hook by hand:
+
+```bash
+npx roblox-optimum install --global   # the subagent, and skills and MCP server without the extension
+npx roblox-optimum install rules      # AGENTS.md
+```
 
 | Component | Location | Scope |
 |---|---|---|
 | Skills | the extension, `~/.qwen/skills/`, or `.qwen/skills/` | machine or project |
-| Subagent | the extension, `~/.qwen/agents/`, or `.qwen/agents/` | machine or project |
-| MCP server | `mcpServers` in `~/.qwen/settings.json` or `.qwen/settings.json` | machine or project |
-| Hook | `hooks` in the same settings file | machine or project |
-| Rules | `QWEN.md` or `AGENTS.md` in the project root | project |
+| Subagent | `~/.qwen/agents/roblox-auditor.md`, or `.qwen/agents/` | machine or project |
+| MCP server | the extension, or `mcpServers` in `~/.qwen/settings.json` | machine or project |
+| Hook | `hooks` in `~/.qwen/settings.json` or `.qwen/settings.json` | machine or project |
+| Rules | `AGENTS.md` or `QWEN.md` in the project root | project |
 
-Installed as an Agent Plugins v1 package, Qwen Code reads only the skills and the MCP server.
-
-To add the hook, add this to `hooks` in your settings file:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          { "type": "command", "command": "npx -y -p roblox-optimum@latest roblox-optimum" }
-        ]
-      }
-    ]
-  }
-}
-```
-
-If the project has no `AGENTS.md`, write `QWEN.md` with `npx roblox-optimum install rules --all`.
-
-### Cline
-
-A Cline plugin is a TypeScript module and cannot carry skills or rules, so each component installs
-on its own:
-
-```bash
-npx roblox-optimum install --global   # skills and MCP server
-npx roblox-optimum install rules      # .clinerules/roblox-optimum.md
-```
-
-| Component | Location | Scope |
-|---|---|---|
-| Skills | `~/.cline/skills/`, or `.cline/skills/` in a project | machine or project |
-| Rules | `.clinerules/roblox-optimum.md` | project |
-| MCP server | `mcpServers` in `~/.cline/mcp.json` | machine |
-
-Cline also reads `.claude/skills/` and `AGENTS.md`. In the IDE extension, add the MCP entry through
-**MCP Servers** > **Configure** in the Cline panel.
-
-Cline has no shell hook file, so run the checker from the [pre-commit hook](#add-the-pre-commit-hook)
-or [CI](#run-the-checker-in-ci).
-
-### Windsurf
-
-Windsurf reads skills, `AGENTS.md`, and MCP servers directly:
-
-```bash
-npx roblox-optimum install --global   # skills and MCP server
-npx roblox-optimum install rules      # AGENTS.md and .windsurf/rules/
-```
-
-| Component | Location | Scope |
-|---|---|---|
-| Skills | `~/.codeium/windsurf/skills/`, or `.windsurf/skills/` in a workspace | machine or project |
-| Rules | `AGENTS.md`, or `.windsurf/rules/roblox-optimum.md`, loaded on every request | project |
-| MCP server | `mcpServers` in `~/.codeium/windsurf/mcp_config.json` | machine |
-
-The JetBrains and VS Code plugins read MCP servers from `~/.codeium/mcp_config.json`. The installer
-writes whichever of the two files exists.
-
-Keep the rules in the workspace. `~/.codeium/windsurf/memories/global_rules.md` applies to every
-workspace, so the installer does not write it.
-
-### Qoder
-
-Qoder documents no plugin manifest format, so each component installs on its own:
-
-```bash
-npx roblox-optimum install --global   # skills and subagent
-npx roblox-optimum install rules      # .qoder/rules/roblox-optimum.md
-```
-
-| Component | Location | Scope |
-|---|---|---|
-| Skills | `~/.qoder/skills/`, or `.qoder/skills/` in a project | machine or project |
-| Subagent | `~/.qoder/agents/roblox-auditor.md`, or `.qoder/agents/` | machine or project |
-| Rules | `.qoder/rules/roblox-optimum.md`, or `AGENTS.md` | project |
-| MCP server | **Settings** > **MCP**, as a STDIO server | machine |
-| Hook | `hooks` in `~/.qoder/settings.json` or `.qoder/settings.json` | machine or project |
+The subagent is written with its tools as a list of Qwen Code's tool ids, since Qwen Code drops a
+tool list it cannot read and gives the agent every tool.
 
 To add the hook, add this to `hooks` in your settings file:
 
@@ -703,7 +631,7 @@ To add the hook, add this to `hooks` in your settings file:
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "write_file|edit",
         "hooks": [
           { "type": "command", "command": "npx -y -p roblox-optimum@latest roblox-optimum", "timeout": 30 }
         ]
@@ -712,6 +640,124 @@ To add the hook, add this to `hooks` in your settings file:
   }
 }
 ```
+
+The checker exits 2 on findings, which Qwen Code returns to the agent.
+
+If the project has no `AGENTS.md`, write `QWEN.md` with `npx roblox-optimum install rules --all`.
+
+To update the extension, run `qwen extensions update roblox-optimum`. To uninstall it, run
+`qwen extensions uninstall roblox-optimum`. To remove the subagent and the copies, run
+`npx roblox-optimum uninstall --global`, and remove the hook from your settings file.
+
+### Cline
+
+The Cline extension and the Cline CLI share `~/.cline/`. Run the first command once for the
+machine, and the second inside each Roblox project:
+
+```bash
+npx roblox-optimum install --global   # skills, MCP server, and hook
+npx roblox-optimum install rules      # .clinerules/roblox-optimum.md
+```
+
+| Component | Location | Scope |
+|---|---|---|
+| Skills | `~/.cline/skills/`, or `.cline/skills/` in a project | machine or project |
+| Rules | `.clinerules/roblox-optimum.md`, loaded on every request | project |
+| MCP server | `mcpServers` in `~/.cline/mcp.json` | machine |
+| Hook | `~/.cline/hooks/PostToolUse`, or `PostToolUse.ps1` on Windows | machine |
+
+The hook runs after each file Cline writes and returns the findings to the agent as
+`contextModification`. Cline runs one file per event, so the installer keeps a `PostToolUse` hook
+of your own and reports it instead.
+
+Cline also reads skills from `.claude/skills/`, and rules from `AGENTS.md`. In the extension, if the
+server does not appear, add the entry through **MCP Servers** > **Configure** in the Cline panel.
+
+To update, run `npx roblox-optimum install --global --force`. To uninstall, run
+`npx roblox-optimum uninstall --global`, which removes the skills, the hook, and the MCP entry.
+
+### Windsurf (Devin Desktop)
+
+Windsurf is now Devin Desktop. It still reads the Windsurf paths, and its default agent, Devin
+Local, imports Windsurf's rules, skills, and MCP servers. Run the first command once for the
+machine, and the second inside each Roblox project:
+
+```bash
+npx roblox-optimum install --global   # skills and MCP server
+npx roblox-optimum install rules      # AGENTS.md, .windsurf/rules/, and .devin/rules/
+```
+
+| Component | Location | Scope |
+|---|---|---|
+| Skills | `~/.codeium/windsurf/skills/`, or `~/.agents/skills/` when Codex is installed | machine |
+| Rules | `AGENTS.md`, `.windsurf/rules/roblox-optimum.md`, or `.devin/rules/roblox-optimum.md`, loaded on every request | project |
+| MCP server | `mcpServers` in `~/.config/devin/mcp_config.json` when it exists, otherwise `~/.codeium/windsurf/mcp_config.json` | machine |
+
+Devin Desktop also reads skills from `.agents/skills/` and `~/.agents/skills/`. When the installer
+writes the Codex copies there, it writes no second copy for Windsurf. On Windows, the Devin MCP
+file is `%APPDATA%\devin\mcp_config.json`.
+
+The JetBrains and VS Code plugins read MCP servers from `~/.codeium/mcp_config.json`. The installer
+writes the first of these files that exists.
+
+Cascade's hooks return output to the agent only when a hook blocks an action before it runs, so
+this tool installs no Windsurf hook. Run the checker from the [pre-commit hook](#add-the-pre-commit-hook)
+or [CI](#run-the-checker-in-ci).
+
+Keep the rules in the workspace. `~/.codeium/windsurf/memories/global_rules.md` applies to every
+workspace, so the installer does not write it.
+
+To update, run `npx roblox-optimum install --global --force`. To uninstall, run
+`npx roblox-optimum uninstall --global`, which removes the skills and the MCP entry.
+
+### Qoder
+
+The Qoder IDE and the Qoder CLI share `~/.qoder/`. Run the first command once for the machine, and
+the second inside each Roblox project:
+
+```bash
+npx roblox-optimum install --global   # skills, subagent, and MCP server
+npx roblox-optimum install rules      # .qoder/rules/roblox-optimum.md
+```
+
+| Component | Location | Scope |
+|---|---|---|
+| Skills | `~/.qoder/skills/`, or `.qoder/skills/` in a project | machine or project |
+| Subagent | `~/.qoder/agents/roblox-auditor.md`, or `.qoder/agents/` | machine or project |
+| Rules | `.qoder/rules/roblox-optimum.md`, loaded on every request | project |
+| MCP server | `mcpServers` in `~/.qoder/settings.json` | machine |
+| Hook | `hooks` in `~/.qoder/settings.json` or `.qoder/settings.json` | machine or project |
+
+The installer writes the MCP entry for the Qoder CLI. If the IDE does not list the server, add it
+in **Settings** > **MCP** > **My Servers** as a STDIO server.
+
+Qoder also reads `AGENTS.md` in the project root, so a project with both files loads the rules
+twice. Keep one of the two.
+
+To add the hook, add this to `hooks` in your settings file, then restart the IDE:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|create_file|search_replace|edit_file",
+        "hooks": [
+          { "type": "command", "command": "npx -y -p roblox-optimum@latest roblox-optimum --hook qoder", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The Qoder CLI adds the findings to the agent's context. The Qoder IDE shows a `PostToolUse` hook's
+output to you rather than to the agent. The matcher names the IDE's own edit tools beside `Write`
+and `Edit`, since `edit_file` has no alias.
+
+To update, run `npx roblox-optimum install --global --force`. To uninstall, run
+`npx roblox-optimum uninstall --global`, which removes the skills, the subagent, and the MCP entry,
+and remove the hook from your settings file.
 
 ### Other agents
 
@@ -722,7 +768,7 @@ npx roblox-optimum install rules
 ```
 
 If your agent reads its own path, `--all` writes every rule file this tool knows:
-`.cursor/rules/roblox-optimum.mdc`, `.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`,
+`.cursor/rules/roblox-optimum.mdc`, `.windsurf/rules/`, `.devin/rules/`, `.clinerules/`, `.kiro/steering/`,
 `.qoder/rules/`, `.agents/rules/`, `.github/copilot-instructions.md`, `rules/roblox-optimum.md`,
 and `QWEN.md`. The last two have no directory of their own to show the agent is in use, so only
 `--all` writes them.

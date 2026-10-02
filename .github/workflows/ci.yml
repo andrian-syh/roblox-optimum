@@ -41,7 +41,7 @@ jobs:
           shipped="skills agents hooks scripts rules AGENTS.md QWEN.md package.json plugin.json
             mcp.json mcp_config.json qwen-extension.json .claude-plugin .codex-plugin
             .cursor-plugin .agents .github/plugin .github/agents .github/copilot-instructions.md
-            .cursor .windsurf .kiro .qoder .clinerules"
+            .cursor .windsurf .devin .kiro .qoder .clinerules"
           changed=$(git diff --name-only "$base"...HEAD -- $shipped)
           if [ -z "$changed" ]; then
             echo "No shipped files changed."

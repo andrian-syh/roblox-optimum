@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.11.3",
+  "version": "1.11.4",
   "description": "Roblox and Luau standards for AI agents, paired with a deterministic static checker.",
   "keywords": [
     "roblox",

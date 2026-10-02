@@ -99,7 +99,7 @@ The standards reach the agent in three ways:
   request names roblox-optimum.
 * Hooks: in Claude Code and Codex, the plugin points each session at the skills in a Roblox
   project, names the skill each prompt needs, restates the standards before a Luau file is written,
-  and checks the file after. The hooks for Cursor, Antigravity, Copilot CLI, and Kiro check each
+  and checks the file after. The hooks for Cursor, Antigravity, Copilot CLI, Cline, and Kiro check each
   Luau file after it is written and return the findings to the agent.
 
 | Skill | Use it to |

@@ -444,6 +444,15 @@ trigger: always_on
 ---
 `,
   },
+  {
+    path: ".devin/rules/roblox-optimum.md",
+    marker: ".devin",
+    agent: "Devin Desktop",
+    frontMatter: `---
+trigger: always_on
+---
+`,
+  },
   { path: ".clinerules/roblox-optimum.md", marker: ".clinerules", agent: "Cline", frontMatter: "" },
   { path: ".qoder/rules/roblox-optimum.md", marker: ".qoder", agent: "Qoder", frontMatter: "" },
   { path: ".agents/rules/roblox-optimum.md", marker: ".agents", agent: "Antigravity", frontMatter: LUAU_GLOB },
@@ -479,10 +488,14 @@ Usage:
                                      findings back to the agent.
   roblox-optimum --hook antigravity  The same check after a write, stored until PreInvocation,
                                      which injects it. Antigravity drops PostToolUse output.
+  roblox-optimum --hook cline        The same check after a Cline write, reporting on stdout as
+                                     contextModification.
   roblox-optimum --hook copilot      The same check, reporting on stdout as additionalContext,
                                      which is how Copilot reads a hook back.
   roblox-optimum --hook cursor       The same check, reporting on stdout as additional_context,
                                      which is how Cursor's postToolUse reads a hook back.
+  roblox-optimum --hook qoder        The same check, reporting on stdout as additionalContext,
+                                     which Qoder reads back from PostToolUse.
   roblox-optimum --hook kiro         The same check, reporting on stdout and exiting 0, which is
                                      how Kiro adds a command's output to the agent's context.
   roblox-optimum --session           Read a session-start payload on stdin. In a Roblox project,
@@ -719,8 +732,10 @@ export function targetsFromPayload(payload) {
     fromToolArgs(payload?.tool_input) ??
     fromToolArgs(payload) ??
     fromToolArgs(payload?.toolCall?.args) ??
-    fromToolArgs(payload?.toolArgs);
-  const base = typeof payload?.cwd === "string" ? payload.cwd : process.cwd();
+    fromToolArgs(payload?.toolArgs) ??
+    fromToolArgs(payload?.postToolUse?.parameters);
+  const base =
+    typeof payload?.cwd === "string" ? payload.cwd : (payload?.workspaceRoots?.[0] ?? process.cwd());
   if (typeof direct === "string") return [isAbsolute(direct) ? direct : resolve(base, direct)];
 
   const command = payload?.tool_input?.command;
@@ -783,7 +798,10 @@ async function readStdin() {
 }
 
 /** The output shapes `--hook` speaks, one per host that cannot read a plain exit 2. */
-const HOOK_SHAPES = ["antigravity", "copilot", "cursor", "kiro"];
+const HOOK_SHAPES = ["antigravity", "cline", "copilot", "cursor", "kiro", "qoder"];
+
+/** The Cline tools that write a file. Its PostToolUse also fires after a read. */
+const CLINE_WRITES = /^(write_to_file|replace_in_file|apply_patch|new_rule)$/;
 
 /**
  * Where Antigravity findings wait for the next model call. Its PostToolUse output is discarded,
@@ -821,6 +839,10 @@ async function runPostToolUse(shape) {
   }
 
   if (shape === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
+  if (shape === "cline" && !CLINE_WRITES.test(payload?.postToolUse?.tool ?? "")) {
+    process.stdout.write('{"cancel":false}');
+    return 0;
+  }
 
   const reports = targetsFromPayload(payload)
     .map(checkFile)
@@ -832,7 +854,15 @@ async function runPostToolUse(shape) {
     return 0;
   }
 
-  if (reports.length === 0) return 0;
+  if (reports.length === 0) {
+    if (shape === "cline") process.stdout.write('{"cancel":false}');
+    return 0;
+  }
+
+  if (shape === "cline") {
+    process.stdout.write(JSON.stringify({ cancel: false, contextModification: formatReport(reports) }));
+    return 0;
+  }
 
   if (shape === "copilot") {
     process.stdout.write(JSON.stringify({ additionalContext: formatReport(reports) }));
@@ -841,6 +871,11 @@ async function runPostToolUse(shape) {
 
   if (shape === "cursor") {
     process.stdout.write(JSON.stringify({ additional_context: formatReport(reports) }));
+    return 0;
+  }
+
+  if (shape === "qoder") {
+    addContext("PostToolUse", formatReport(reports));
     return 0;
   }
 
@@ -958,8 +993,8 @@ const GLOBAL_TARGETS = [
   { host: "Kiro", home: ".kiro", skills: "skills", agents: "agents", form: "kiro" },
   { host: "Qoder", home: ".qoder", skills: "skills", agents: "agents" },
   { host: "Cline", home: ".cline", skills: "skills" },
-  { host: "Qwen Code", home: ".qwen", skills: "skills" },
-  { host: "Windsurf", home: ".codeium", skills: join("windsurf", "skills") },
+  { host: "Qwen Code", home: ".qwen", skills: "skills", agents: "agents", form: "qwen", pluginLacksAgent: true },
+  { host: "Windsurf", home: ".codeium", skills: join("windsurf", "skills"), alsoReads: join(".agents", "skills") },
   { host: "Codex", home: ".agents", skills: "skills" },
 ];
 
@@ -1106,6 +1141,26 @@ export function forCopilot(text) {
   return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;
 }
 
+/**
+ * The agent as Qwen Code reads it. It takes runtime tool ids in a list and drops a value it cannot
+ * read, so a Claude Code tool string would leave the agent with every tool.
+ */
+export function forQwen(text) {
+  const { read, body } = splitFront(text);
+  const front = [
+    "---",
+    `name: ${read("name")}`,
+    `description: ${read("description")}`,
+    "tools:",
+    "  - read_file",
+    "  - list_directory",
+    "  - glob",
+    "  - grep_search",
+    "---",
+  ];
+  return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;
+}
+
 /** The agent as Cursor reads it, which has no tool list but can hold an agent to reading. */
 export function forCursor(text) {
   const { read, body } = splitFront(text);
@@ -1165,7 +1220,7 @@ export function forKiro(text) {
 }
 
 /** The form each host with front matter of its own takes an agent in. */
-const AGENT_FORMS = { antigravity: forAntigravity, copilot: forCopilot, cursor: forCursor, opencode: forOpenCode, kiro: forKiro };
+const AGENT_FORMS = { qwen: forQwen, antigravity: forAntigravity, copilot: forCopilot, cursor: forCursor, opencode: forOpenCode, kiro: forKiro };
 
 /**
  * What an agent file is called for a host. Copilot searches for the `.agent.md` suffix and finds
@@ -1391,6 +1446,15 @@ function installPlugin(root, route, force, report) {
 const HOOK_SHELL = process.platform === "win32" ? "powershell" : "bash";
 
 /**
+ * Cline runs a hook file named after its event: a `.ps1` script on Windows, an executable
+ * elsewhere. It reads `contextModification` from what the script prints.
+ */
+const CLINE_HOOK =
+  process.platform === "win32"
+    ? { path: join(".cline", "hooks", "PostToolUse.ps1"), body: `${HOOK_COMMAND} --hook cline\r\nexit $LASTEXITCODE\r\n` }
+    : { path: join(".cline", "hooks", "PostToolUse"), body: `#!/bin/sh\nexec ${HOOK_COMMAND} --hook cline\n` };
+
+/**
  * The hook file a host without a plugin route reads. Copilot appends what a hook returns to the
  * tool result the model sees, so a finding written there reaches the agent rather than a log.
  */
@@ -1407,6 +1471,7 @@ const COPY_HOOKS = [
       },
     },
   },
+  { host: "Cline", ...CLINE_HOOK },
 ];
 
 /** Where Kiro keeps the hooks for one project. The hook is written per project, beside its steering. */
@@ -1447,6 +1512,11 @@ const EARLIER_BODIES = new Map([
  * A written configuration with what releases differ by taken out: line endings, and whether the
  * package was pinned to its latest version, which earlier releases left off.
  */
+/** A hook body as written to disk: a script as it stands, a configuration as JSON. */
+function rendered(body) {
+  return typeof body === "string" ? body : `${JSON.stringify(body, null, 2)}\n`;
+}
+
 function releaseNeutral(text) {
   return text.replace(/\r\n/g, "\n").replaceAll(`${PLUGIN}@latest`, PLUGIN);
 }
@@ -1457,7 +1527,7 @@ function releaseNeutral(text) {
  */
 function ownText(found, body) {
   return [body, ...(EARLIER_BODIES.get(body) ?? [])].some(
-    (written) => releaseNeutral(found) === releaseNeutral(`${JSON.stringify(written, null, 2)}\n`),
+    (written) => releaseNeutral(found) === releaseNeutral(rendered(written)),
   );
 }
 
@@ -1466,7 +1536,7 @@ function ownText(found, body) {
  * anything but what this tool writes was edited by someone, and is theirs to keep.
  */
 function writeOwned(file, body, force, report) {
-  const text = `${JSON.stringify(body, null, 2)}\n`;
+  const text = rendered(body);
   const shown = shownAs(file);
 
   if (existsSync(file)) {
@@ -1483,6 +1553,7 @@ function writeOwned(file, body, force, report) {
 
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, text);
+  if (text.startsWith("#!")) chmodSync(file, 0o755);
   report.written.push(shown);
 }
 
@@ -1502,6 +1573,15 @@ function removeOwned(file, body, dry, removed, kept) {
   if (!dry) rmSync(file, { force: true });
   removed.push(shown);
 }
+
+/**
+ * The MCP file Devin Desktop, formerly Windsurf, opens for its agents. It is used when present,
+ * so the server is not registered twice beside the Windsurf file Devin also imports.
+ */
+const DEVIN_MCP =
+  process.platform === "win32"
+    ? join("AppData", "Roaming", "devin", "mcp_config.json")
+    : join(".config", "devin", "mcp_config.json");
 
 /**
  * Where a host without a plugin route keeps its MCP servers, the key, and the entry it reads.
@@ -1528,9 +1608,15 @@ const MCP_CONFIGS = [
   },
   {
     host: "Cline",
-    paths: [join(".cline", "mcp.json")],
+    paths: [join(".cline", "mcp.json"), join(".cline", "data", "settings", "cline_mcp_settings.json")],
     key: "mcpServers",
     entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"], disabled: false, autoApprove: [] },
+  },
+  {
+    host: "Qoder",
+    paths: [join(".qoder", "settings.json")],
+    key: "mcpServers",
+    entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"] },
   },
   {
     host: "Qwen Code",
@@ -1540,7 +1626,8 @@ const MCP_CONFIGS = [
   },
   {
     host: "Windsurf",
-    paths: [join(".codeium", "windsurf", "mcp_config.json"), join(".codeium", "mcp_config.json")],
+    paths: [DEVIN_MCP, join(".codeium", "windsurf", "mcp_config.json"), join(".codeium", "mcp_config.json")],
+    create: 1,
     key: "mcpServers",
     entry: { command: "npx", args: ["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"] },
   },
@@ -1568,7 +1655,7 @@ function readJson(file) {
  * earlier release wrote is updated; an edited one, or a file that is not a JSON object, is kept.
  */
 function registerMcp(root, config, force, report) {
-  const file = config.paths.map((p) => join(root, p)).find(existsSync) ?? join(root, config.paths[0]);
+  const file = config.paths.map((p) => join(root, p)).find(existsSync) ?? join(root, config.paths[config.create ?? 0]);
   const shown = shownAs(file);
 
   let read = {};
@@ -2280,8 +2367,13 @@ function runGlobalInstall(parts, all, force, explicit, report) {
       routed.push(target.host);
       continue;
     }
-    if (taken.kind === "covered") {
+    if (taken.kind === "covered" && !(target.pluginLacksAgent && parts.has("agent"))) {
       covered.push(`${target.host}, which reads ${taken.by}`);
+      continue;
+    }
+    if (taken.kind === "covered") {
+      covered.push(`${target.host} skills, which it reads from ${taken.by}`);
+      wrote(target.host, () => copyAgents(join(root, target.agents), target.form, force, report));
       continue;
     }
 
@@ -3109,6 +3201,10 @@ Players.PlayerAdded:Connect(greet)
     Object.values(PLUGIN_ROUTES).every((route) => PLUGIN_HOOKS[route.hooks] !== undefined),
     "every plugin route names a hook file this package can write",
   );
+  ok(
+    forQwen(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8")).includes("  - read_file"),
+    "the Qwen Code agent lists runtime tool ids",
+  );
   ok(PLUGIN_ROUTES.Cursor.hooksFile === join("hooks", "hooks.json"), "the Cursor plugin hook sits where Cursor finds it");
   ok(
     forCursor(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8")).includes("readonly: true"),
@@ -3128,7 +3224,7 @@ Players.PlayerAdded:Connect(greet)
     "every MCP entry starts the server this package ships",
   );
   ok(
-    COPY_HOOKS.every((hook) => JSON.stringify(hook.body).includes("--hook copilot")),
+    COPY_HOOKS.every((hook) => JSON.stringify(hook.body).includes(`--hook ${hook.host.split(" ")[0].toLowerCase()}`)),
     "a hook written for a host asks for the shape that host reads",
   );
   ok(
@@ -3180,6 +3276,13 @@ Players.PlayerAdded:Connect(greet)
     injected === '{"injectSteps":[{"ephemeralMessage":"finding"}]}{}',
     "Antigravity findings are injected once at the next model call",
   );
+
+  ok(
+    targetsFromPayload({ workspaceRoots: ["/w"], postToolUse: { tool: "write_to_file", parameters: { path: "src/a.luau" } } })[0] ===
+      resolve("/w", "src/a.luau"),
+    "a Cline payload names its file under postToolUse, relative to the workspace",
+  );
+  ok(CLINE_WRITES.test("replace_in_file") && !CLINE_WRITES.test("read_file"), "the Cline hook checks writes, not reads");
 
   ok(writable(join(ROOT_ABSENT, "nothing.md"), GENERATED), "an absent file may be written");
   ok(!writable("package.json", GENERATED), "a file this tool did not write is left alone");

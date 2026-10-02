@@ -6,6 +6,46 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.4] - 2026-10-02
+
+### Added
+
+- Added a Cline hook. `install --global` writes `~/.cline/hooks/PostToolUse`, or `PostToolUse.ps1`
+  on Windows, which checks each Luau file Cline writes and returns the findings to the agent. A
+  `PostToolUse` hook of your own is kept.
+- Added `--hook cline`, which reports findings as Cline's `contextModification` and skips the
+  tools that only read.
+- Added `--hook qoder`, which reports findings as `additionalContext`, the field the Qoder CLI reads
+  back from a `PostToolUse` hook.
+- Added Qoder to the MCP entries `install --global` writes, in `~/.qoder/settings.json`.
+- Added `.devin/rules/roblox-optimum.md` to `install rules`, for Devin Desktop, the new name of
+  Windsurf.
+
+### Changed
+
+- Changed the Windsurf MCP entry to go to `~/.config/devin/mcp_config.json` when that file exists,
+  which is the file Devin Desktop now opens for its agents.
+- Changed `install --global` to skip Windsurf's skill copies when it writes the Codex copies to
+  `~/.agents/skills/`, which Devin Desktop also reads.
+
+### Fixed
+
+- Fixed the installer missing a Cline MCP configuration kept at
+  `~/.cline/data/settings/cline_mcp_settings.json`.
+- Fixed the Cline steps in INSTALL.md, which said Cline has no hook, and did not say how to update
+  or uninstall.
+- Fixed Qwen Code losing the subagent and `QWEN.md` from the extension since 1.11.3. Qwen Code
+  reads a root `plugin.json` that names the Agent Plugins schema in place of `qwen-extension.json`,
+  and such a package carries skills and MCP servers only. `install --global` now writes the
+  subagent beside the extension, with its tools as Qwen Code's tool ids.
+- Fixed the Qwen Code steps in INSTALL.md, which said the extension carries the subagent and
+  `QWEN.md`, and did not say how to update or uninstall.
+- Fixed the Windsurf steps in INSTALL.md, which did not name Devin Desktop, say why no hook is
+  installed, or say how to update or uninstall.
+- Fixed the Qoder steps in INSTALL.md. They said Qoder has no plugin format, gave a hook whose
+  findings never reached the agent and whose matcher missed the IDE's own edit tools, and did not
+  say how to update or uninstall.
+
 ## [1.11.3] - 2026-10-02
 
 To upgrade from 1.11.2:
@@ -483,6 +523,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.4]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.3...v1.11.4
 [1.11.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.2...v1.11.3
 [1.11.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.1...v1.11.2
 [1.11.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.0...v1.11.1
