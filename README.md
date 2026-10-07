@@ -107,7 +107,7 @@ The standards reach the agent in three ways:
 | `best-practices` | Write, refactor, and structure Luau code. |
 | `code-review` | Review files, diffs, or pull requests, and score a project's health. |
 | `diagnose` | Trace a reported bug to its cause before any code changes. |
-| `studio-ops` | Work with Studio MCP, sync tools such as Rojo and Argon, and playtests. |
+| `studio-ops` | Work with Studio MCP, sync tools such as Script Sync, Rojo, Argon, and Azul, and playtests. |
 
 In Claude Code, run a skill by name, such as `/roblox-optimum:best-practices`.
 

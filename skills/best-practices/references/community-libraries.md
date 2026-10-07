@@ -82,6 +82,14 @@ Declarative UI component bodies have their own internal structure (state → der
 - Fusion: scope/`doCleanup` handles cleanup — treat the scope like a trove.
 - React-lua: effects clean up in their return function; never connect RBXScriptSignals outside `useEffect`.
 
+## ECS: Jecs
+
+Jecs (`Ukendio/jecs`, MIT) is an Entity Component System: data lives in components keyed by entity ids, and behavior lives in systems that query the world. Jecs ships the world, entities, components, relationships and queries, but no scheduler; the project brings its own. Adapt to it rather than wrapping it in Services:
+
+- The section layout applies to each system or component-definition file; a system's body is the FUNCTIONS section, and its registration with the project's scheduler the INITIALIZATION.
+- Systems query the world instead of holding Instance references, so cleanup means deleting the entity (and any Instance it owns), not disconnecting per-object connections.
+- Replication is the project's own choice; server systems still validate every client input before writing components.
+
 ## Precedence summary
 
 | Concern | If library present | Skill fallback |

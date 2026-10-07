@@ -230,7 +230,7 @@ Section-header deviations, subsection ordering, naming casing, module require or
 Two more shapes that look like violations:
 
 - The `workspace` global is explicitly allowed ([SKILL.md](../SKILL.md#language--style-rules)) — flagging it as service-indexing is simply wrong.
-- A deliberate legacy choice (classic chat where `TextChatService` would fit, `ContextActionService` in a project that never adopted the Input Action System) is a design decision. Mention the modern alternative once as Advisory if genuinely useful, then drop it — never as a violation.
+- A deliberate legacy choice (`ContextActionService` in a project that never adopted the Input Action System) is a design decision. Mention the modern alternative once as Advisory if genuinely useful, then drop it — never as a violation. Legacy chat is not such a choice: it was removed, and Roblox auto-migrated unmigrated experiences to `TextChatService` or disabled their chat ([DevForum](https://devforum.roblox.com/t/-/3237100)), so code that customizes it is dead code, a valid Advisory.
 
 ### Documentation Comments — one real finding, the rest Advisory
 

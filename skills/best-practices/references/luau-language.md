@@ -66,7 +66,7 @@ The rules that silently produce wrong behavior rather than an error. None is exo
 
 ### The new type solver — what is on by default
 
-Reached **[GA] general release** ([api-currency.md](api-currency.md#luau-language-and-libraries)). It is a rewrite, not a tweak: better inference, fewer false positives, read-only table properties, refinements that track variable changes, type functions, and relaxed casting rules.
+Reached **[GA] general release** ([DevForum announcement](https://devforum.roblox.com/t/general-release-luau%E2%80%99s-new-type-solver/4084991), [api-currency.md](api-currency.md#luau-language-and-libraries)). It is a rewrite, not a tweak: better inference, fewer false positives, read-only table properties, refinements that track variable changes, type functions, and relaxed casting rules.
 
 - **Default for `--!nocheck` and `--!nonstrict`** for all users. Projects on those modes are already using it.
 - **`--!strict` stays on the old solver by default** and must opt in explicitly. The old solver remains available during the migration window; confirm it is still there before relying on it ([api-currency.md](api-currency.md#luau-language-and-libraries)).
@@ -121,7 +121,9 @@ Luau is not Lua 5.1 minus nothing. These are gone or restricted at the language 
 - **The global table, the library tables, and the string metatable are read-only.** Monkey-patching a built-in fails, whether by assignment, `rawset`, or `setmetatable`.
 - **`getfenv`/`setfenv` still exist** in Roblox for backwards compatibility, but using either forces the compiler into a slower dynamic path for the whole script and is banned here regardless.
 
-Rejected outright, so never suggested as a workaround: **`goto`**, **integer types and the `&`/`|` bitwise operators** (`bit32` is the answer — all numbers are doubles), **ephemeron weak tables**, and **`__gc` finalizers**. That last one matters: there is no finalizer to hang cleanup on, which is why every rule here demands an explicit teardown path ([patterns/lifecycle.md](patterns/lifecycle.md#lifecycle--cleanup)).
+Rejected outright, so never suggested as a workaround: **`goto`**, **the `&`/`|` bitwise operators** (`bit32` is the answer), **ephemeron weak tables**, and **`__gc` finalizers**. That last one matters: there is no finalizer to hang cleanup on, which is why every rule here demands an explicit teardown path ([patterns/lifecycle.md](patterns/lifecycle.md#lifecycle--cleanup)).
+
+A 64-bit integer type is an accepted RFC upstream, not a Roblox feature: no Roblox release confirms it, so every number is still a double and `bit32` stays the answer ([api-currency.md](api-currency.md#luau-language-and-libraries)).
 
 ## Standard library — recent additions
 

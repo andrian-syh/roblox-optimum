@@ -3,7 +3,7 @@ name: code-review
 description: "Reviews and audits existing Roblox/Luau code. Use whenever the user asks to review, check, or audit a file, diff, pull request, place, or system, asks whether their code is safe, good, or exploitable, or wants its architectural health or maturity scored - even when Roblox or Luau is never named but the code is a game script. Finds leaks, exploits, and data-loss risks, reports one severity per finding (Blocker / Correctness / Advisory) behind a confidence gate, and scores one system 1-5 across security, lifecycle, CPU, network, data safety, and structure. Hand-offs: writing or refactoring code goes to the best-practices skill, chasing a reported symptom with no file named to the diagnose skill, Studio tooling, sync, or playtest questions to the studio-ops skill."
 license: MIT
 metadata:
-  version: "1.11.4"
+  version: "1.11.5"
 ---
 
 # Roblox Code Review
@@ -93,6 +93,7 @@ than restating them. Read the one that matches the finding.
 - [performance.md](../best-practices/references/performance.md) — hot loops, memory, physics queries, rendering, profiling
 - [style-rules.md](../best-practices/references/style-rules.md) — deprecated APIs, naming, module hygiene, the misremembered-API table
 - [section-layout.md](../best-practices/references/section-layout.md) — layout and Documentation Comment rules, for Advisory findings only
+- [monetization-policy.md](../best-practices/references/monetization-policy.md) — ProcessReceipt, purchase verification, regional prices, policy gating
 - [limits-budgets.md](../best-practices/references/limits-budgets.md) — platform ceilings; grep the row, do not read it whole
 - [api-currency.md](../best-practices/references/api-currency.md) — before calling any API missing, wrong, or new, and for the full deprecation inventory this skill reports only part of
 - [workflow.md](../best-practices/references/workflow.md#reviewrefactor-mode) — the severity model and confidence gate in full, which the card above summarises

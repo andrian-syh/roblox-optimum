@@ -88,10 +88,10 @@ failures.
 
 | Environment | What it changes | What it hides or invents |
 |---|---|---|
-| Play Solo | One peer is both client and server | Every replication defect, and remote validation gaps |
+| Play Solo | Separate client and server simulations, one player | Defects that need a second player: ownership disputes, replication order between clients |
 | The Edit context | A separate VM from the running game | State the game holds; results that do not carry over |
 | Play mode in Studio | Changes are discarded when it stops | A fix that appears to work and was never saved |
-| Studio on a developer machine | Higher frame rate, no network latency | Races that only lose on slow devices or slow links |
+| Studio on a developer machine | Higher frame rate, no network latency unless the Network Simulator adds latency, jitter, and loss | Races that only lose on slow devices or slow links |
 | A single client | No second peer to disagree | Ownership, replication order, and streaming defects |
 
 Before treating a Studio observation as evidence about the live game, say which of these applies.
@@ -174,6 +174,8 @@ What to reach for before giving up:
   The environment table above lists what each adds.
 - **Ask for the missing half of the observation.** Frequency, timing, device, player count, and
   whether it survived a rejoin are usually absent from the first report and usually decisive.
+- **Read what the live game already recorded.** The Analytics **Error Report** keeps client and server errors with stack traces and filters to errors new since a place version; the Developer Console **Luau Heap** snapshots, compared over time on client or server, show what still pins an unparented instance in a live session.
+- **Observe without editing.** A Studio **logpoint** logs values without pausing or changing code, and **Trigger At** limits it to Client, Server, or Edit, so it leaves nothing to remove.
 - **Add the observation to the game rather than the guess.** Structured logging on the suspect
   path turns the next occurrence into evidence. This is the honest answer when the symptom is
   rare, and it is cheaper than a speculative fix that cannot be verified either.

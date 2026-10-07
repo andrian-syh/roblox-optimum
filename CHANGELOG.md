@@ -6,6 +6,46 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.5] - 2026-10-07
+
+### Added
+
+- Added ten deprecated members to the review list, among them
+  `TextFilterResult:GetChatForUserAsync`, which now returns an empty string and is reported as a
+  correctness finding, `TeleportService:TeleportToSpawnByName`, `UserInputService.ModalEnabled`,
+  and `Mouse.KeyDown`.
+- Added `if local` and `if const` bindings, now in Studio beta, with guidance to keep them out of
+  shipped code until they leave beta.
+- Added the DataStore metadata total and per-type request queue limits, the full MessagingService
+  limits, the blocked port 1194, and the headers an Open Cloud request may carry.
+- Added regional pricing to the monetization rules: read prices from `GetProductInfo` and never
+  compare against a fixed Robux amount.
+- Added guidance for Jecs, an Entity Component System library.
+- Added the Analytics Error Report, Luau Heap snapshots, and Studio logpoints to the steps for a
+  bug that cannot be reproduced.
+
+### Changed
+
+- Changed the Azul guidance for Azul 2.0, where creating, renaming, moving, or deleting a file in
+  a live session also changes Studio, so a deleted file now deletes the instance.
+- Changed the Luau LSP guidance to the `luau-lsp.studioPlugin.*` setting names, the built-in
+  `@game` require alias, and `luau-lsp.analyzeLuaFiles`.
+- Changed touch-button guidance to bind on-screen buttons through the Input Action System, with
+  `ContextActionService` kept for existing projects.
+
+### Fixed
+
+- Fixed the claim that Luau rejected integer types. A 64-bit integer type is an accepted design
+  that Roblox has not shipped, so numbers remain doubles.
+- Fixed the script capability `AssetRequire`, which does not exist, to `LoadUnownedAsset`.
+- Fixed the Play Solo description. It runs a separate client and server with one player and hides
+  only defects that need a second player.
+- Fixed multi-client testing to name the Server & Clients mode, not Team Test.
+- Fixed legacy chat being treated as a valid design choice. It was removed, and a custom chat must
+  check `CanUserChatAsync` and `CanUsersDirectChatAsync`.
+- Fixed the Studio MCP guidance to say the standalone `studio-rust-mcp-server` is archived and to
+  point to the built-in server.
+
 ## [1.11.4] - 2026-10-02
 
 ### Added
@@ -523,6 +563,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.11.5]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.4...v1.11.5
 [1.11.4]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.3...v1.11.4
 [1.11.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.2...v1.11.3
 [1.11.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.1...v1.11.2
