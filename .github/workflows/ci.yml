@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# Nothing here writes to the repository, so no job gets more than a read of it.
+permissions:
+  contents: read
+
 jobs:
   check:
     # Most of what install does is paths and directories, and most Roblox developers are on
@@ -17,11 +21,12 @@ jobs:
         # The oldest Node package.json promises, and the current LTS line.
         node: ["18", "24"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: ${{ matrix.node }}
 
@@ -36,8 +41,10 @@ jobs:
       - name: Shipped changes require a version bump
         if: matrix.os == 'ubuntu-latest' && matrix.node == '24' && github.event_name == 'pull_request'
         shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          base="origin/${{ github.base_ref }}"
+          base="origin/$BASE_REF"
           shipped="skills agents hooks scripts rules AGENTS.md QWEN.md package.json plugin.json
             mcp.json mcp_config.json qwen-extension.json .claude-plugin .codex-plugin
             .cursor-plugin .agents .github/plugin .github/agents .github/copilot-instructions.md

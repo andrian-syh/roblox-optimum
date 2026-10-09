@@ -115,6 +115,17 @@ beyond the Agent Skills specification:
    git push origin main v1.2.3
    ```
 
+7. Approve the `publish` job in the **Actions** tab. The `npm` environment holds the job until its
+   reviewer approves.
+8. When the job finishes, the release is staged on npm, not published. Publish it with two-factor
+   authentication, on npmjs.com or from a terminal:
+
+   ```bash
+   npm stage list roblox-optimum
+   npm stage approve <stage-id>
+   ```
+
 The `Publish` workflow runs the tests on every platform, checks that the tag matches
-`package.json`, and publishes to npm with trusted publishing. It skips a version the registry
-already holds. On a pull request, CI fails when a shipped file changes without a version bump.
+`package.json`, and stages the release on npm with trusted publishing. It skips a version the
+registry already holds. Every action in a workflow is pinned to a commit, and Dependabot raises
+the pins. On a pull request, CI fails when a shipped file changes without a version bump.

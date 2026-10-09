@@ -4,6 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+# Every job starts read-only. The publish job adds the one permission it needs.
+permissions:
+  contents: read
+
 jobs:
   # A tag can point at a commit CI never saw, so the release runs the full chain itself, on both
   # systems CI covers, before anything reaches the registry.
@@ -13,9 +17,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: "24"
 
@@ -28,22 +34,29 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
+    # The environment holds the required reviewer, so a pushed tag waits for an approval before
+    # this job, the only one that can reach the registry, starts.
+    environment: npm
 
     permissions:
       contents: read
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+          persist-credentials: false
 
-      # Trusted publishing needs a recent npm, and the runner image lags behind.
-      - name: Use an npm that speaks OIDC
-        run: npm install -g npm@latest
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      # Staged publishing needs a recent npm, and the runner image lags behind. The version is
+      # exact because this job holds the publishing identity. Raise it by hand.
+      - name: Use an npm that stages
+        run: npm install -g npm@11.21.0
 
       - name: The tag must be the version being published
         run: |
@@ -64,8 +77,10 @@ jobs:
             echo "PUBLISHED=yes" >> "$GITHUB_ENV"
           fi
 
+      # The release is staged, not published. It reaches the registry only after a maintainer
+      # runs npm stage approve with two-factor authentication, so this workflow alone cannot ship.
       # --provenance signs the tarball against this workflow and commit, so anyone installing it
       # can verify where it was built. It needs the id-token permission granted above.
-      - name: Publish
+      - name: Stage the release
         if: env.PUBLISHED != 'yes'
-        run: npm publish --provenance
+        run: npm stage publish --provenance
