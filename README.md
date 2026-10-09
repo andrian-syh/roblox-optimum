@@ -33,6 +33,7 @@ The project is maintained and follows [Semantic Versioning](https://semver.org/)
 * [Check Luau with the checker](#check-luau-with-the-checker)
 * [Check Luau in Roblox Studio](#check-luau-in-roblox-studio)
 * [What the standards cover](#what-the-standards-cover)
+* [Official sources](#official-sources)
 * [Documentation](#documentation)
 * [Get help and contribute](#get-help-and-contribute)
 * [License](#license)
@@ -195,6 +196,16 @@ see
 
 [AGENTS.md](AGENTS.md) holds the full standards card.
 
+## Official sources
+
+roblox-optimum is published only in the repository `andrian-syh/roblox-optimum` on GitHub and as
+the npm package `roblox-optimum`. It has no installer, ZIP file, or executable to download. Do not
+run a copy from another account or package name that asks you to download one.
+
+Each npm release carries a provenance attestation that names this repository and its `Publish`
+workflow. To verify a release, or to report a copy that carries malware, see
+[SECURITY.md](SECURITY.md).
+
 ## Documentation
 
 | Document | Contents |
@@ -203,12 +214,14 @@ see
 | [AGENTS.md](AGENTS.md) | The standards card that every rule file is generated from. |
 | [CHANGELOG.md](CHANGELOG.md) | The changes in each release. |
 | [MAINTAINING.md](MAINTAINING.md) | Procedures for maintaining the repository and releasing a version. |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability, verify a release, and report a malicious copy. |
 
 ## Get help and contribute
 
 To report a bug, request a feature, or ask a question, open an issue in the
-[issue tracker](https://github.com/andrian-syh/roblox-optimum/issues). Before you open a pull
-request, run `npm test`, which runs the structural audit and every self-test.
+[issue tracker](https://github.com/andrian-syh/roblox-optimum/issues). Report a security problem
+privately, as [SECURITY.md](SECURITY.md) describes. Before you open a pull request, run
+`npm test`, which runs the structural audit and every self-test.
 
 ## License
 
