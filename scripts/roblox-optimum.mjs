@@ -189,6 +189,56 @@ export const DEPRECATED = [
     "Body* mover",
     "a constraint (LinearVelocity, AlignPosition, AlignOrientation, VectorForce)",
   ],
+  [
+    /:GetChatForUserAsync\s*\(/,
+    "TextFilterResult:GetChatForUserAsync()",
+    "TextChatService for chat, or GetNonChatStringForUserAsync() / GetNonChatStringForBroadcastAsync()",
+  ],
+  [
+    /:TeleportToSpawnByName\s*\(/,
+    "TeleportService:TeleportToSpawnByName()",
+    "TeleportService:TeleportAsync()",
+  ],
+  [
+    /\.CustomizedTeleportUI\b/,
+    "TeleportService.CustomizedTeleportUI",
+    "TeleportOptions:SetTeleportData() or TeleportService:SetTeleportGui()",
+  ],
+  [
+    /\.ModalEnabled\b/,
+    "UserInputService.ModalEnabled",
+    "GuiService.TouchControlsEnabled",
+  ],
+  [
+    /(?:\w*[Uu]ser[Ii]nput[Ss]ervice\w*|GetService\s*\([^)]*\))[:.](?:GetUserCFrame|UserCFrameChanged|UserHeadCFrame)\b/,
+    "UserInputService VR member",
+    "VRService:GetUserCFrame() / VRService.UserCFrameChanged",
+  ],
+  [
+    /:BindActionToInputTypes\s*\(/,
+    "ContextActionService:BindActionToInputTypes()",
+    "ContextActionService:BindAction()",
+  ],
+  [
+    /\.OnAdEvent\b/,
+    "AdGui.OnAdEvent",
+    "remove AdGui.OnAdEvent listener",
+  ],
+  [
+    /(?:\w*[Tt]eleport[Ss]ervice\w*|GetService\s*\([^)]*\)):ReserveServer\s*\(/,
+    "TeleportService:ReserveServer()",
+    "TeleportService:ReserveServerAsync() or TeleportOptions.ShouldReserveServer = true",
+  ],
+  [
+    /:(?:TeleportToPlaceInstance|TeleportToPrivateServer|TeleportPartyAsync)\s*\(/,
+    "TeleportToPlaceInstance() / TeleportToPrivateServer() / TeleportPartyAsync()",
+    "TeleportService:TeleportAsync() with TeleportOptions",
+  ],
+  [
+    /:Tween(?:Position|Size|SizeAndPosition)\s*\(/,
+    "GuiObject:TweenPosition() / TweenSize() / TweenSizeAndPosition()",
+    "TweenService:Create()",
+  ],
 ];
 
 /**
@@ -723,6 +773,13 @@ function fromToolArgs(args) {
   return PATH_KEYS.map((key) => read?.[key]).find((value) => typeof value === "string");
 }
 
+/** The project root a hook payload names, across the keys each host sends it under. */
+function payloadRoot(payload) {
+  return typeof payload?.cwd === "string"
+    ? payload.cwd
+    : (payload?.workspacePaths?.[0] ?? payload?.workspaceRoots?.[0] ?? process.cwd());
+}
+
 /**
  * Returns the files a post-write hook payload says were written. Hosts report the path in
  * different shapes, so every known shape is read and one hook entry serves any of them.
@@ -734,8 +791,7 @@ export function targetsFromPayload(payload) {
     fromToolArgs(payload?.toolCall?.args) ??
     fromToolArgs(payload?.toolArgs) ??
     fromToolArgs(payload?.postToolUse?.parameters);
-  const base =
-    typeof payload?.cwd === "string" ? payload.cwd : (payload?.workspaceRoots?.[0] ?? process.cwd());
+  const base = payloadRoot(payload);
   if (typeof direct === "string") return [isAbsolute(direct) ? direct : resolve(base, direct)];
 
   const command = payload?.tool_input?.command;
@@ -1313,6 +1369,13 @@ const PLUGIN_HOOKS = {
   }),
   antigravity: (command) => ({
     [PLUGIN]: {
+      SessionStart: [{ type: "command", command: `${command} --session`, timeout: 10 }],
+      PreToolUse: [
+        {
+          matcher: ANTIGRAVITY_WRITES,
+          hooks: [{ type: "command", command: `${command} --pre-write`, timeout: 10 }],
+        },
+      ],
       PostToolUse: [
         {
           matcher: ANTIGRAVITY_WRITES,
@@ -1332,6 +1395,8 @@ const PLUGIN_PAYLOAD = [
   "skills",
   "agents",
   "rules",
+  "assets",
+  "hooks.json",
   "AGENTS.md",
   "package.json",
   join("scripts", "roblox-optimum.mjs"),
@@ -1431,7 +1496,10 @@ function installPlugin(root, route, force, report) {
     writeFileSync(file, AGENT_FORMS[route.agents](readFileSync(file, "utf8").replace(/\r\n/g, "\n")));
   }
 
-  const command = `node "${join(dir, "scripts", "roblox-optimum.mjs")}"`;
+  const command =
+    route.hooks === "antigravity"
+      ? "node scripts/roblox-optimum.mjs"
+      : `node "${join(dir, "scripts", "roblox-optimum.mjs")}"`;
   const hooksFile = join(dir, route.hooksFile ?? "hooks.json");
   mkdirSync(dirname(hooksFile), { recursive: true });
   writeFileSync(hooksFile, `${JSON.stringify(PLUGIN_HOOKS[route.hooks](command), null, 2)}\n`);
@@ -2539,9 +2607,12 @@ async function readPayload() {
   }
 }
 
-/** Prints context the way Claude Code and Codex both add it to the conversation. */
-function addContext(event, text) {
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: event, additionalContext: text } }));
+/** Prints context in the shape the calling host adds to the conversation. */
+function addContext(event, text, payload) {
+  const out = Array.isArray(payload?.workspacePaths)
+    ? { injectSteps: [{ ephemeralMessage: text }] }
+    : { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
+  process.stdout.write(JSON.stringify(out));
 }
 
 /**
@@ -2552,9 +2623,13 @@ async function runSessionStart(summarized) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
 
   const payload = await readPayload();
-  if (payload === null || !isRobloxProject(payload.cwd || process.cwd())) return 0;
+  if (payload === null || !isRobloxProject(payloadRoot(payload))) return 0;
 
-  addContext("SessionStart", summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START);
+  addContext(
+    "SessionStart",
+    summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START,
+    payload,
+  );
   return 0;
 }
 
@@ -2577,11 +2652,11 @@ async function runPreWrite() {
   const payload = await readPayload();
   if (payload === null) return 0;
 
-  const cwd = payload.cwd || process.cwd();
+  const cwd = payloadRoot(payload);
   const luau = targetsFromPayload(payload).some(
     (p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)),
   );
-  if (luau) addContext("PreToolUse", PRE_WRITE);
+  if (luau) addContext("PreToolUse", PRE_WRITE, payload);
   return 0;
 }
 
@@ -2595,14 +2670,14 @@ async function runPromptRoute() {
   const payload = await readPayload();
   if (typeof payload?.prompt !== "string") return 0;
 
-  const route = routePrompt(payload.prompt, isRobloxProject(payload.cwd || process.cwd()));
+  const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
   const load =
     route.skill === null
       ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
       : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
-  addContext("UserPromptSubmit", `${load} Mention roblox-optimum to the user the first time it shapes an answer.`);
+  addContext("UserPromptSubmit", `${load} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
   return 0;
 }
 
@@ -3281,6 +3356,25 @@ Players.PlayerAdded:Connect(greet)
     targetsFromPayload({ workspaceRoots: ["/w"], postToolUse: { tool: "write_to_file", parameters: { path: "src/a.luau" } } })[0] ===
       resolve("/w", "src/a.luau"),
     "a Cline payload names its file under postToolUse, relative to the workspace",
+  );
+  ok(
+    targetsFromPayload({ workspacePaths: ["/ag"], toolCall: { name: "write_to_file", args: { TargetFile: "src/a.luau" } } })[0] ===
+      resolve("/ag", "src/a.luau"),
+    "an Antigravity payload resolves a relative path against workspacePaths",
+  );
+  ok(
+    PLUGIN_HOOKS.antigravity("node scripts/roblox-optimum.mjs")[PLUGIN].SessionStart[0].command ===
+      "node scripts/roblox-optimum.mjs --session",
+    "the Antigravity plugin hook includes SessionStart and PreToolUse",
+  );
+  ok(
+    inspect(good.replace("print(player.Name)", "TeleportService:ReserveServer(123)")).some((p) =>
+      p.includes("ReserveServerAsync"),
+    ) &&
+      inspect(good.replace("print(player.Name)", "frame:TweenPosition(UDim2.new())")).some((p) =>
+        p.includes("TweenService:Create"),
+      ),
+    "newly deprecated TeleportService and GuiObject methods are caught",
   );
   ok(CLINE_WRITES.test("replace_in_file") && !CLINE_WRITES.test("read_file"), "the Cline hook checks writes, not reads");
 

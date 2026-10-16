@@ -1,0 +1,43 @@
+{
+  "roblox-optimum": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node scripts/roblox-optimum.mjs --session",
+        "timeout": 10
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/roblox-optimum.mjs --pre-write",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/roblox-optimum.mjs --hook antigravity",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node scripts/roblox-optimum.mjs --hook antigravity",
+        "timeout": 15
+      }
+    ]
+  }
+}
+

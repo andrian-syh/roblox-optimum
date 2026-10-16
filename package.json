@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.11.5",
+  "version": "1.12.0",
   "description": "Roblox and Luau standards for AI agents, paired with a deterministic static checker.",
   "keywords": [
     "roblox",
@@ -24,8 +24,10 @@
     "skills/",
     "agents/",
     "rules/",
+    "assets/",
     "AGENTS.md",
     "plugin.json",
+    "hooks.json",
     ".cursor-plugin/",
     "mcp.json",
     "mcp_config.json",

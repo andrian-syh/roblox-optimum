@@ -1,7 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "roblox-optimum",
-  "version": "1.11.5",
+  "displayName": "Roblox Optimum",
+  "version": "1.12.0",
   "description": "Professional Roblox and Luau standards for AI agents: server-authoritative, leak-free, framework-agnostic, and laid out the same way in every file.",
   "author": {
     "name": "andrian-syh",
@@ -10,6 +11,13 @@
   "homepage": "https://github.com/andrian-syh/roblox-optimum",
   "repository": "https://github.com/andrian-syh/roblox-optimum",
   "license": "MIT",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Review my Roblox script for exploits, memory leaks, and deprecated APIs",
+    "Audit this Roblox project and score its systems",
+    "Diagnose why leaderstats reset or remotes fire twice",
+    "Write a server-authoritative shop or DataStore module in Luau"
+  ],
   "keywords": [
     "roblox",
     "luau",

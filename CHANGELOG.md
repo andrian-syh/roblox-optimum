@@ -6,6 +6,46 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-10-16
+
+To upgrade from 1.11.5:
+
+- Run `npx roblox-optimum install --global --force` once, to replace the Antigravity plugin and its
+  hook configuration.
+
+### Added
+
+- Added MCP resources (`resources/list` and `resources/read`) that serve the 35 reference pages
+  under `roblox-optimum://references/*`, and MCP prompts (`review_luau`, `diagnose_symptom`, and
+  `scaffold_luau`) that pair a task with the invariant standards card.
+- Added structured output (`outputSchema` and `structuredContent`) to the `check_luau` MCP tool, so
+  hosts that read structured tool results receive `{ clean, count, findings }` alongside the text
+  report.
+- Added checks and explanations for the ten deprecated members added to the review list in 1.11.5:
+  `TextFilterResult:GetChatForUserAsync()`, `TeleportService:ReserveServer()`,
+  `TeleportService:TeleportToPlaceInstance()`, `TeleportToPrivateServer()`, `TeleportPartyAsync()`,
+  `TeleportToSpawnByName()`, `TeleportService.CustomizedTeleportUI`,
+  `UserInputService.ModalEnabled`, the `UserInputService` VR members,
+  `ContextActionService:BindActionToInputTypes()`, `AdGui.OnAdEvent`, and
+  `GuiObject:TweenPosition()`, `TweenSize()`, and `TweenSizeAndPosition()`.
+- Added `SessionStart` and `PreToolUse` hooks to the Antigravity plugin, a root `hooks.json` for
+  workspace plugin checkouts, and `displayName`, `logo`, and `suggestedPrompts` metadata in
+  `plugin.json`.
+
+### Changed
+
+- Changed the MCP server to speak protocol revision `2026-07-28` (`server/discover` and per-request
+  protocol version checks) alongside `2025-11-25`, `2025-06-18`, `2025-03-26`, and `2024-11-05`.
+- Changed `INSTALL.md` and `README.md` to group each agent's install, verify, update, and uninstall
+  steps into collapsible `<details>` sections.
+
+### Fixed
+
+- Fixed the Antigravity plugin hook failing on Windows with `MODULE_NOT_FOUND` because the hook
+  command quoted an absolute path inside the plugin directory.
+- Fixed the hooks missing the project root when Antigravity passes the workspace path under
+  `workspacePaths`.
+
 ## [1.11.5] - 2026-10-07
 
 ### Added
@@ -563,6 +603,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.12.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.4...v1.11.5
 [1.11.4]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.3...v1.11.4
 [1.11.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.2...v1.11.3

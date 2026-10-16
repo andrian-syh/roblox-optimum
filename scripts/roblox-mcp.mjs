@@ -5,7 +5,7 @@
  */
 
 import { createInterface } from "node:readline";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,15 +13,22 @@ import { inspect, DEPRECATED, HAZARDS, CONTEXT_ERRORS, ranAsScript } from "./rob
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/**
- * The protocol revision this server is written against: the newest one that still opens with
- * an `initialize` handshake. The revision after it makes MCP stateless and drops that handshake,
- * which is a different server rather than a newer one.
- */
+/** The stateless MCP revision this server speaks alongside the handshake era. */
+const MODERN_PROTOCOL = "2026-07-28";
+
+/** The newest revision that still opens with an `initialize` handshake. */
 const PROTOCOL = "2025-11-25";
 
 /** Earlier revisions whose shapes this server still answers correctly. */
 const ALSO_SPOKEN = ["2025-06-18", "2025-03-26", "2024-11-05"];
+
+const SUPPORTED_VERSIONS = [MODERN_PROTOCOL, PROTOCOL, ...ALSO_SPOKEN];
+
+const INSTRUCTIONS =
+  "For Roblox or Luau work, whether or not the user names this server: call get_standards " +
+  "once before writing Luau, and check_luau on every script written or edited before " +
+  "handing it back, including source read out of Studio. Findings are one line each; " +
+  "explain_finding expands one into the rule behind it.";
 
 /** The version this package ships, which the client reads back in `serverInfo`. */
 const VERSION = (() => {
@@ -215,6 +222,62 @@ export const EXPLANATIONS = {
       "matches the force you meant.",
     read: "style-rules.md",
   },
+  "TextFilterResult:GetChatForUserAsync()": {
+    why:
+      "GetChatForUserAsync now returns an empty string, so code calling it silently displays " +
+      "nothing to the player.",
+    instead:
+      "TextChatService for chat filtering, or GetNonChatStringForUserAsync() / " +
+      "GetNonChatStringForBroadcastAsync() for non-chat text.",
+    read: "api-currency.md",
+  },
+  "TeleportService:TeleportToSpawnByName()": {
+    why: "TeleportToSpawnByName is deprecated in favor of the unified TeleportAsync API.",
+    instead: "TeleportService:TeleportAsync() with a TeleportOptions instance.",
+    read: "api-currency.md",
+  },
+  "TeleportService.CustomizedTeleportUI": {
+    why: "CustomizedTeleportUI is deprecated and no longer has any effect.",
+    instead: "TeleportService:SetTeleportGui() or TeleportOptions:SetTeleportData().",
+    read: "api-currency.md",
+  },
+  "UserInputService.ModalEnabled": {
+    why: "ModalEnabled is deprecated for toggling mobile touch controls.",
+    instead: "GuiService.TouchControlsEnabled.",
+    read: "api-currency.md",
+  },
+  "UserInputService VR member": {
+    why: "VR tracking properties and methods on UserInputService moved to VRService.",
+    instead: "VRService:GetUserCFrame() and VRService.UserCFrameChanged.",
+    read: "api-currency.md",
+  },
+  "ContextActionService:BindActionToInputTypes()": {
+    why: "BindActionToInputTypes is deprecated and superseded by BindAction.",
+    instead: "ContextActionService:BindAction(), or the Input Action System.",
+    read: "api-currency.md",
+  },
+  "AdGui.OnAdEvent": {
+    why: "AdGui.OnAdEvent was deprecated in engine v734.",
+    instead: "Remove the AdGui.OnAdEvent listener.",
+    read: "api-currency.md",
+  },
+  "TeleportService:ReserveServer()": {
+    why: "ReserveServer was deprecated at engine v702 in favor of its Async counterpart.",
+    instead:
+      "TeleportService:ReserveServerAsync(), or set TeleportOptions.ShouldReserveServer = true " +
+      "on TeleportAsync().",
+    read: "patterns/network.md",
+  },
+  "TeleportToPlaceInstance() / TeleportToPrivateServer() / TeleportPartyAsync()": {
+    why: "Legacy teleport methods were deprecated at engine v735 in favor of TeleportAsync.",
+    instead: "TeleportService:TeleportAsync() configured with a TeleportOptions instance.",
+    read: "patterns/network.md",
+  },
+  "GuiObject:TweenPosition() / TweenSize() / TweenSizeAndPosition()": {
+    why: "Callback-based GuiObject tween helpers are deprecated in the engine dump.",
+    instead: "TweenService:Create() on the GuiObject's Position or Size properties.",
+    read: "api-currency.md",
+  },
   "Section order": {
     why:
       "Every script reads the same way: what it holds, what it can do, then what it does on " +
@@ -278,6 +341,15 @@ const TOOLS = [
       },
       required: ["source"],
     },
+    outputSchema: {
+      type: "object",
+      properties: {
+        clean: { type: "boolean" },
+        count: { type: "integer" },
+        findings: { type: "array", items: { type: "string" } },
+      },
+      required: ["clean", "count", "findings"],
+    },
   },
   {
     name: "explain_finding",
@@ -314,6 +386,80 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {} },
   },
 ];
+
+const REFERENCES_ROOT = join(PACKAGE_ROOT, "skills", "best-practices", "references");
+const RESOURCE_PREFIX = "roblox-optimum://references/";
+
+/** Lists every markdown reference page under `skills/best-practices/references/` as an MCP resource. */
+function listResources(dir = REFERENCES_ROOT, prefix = "") {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const name of readdirSync(dir).sort()) {
+    const full = join(dir, name);
+    const rel = prefix ? `${prefix}/${name}` : name;
+    if (statSync(full).isDirectory()) out.push(...listResources(full, rel));
+    else if (name.endsWith(".md")) {
+      out.push({
+        uri: `${RESOURCE_PREFIX}${rel}`,
+        name: rel,
+        title: `Roblox Optimum reference: ${rel}`,
+        mimeType: "text/markdown",
+      });
+    }
+  }
+  return out;
+}
+
+/** Reads one reference resource by URI, or returns null when the URI is unknown or out of bounds. */
+function readResource(uri) {
+  if (typeof uri !== "string" || !uri.startsWith(RESOURCE_PREFIX)) return null;
+  const rel = uri.slice(RESOURCE_PREFIX.length);
+  if (!rel || rel.includes("..") || rel.startsWith("/") || rel.startsWith("\\")) return null;
+  const full = resolve(REFERENCES_ROOT, rel);
+  if (!full.startsWith(REFERENCES_ROOT) || !existsSync(full) || statSync(full).isDirectory()) return null;
+  return { uri, mimeType: "text/markdown", text: readFileSync(full, "utf8") };
+}
+
+const PROMPTS = [
+  {
+    name: "review_luau",
+    title: "Review Roblox Luau code",
+    description: "Audit a Roblox Luau script or system for exploits, leaks, and standards violations.",
+    arguments: [{ name: "code", description: "Luau source or file path to review.", required: true }],
+  },
+  {
+    name: "diagnose_symptom",
+    title: "Diagnose a Roblox game symptom",
+    description: "Isolate the root cause of a broken, duplicated, or intermittent Roblox behavior.",
+    arguments: [{ name: "symptom", description: "What goes wrong in the game.", required: true }],
+  },
+  {
+    name: "scaffold_luau",
+    title: "Write Roblox Luau following the standards",
+    description: "Author a Roblox script or module using the VARIABLES/FUNCTIONS/INITIALIZATION layout.",
+    arguments: [{ name: "task", description: "The system or script to build.", required: true }],
+  },
+];
+
+/** Builds the prompt response for one of the server's named prompts, or null when unknown. */
+function getPrompt(name, args) {
+  const prompt = PROMPTS.find((p) => p.name === name);
+  if (!prompt) return null;
+  const argName = prompt.arguments[0].name;
+  const value = typeof args?.[argName] === "string" ? args[argName] : "";
+  return {
+    description: prompt.description,
+    messages: [
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text: `${prompt.description}\n\n${invariantCard()}\n\nInput (${argName}):\n${value}`,
+        },
+      },
+    ],
+  };
+}
 
 /**
  * The explanation key a finding refers to, or null when none matches. The longest key wins,
@@ -352,16 +498,20 @@ export function runTool(name, args) {
     const named = typeof given.path === "string" ? given.path : "";
     const label = named !== "" ? named : "the source";
     const problems = inspect(given.source, named);
+    const structuredContent = { clean: problems.length === 0, count: problems.length, findings: problems };
 
     if (problems.length === 0) {
-      return text(`No findings in ${label}.`);
+      return { ...text(`No findings in ${label}.`), structuredContent };
     }
 
-    return text(
-      `Roblox standards check failed for ${label}:\n` +
-        problems.map((p) => `  - ${p}`).join("\n") +
-        `\n\nCall explain_finding on any line above for the rule behind it.`,
-    );
+    return {
+      ...text(
+        `Roblox standards check failed for ${label}:\n` +
+          problems.map((p) => `  - ${p}`).join("\n") +
+          `\n\nCall explain_finding on any line above for the rule behind it.`,
+      ),
+      structuredContent,
+    };
   }
 
   if (name === "explain_finding") {
@@ -408,8 +558,8 @@ function fail(body) {
 }
 
 /**
- * Answers one JSON-RPC message. A notification carries no id and is owed no answer, so it
- * returns null and the caller writes nothing.
+ * Answers one JSON-RPC message across both the stateless `2026-07-28` and handshake `2025-11-25`
+ * MCP eras. A notification carries no id and returns null.
  */
 export function handle(message) {
   if (message === null || typeof message !== "object" || Array.isArray(message)) {
@@ -425,23 +575,39 @@ export function handle(message) {
   }
   if (id === null) return null;
 
-  if (method === "initialize") {
-    const asked = params?.protocolVersion;
-    const speaks = asked === PROTOCOL || ALSO_SPOKEN.includes(asked);
-
-    return reply(id, {
-      protocolVersion: speaks ? asked : PROTOCOL,
-      capabilities: { tools: {} },
-      serverInfo: { name: "roblox-optimum", title: "Roblox Optimum standards", version: VERSION },
-      instructions:
-        "For Roblox or Luau work, whether or not the user names this server: call get_standards " +
-        "once before writing Luau, and check_luau on every script written or edited before " +
-        "handing it back, including source read out of Studio. Findings are one line each; " +
-        "explain_finding expands one into the rule behind it.",
+  const metaVersion = params?._meta?.["io.modelcontextprotocol/protocolVersion"];
+  if (metaVersion !== undefined && !SUPPORTED_VERSIONS.includes(metaVersion)) {
+    return error(id, -32022, "Unsupported protocol version", {
+      supported: [MODERN_PROTOCOL, PROTOCOL],
+      requested: metaVersion,
     });
   }
 
-  if (method === "tools/list") return reply(id, { tools: TOOLS });
+  if (method === "server/discover") {
+    return reply(id, {
+      supportedVersions: [MODERN_PROTOCOL, PROTOCOL],
+      capabilities: { tools: {}, resources: {}, prompts: {} },
+      instructions: INSTRUCTIONS,
+      ttlMs: 3600000,
+      cacheScope: "public",
+    });
+  }
+
+  if (method === "initialize") {
+    const asked = params?.protocolVersion;
+    const speaks = SUPPORTED_VERSIONS.includes(asked);
+
+    return reply(id, {
+      protocolVersion: speaks ? asked : PROTOCOL,
+      capabilities: { tools: {}, resources: {}, prompts: {} },
+      serverInfo: { name: "roblox-optimum", title: "Roblox Optimum standards", version: VERSION },
+      instructions: INSTRUCTIONS,
+    });
+  }
+
+  if (method === "tools/list") {
+    return reply(id, { tools: TOOLS, ttlMs: 3600000, cacheScope: "public" });
+  }
 
   if (method === "tools/call") {
     const result = runTool(params?.name, params?.arguments);
@@ -450,18 +616,52 @@ export function handle(message) {
       : reply(id, result);
   }
 
+  if (method === "resources/list") {
+    return reply(id, { resources: listResources(), ttlMs: 3600000, cacheScope: "public" });
+  }
+
+  if (method === "resources/read") {
+    const found = readResource(params?.uri);
+    return found === null
+      ? error(id, -32602, `Unknown resource URI: ${params?.uri}`)
+      : reply(id, { contents: [found], ttlMs: 3600000, cacheScope: "public" });
+  }
+
+  if (method === "prompts/list") {
+    return reply(id, { prompts: PROMPTS, ttlMs: 3600000, cacheScope: "public" });
+  }
+
+  if (method === "prompts/get") {
+    const found = getPrompt(params?.name, params?.arguments);
+    return found === null
+      ? error(id, -32602, `Unknown prompt: ${params?.name}`)
+      : reply(id, found);
+  }
+
   if (method === "ping") return reply(id, {});
 
   return error(id, -32601, `Unknown method: ${method}`);
 }
 
 function reply(id, result) {
-  return { jsonrpc: "2.0", id, result };
+  return {
+    jsonrpc: "2.0",
+    id,
+    result: {
+      resultType: "complete",
+      _meta: { "io.modelcontextprotocol/serverInfo": { name: "roblox-optimum", version: VERSION } },
+      ...result,
+    },
+  };
 }
 
 /** A JSON-RPC error envelope, addressed to nobody when the request carried no id. */
-function error(id, code, message) {
-  return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
+function error(id, code, message, data) {
+  return {
+    jsonrpc: "2.0",
+    id: id ?? null,
+    error: data === undefined ? { code, message } : { code, message, data },
+  };
 }
 
 /**
@@ -689,6 +889,80 @@ function selftest() {
   ok(
     JSON.stringify(multiline).split("\n").length === 1,
     "a result holding several lines still encodes to one, which the transport requires",
+  );
+
+  const disc = handle({ jsonrpc: "2.0", id: 40, method: "server/discover", params: {} });
+  ok(
+    disc.result.resultType === "complete" &&
+      disc.result.supportedVersions.includes(MODERN_PROTOCOL) &&
+      disc.result.supportedVersions.includes(PROTOCOL) &&
+      disc.result.cacheScope === "public" &&
+      disc.result._meta["io.modelcontextprotocol/serverInfo"].name === "roblox-optimum",
+    "server/discover returns Dual-Era 2026-07-28 capabilities, supportedVersions, and CacheableResult",
+  );
+  ok(
+    handle({
+      jsonrpc: "2.0",
+      id: 41,
+      method: "tools/list",
+      params: { _meta: { "io.modelcontextprotocol/protocolVersion": "1999-01-01" } },
+    }).error.code === -32022,
+    "an unsupported per-request _meta protocolVersion returns -32022 UnsupportedProtocolVersionError",
+  );
+  ok(
+    handle({
+      jsonrpc: "2.0",
+      id: 42,
+      method: "tools/list",
+      params: { _meta: { "io.modelcontextprotocol/protocolVersion": MODERN_PROTOCOL } },
+    }).result.resultType === "complete",
+    "a valid 2026-07-28 per-request _meta protocolVersion is accepted",
+  );
+  ok(
+    clean.structuredContent.clean === true &&
+      dirty.structuredContent.clean === false &&
+      dirty.structuredContent.count === 1,
+    "check_luau returns structuredContent matching its outputSchema",
+  );
+
+  const resList = handle({ jsonrpc: "2.0", id: 43, method: "resources/list" }).result.resources;
+  ok(
+    resList.length > 10 && resList.some((r) => r.uri === "roblox-optimum://references/api-currency.md"),
+    "resources/list exposes the markdown reference pool",
+  );
+  ok(
+    handle({
+      jsonrpc: "2.0",
+      id: 44,
+      method: "resources/read",
+      params: { uri: "roblox-optimum://references/api-currency.md" },
+    }).result.contents[0].text.includes("Deprecated"),
+    "resources/read returns the markdown text of a reference page",
+  );
+  ok(
+    handle({
+      jsonrpc: "2.0",
+      id: 45,
+      method: "resources/read",
+      params: { uri: "roblox-optimum://references/../package.json" },
+    }).error.code === -32602,
+    "resources/read rejects path traversal and unknown URIs with -32602",
+  );
+
+  const promptList = handle({ jsonrpc: "2.0", id: 46, method: "prompts/list" }).result.prompts;
+  ok(promptList.length === 3, "prompts/list exposes the three workflow prompts");
+  ok(
+    handle({
+      jsonrpc: "2.0",
+      id: 47,
+      method: "prompts/get",
+      params: { name: "review_luau", arguments: { code: "wait(1)" } },
+    }).result.messages[0].content.text.includes("VARIABLES"),
+    "prompts/get embeds the invariant card and user argument",
+  );
+  ok(
+    handle({ jsonrpc: "2.0", id: 48, method: "prompts/get", params: { name: "unknown" } }).error.code === -32602,
+    "an unknown prompt returns -32602",
   );
 
   if (failed > 0) {
