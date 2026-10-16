@@ -6,6 +6,22 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] - 2026-10-16
+
+### Removed
+
+- Removed the MCP prompts `review_luau`, `diagnose_symptom`, and `scaffold_luau`. Each duplicated a
+  skill (`code-review`, `diagnose`, and `best-practices`), and hosts listed them as extra slash
+  commands, such as `/plugin:roblox-optimum:roblox-optimum:review_luau` in Claude Code. Every
+  supported agent loads the skills, which carry the full instructions.
+
+### Fixed
+
+- Fixed `uninstall` removing the MCP server from only the first configuration file of a host, which
+  left an entry behind on a machine that has both the Devin Desktop and the Windsurf file. `doctor`
+  now reports every such file.
+- Fixed the documented number of reference pages the MCP server serves, which was 35 instead of 39.
+
 ## [1.12.0] - 2026-10-16
 
 To upgrade from 1.11.5:
@@ -603,6 +619,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.12.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.4...v1.11.5
 [1.11.4]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.3...v1.11.4

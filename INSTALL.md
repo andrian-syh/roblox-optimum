@@ -11,7 +11,7 @@
 | `skills` | The `best-practices`, `code-review`, `diagnose`, and `studio-ops` skills | project or machine |
 | `agent` | The `roblox-auditor` review subagent (for hosts that support Markdown subagents) | project or machine |
 | `hook` | A Git pre-commit hook, and Kiro's project file hook | project |
-| MCP server | `check_luau`, `explain_finding`, `get_standards`, reference resources, and prompts | machine |
+| MCP server | `check_luau`, `explain_finding`, `get_standards`, and reference resources | machine |
 
 ## Contents
 
@@ -800,8 +800,7 @@ The MCP server lets an agent check Luau scripts that live inside Roblox Studio a
 | Tool | `check_luau` | Checks Luau source and returns one finding per rule it breaks, plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and points to its reference page. |
 | Tool | `get_standards` | Returns the invariant standards card. |
-| Resources | `roblox-optimum://references/*` | Serves the 35 Markdown reference pages under `skills/best-practices/references/`. |
-| Prompts | `review_luau`, `diagnose_symptom`, `scaffold_luau` | Prompt templates with the invariant standards card included. |
+| Resources | `roblox-optimum://references/*` | Serves the Markdown reference pages under `skills/best-practices/references/`. |
 
 ### Use with Roblox Studio
 

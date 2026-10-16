@@ -131,8 +131,7 @@ The MCP server (`2026-07-28` and `2025-11-25`) checks Luau scripts inside Roblox
 | Tool | `check_luau` | Checks Luau source and returns line-by-line findings plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and links to its reference page. |
 | Tool | `get_standards` | Returns the Roblox Luau invariant standards card. |
-| Resources | `roblox-optimum://references/*` | Serves the 35 Markdown reference pages under `skills/best-practices/references/`. |
-| Prompts | `review_luau`, `diagnose_symptom`, `scaffold_luau` | Prompt templates with the invariant card included. |
+| Resources | `roblox-optimum://references/*` | Serves the Markdown reference pages under `skills/best-practices/references/`. |
 
 See [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp) for setup instructions.
 

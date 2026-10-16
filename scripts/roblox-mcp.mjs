@@ -420,47 +420,6 @@ function readResource(uri) {
   return { uri, mimeType: "text/markdown", text: readFileSync(full, "utf8") };
 }
 
-const PROMPTS = [
-  {
-    name: "review_luau",
-    title: "Review Roblox Luau code",
-    description: "Audit a Roblox Luau script or system for exploits, leaks, and standards violations.",
-    arguments: [{ name: "code", description: "Luau source or file path to review.", required: true }],
-  },
-  {
-    name: "diagnose_symptom",
-    title: "Diagnose a Roblox game symptom",
-    description: "Isolate the root cause of a broken, duplicated, or intermittent Roblox behavior.",
-    arguments: [{ name: "symptom", description: "What goes wrong in the game.", required: true }],
-  },
-  {
-    name: "scaffold_luau",
-    title: "Write Roblox Luau following the standards",
-    description: "Author a Roblox script or module using the VARIABLES/FUNCTIONS/INITIALIZATION layout.",
-    arguments: [{ name: "task", description: "The system or script to build.", required: true }],
-  },
-];
-
-/** Builds the prompt response for one of the server's named prompts, or null when unknown. */
-function getPrompt(name, args) {
-  const prompt = PROMPTS.find((p) => p.name === name);
-  if (!prompt) return null;
-  const argName = prompt.arguments[0].name;
-  const value = typeof args?.[argName] === "string" ? args[argName] : "";
-  return {
-    description: prompt.description,
-    messages: [
-      {
-        role: "user",
-        content: {
-          type: "text",
-          text: `${prompt.description}\n\n${invariantCard()}\n\nInput (${argName}):\n${value}`,
-        },
-      },
-    ],
-  };
-}
-
 /**
  * The explanation key a finding refers to, or null when none matches. The longest key wins,
  * so a name that contains a shorter one resolves to itself.
@@ -586,7 +545,7 @@ export function handle(message) {
   if (method === "server/discover") {
     return reply(id, {
       supportedVersions: [MODERN_PROTOCOL, PROTOCOL],
-      capabilities: { tools: {}, resources: {}, prompts: {} },
+      capabilities: { tools: {}, resources: {} },
       instructions: INSTRUCTIONS,
       ttlMs: 3600000,
       cacheScope: "public",
@@ -599,7 +558,7 @@ export function handle(message) {
 
     return reply(id, {
       protocolVersion: speaks ? asked : PROTOCOL,
-      capabilities: { tools: {}, resources: {}, prompts: {} },
+      capabilities: { tools: {}, resources: {} },
       serverInfo: { name: "roblox-optimum", title: "Roblox Optimum standards", version: VERSION },
       instructions: INSTRUCTIONS,
     });
@@ -625,17 +584,6 @@ export function handle(message) {
     return found === null
       ? error(id, -32602, `Unknown resource URI: ${params?.uri}`)
       : reply(id, { contents: [found], ttlMs: 3600000, cacheScope: "public" });
-  }
-
-  if (method === "prompts/list") {
-    return reply(id, { prompts: PROMPTS, ttlMs: 3600000, cacheScope: "public" });
-  }
-
-  if (method === "prompts/get") {
-    const found = getPrompt(params?.name, params?.arguments);
-    return found === null
-      ? error(id, -32602, `Unknown prompt: ${params?.name}`)
-      : reply(id, found);
   }
 
   if (method === "ping") return reply(id, {});
@@ -949,20 +897,10 @@ function selftest() {
     "resources/read rejects path traversal and unknown URIs with -32602",
   );
 
-  const promptList = handle({ jsonrpc: "2.0", id: 46, method: "prompts/list" }).result.prompts;
-  ok(promptList.length === 3, "prompts/list exposes the three workflow prompts");
   ok(
-    handle({
-      jsonrpc: "2.0",
-      id: 47,
-      method: "prompts/get",
-      params: { name: "review_luau", arguments: { code: "wait(1)" } },
-    }).result.messages[0].content.text.includes("VARIABLES"),
-    "prompts/get embeds the invariant card and user argument",
-  );
-  ok(
-    handle({ jsonrpc: "2.0", id: 48, method: "prompts/get", params: { name: "unknown" } }).error.code === -32602,
-    "an unknown prompt returns -32602",
+    !("prompts" in disc.result.capabilities) &&
+      handle({ jsonrpc: "2.0", id: 46, method: "prompts/list" }).error.code === -32601,
+    "the server offers no prompts, so hosts list the skills instead of duplicate commands",
   );
 
   if (failed > 0) {

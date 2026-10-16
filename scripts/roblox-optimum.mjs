@@ -2225,14 +2225,21 @@ function removePlugins(home, dry, removed, kept) {
 }
 
 /**
+ * Every existing MCP file of every host. Install writes only the first of a host's paths, but an
+ * older release or a renamed host may have written another, so cleanup and doctor read them all.
+ */
+function mcpFiles(home) {
+  return MCP_CONFIGS.flatMap((config) =>
+    config.paths.map((p) => join(home, p)).filter(existsSync).map((file) => ({ config, file })),
+  );
+}
+
+/**
  * Removes the MCP entries this tool wrote, leaving every other server in the file. An entry that
  * no longer matches what this tool writes was edited since, and belongs to whoever changed it.
  */
 function removeMcp(home, dry, removed, kept) {
-  for (const config of MCP_CONFIGS) {
-    const file = config.paths.map((p) => join(home, p)).find(existsSync);
-    if (file === undefined) continue;
-
+  for (const { config, file } of mcpFiles(home)) {
     let read;
     try {
       read = readJson(file);
@@ -2265,10 +2272,7 @@ function removeMcp(home, dry, removed, kept) {
 function registrations(home) {
   const out = [];
 
-  for (const config of MCP_CONFIGS) {
-    const file = config.paths.map((p) => join(home, p)).find(existsSync);
-    if (file === undefined) continue;
-
+  for (const { config, file } of mcpFiles(home)) {
     let server;
     try {
       server = readJson(file)?.[config.key]?.[PLUGIN];
@@ -3321,6 +3325,18 @@ Players.PlayerAdded:Connect(greet)
     PLUGIN_HOOKS.cursor('node "x"').hooks.postToolUse[0].command.endsWith("--hook cursor"),
     "the Cursor plugin hook reports through the shape Cursor reads back",
   );
+
+  const mcpHome = mkdtempSync(join(tmpdir(), "roblox-optimum-mcp-"));
+  const devin = MCP_CONFIGS.find((c) => c.paths.length > 1);
+  for (const p of devin.paths.slice(0, 2)) {
+    mkdirSync(dirname(join(mcpHome, p)), { recursive: true });
+    writeFileSync(join(mcpHome, p), JSON.stringify({ [devin.key]: { [PLUGIN]: devin.entry } }));
+  }
+  const mcpRemoved = [];
+  removeMcp(mcpHome, false, mcpRemoved, []);
+  const mcpLeft = registrations(mcpHome).length;
+  rmSync(mcpHome, { recursive: true, force: true });
+  ok(mcpRemoved.length === 2 && mcpLeft === 0, "uninstall clears the MCP entry from every file of a host, not the first only");
 
   const cache = mkdtempSync(join(tmpdir(), "roblox-optimum-cache-"));
   for (const v of ["1.0.0", "1.1.0"]) {
