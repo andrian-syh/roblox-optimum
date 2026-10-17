@@ -6,6 +6,12 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-10-18
+
+### Fixed
+
+- Fixed `doctor` failing with `sep is not defined` after `scripts/lib/` was extracted in 1.13.0.
+
 ## [1.13.0] - 2026-10-18
 
 ### Added
@@ -658,6 +664,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.13.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.1...v1.13.0
 [1.12.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.5...v1.12.0
