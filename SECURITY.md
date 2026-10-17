@@ -2,51 +2,54 @@
 
 ## Supported versions
 
-Only the latest release receives security fixes. Update before you report a problem.
+Security fixes are released for the current minor version only:
+
+| Version | Supported |
+|---|---|
+| `1.13.x` | Yes |
+| `< 1.13.0` | No — upgrade to the latest release first |
 
 ## Report a vulnerability
 
-Do not open a public issue for a security problem.
+Do **not** open a public GitHub issue for a security vulnerability.
 
-1. Open the [Security tab](https://github.com/andrian-syh/roblox-optimum/security) of the
-   repository.
-2. Select **Report a vulnerability**.
-3. Describe the problem, the version, the agent and operating system, and the steps to reproduce
-   it.
+1. Go to the repository [Security tab](https://github.com/andrian-syh/roblox-optimum/security).
+2. Click **Report a vulnerability** to open a private advisory.
+3. Include the `roblox-optimum` version, your agent host and operating system, and minimal steps or input to reproduce the issue.
 
-The report stays private until a fix is released. Expect a first reply within seven days.
+Reports remain private until a fix is published. You will receive an acknowledgment within 72 hours and a triage update within 7 days.
 
-## Official sources
+## Runtime and network boundaries
 
-roblox-optimum is published in two places only:
+* **Static text analysis only**: `roblox-optimum --check` and `roblox-mcp` read Luau files as plain text and never execute user code.
+* **Zero npm dependencies**: the package uses only Node.js built-in modules (`>= 18`) and defines no `preinstall` or `postinstall` scripts.
+* **Scoped file writes**: `install` and `uninstall` modify only the target agent configuration directories and never overwrite user-authored files (files without a `roblox-optimum` stamp or digest are left untouched).
+* **Read-only currency sync**: `npx roblox-optimum sync` (and the 24-hour background refresh on session start) sends read-only HTTPS `GET` requests to `raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker` and `api.github.com/repos/luau-lang/luau/releases/latest` with an 8-second timeout, writing only to the local cache (`~/.cache/roblox-optimum/currency-overlay.json` or `%LOCALAPPDATA%\roblox-optimum\`). Set `ROBLOX_OPTIMUM_OFFLINE=1` to disable all network requests.
 
-* The repository `https://github.com/andrian-syh/roblox-optimum`.
-* The npm package [`roblox-optimum`](https://www.npmjs.com/package/roblox-optimum).
+## Official distribution channels
 
-The project has no installer, ZIP file, executable, or browser extension to download, and no other
-account or package name publishes it. The package has no dependencies and no install scripts. The
-MCP server command is `roblox-mcp`, which ships inside the `roblox-optimum` package. Always start
-it as `npx -y -p roblox-optimum@latest roblox-mcp`. An npm package named `roblox-mcp` exists and is
-not part of this project.
+`roblox-optimum` is distributed exclusively through two official channels:
 
-## Verify a release
+* **GitHub**: [`https://github.com/andrian-syh/roblox-optimum`](https://github.com/andrian-syh/roblox-optimum)
+* **npm**: [`roblox-optimum`](https://www.npmjs.com/package/roblox-optimum)
 
-Each npm release is built by the `Publish` workflow of this repository and carries a provenance
-attestation. The package page on npmjs.com shows the source commit and the build file, which must
-be `andrian-syh/roblox-optimum` and `.github/workflows/publish.yml`. To check the attestation of an
-installed copy, run this command in the project that installed it:
+Note on package names and binaries:
+
+* Never download standalone ZIP archives, executables, or browser extensions claiming to be `roblox-optimum`.
+* The MCP server binary (`roblox-mcp`) ships inside the `roblox-optimum` npm package. Always invoke it via `npx -y -p roblox-optimum@latest roblox-mcp`. The separate `roblox-mcp` package on npm is unrelated to this project.
+
+## Verify package provenance
+
+Every npm release is built by `.github/workflows/publish.yml` on GitHub Actions and signed with an npm provenance attestation. To verify the provenance signature of an installed package, run:
 
 ```bash
 npm audit signatures
 ```
 
-## Report a copy that carries malware
+## Report malicious forks or impersonation
 
-The MIT License permits copies. A copy that carries malware, or that claims to be this project, is
-not permitted by GitHub or npm. If you find one:
+While the MIT License permits forking and redistribution, distributing malware or impersonating this project violates GitHub and npm terms of service. If you find a malicious copy:
 
-1. Do not run it.
-2. Report the repository to GitHub with **Report repository** on the repository page, or at
-   `https://support.github.com/contact/report-abuse`. Report an npm package with **Report malware**
-   on its package page.
-3. Tell the maintainer through the private report form above.
+1. Do not run or install it.
+2. Report the repository via **Report repository** on GitHub (`https://support.github.com/contact/report-abuse`) or via **Report malware** on npmjs.com.
+3. Notify the maintainer using the private vulnerability reporting link above.

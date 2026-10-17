@@ -4,7 +4,7 @@ argument-hint: "[ask|bal|go]"
 description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, sprint, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua or game design with no Luau to write."
 license: MIT
 metadata:
-  version: "1.12.1"
+  version: "1.13.0"
 ---
 
 # Roblox Game Development Best Practices
@@ -117,6 +117,7 @@ Everything below expands these; nothing below overrides them.
 - Tooling — a Studio MCP connection, a sync toolchain (Rojo, Argon, Script Sync, Azul), or proving a change works in a running session: the **studio-ops** skill owns all three
 - [false-positives.md](references/false-positives.md) — reviewing code: whether a finding is real, how severe, what NOT to flag
 - [review-checklist.md](references/review-checklist.md) — **finishing any task**: the completion gate before calling work done
+- [release-readiness.md](references/release-readiness.md) — **shipping or publishing a place**: `BindToClose`, `PolicyService` compliance, `ProcessReceipt` safety, Open Cloud CI/CD, and live-ops telemetry gates
 - [api-currency.md](references/api-currency.md) — whether a newer engine/Luau API is confirmed before relying on it or flagging it missing
 - [limits-budgets.md](references/limits-budgets.md) — platform ceilings: DataStore size/requests, MemoryStore, messaging, attributes, animation tracks
 

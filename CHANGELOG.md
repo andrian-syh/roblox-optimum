@@ -6,6 +6,45 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-10-18
+
+### Added
+
+- Added `npx roblox-optimum sync`, plus a non-blocking background refresh when a session starts (at
+  most once every 24 hours), which fetches the live Roblox engine version, unambiguous service-level
+  deprecations from the API dump, and the latest Luau release into a local cache. Set
+  `ROBLOX_OPTIMUM_OFFLINE=1` to disable network refresh.
+- Added the `roblox-optimum://references/live-currency.md` MCP resource, which serves the cached
+  live engine and Luau currency overlay alongside the bundled reference pages.
+- Added `release-readiness.md` under `skills/best-practices/references/`, covering the pre-publish
+  checklist for `BindToClose`, `ProcessReceipt` idempotency, `PolicyService` compliance,
+  `TextChatService` migration, `StreamingEnabled` replication safety, memory and network telemetry
+  gates, and Open Cloud CI/CD rollback.
+- Added a check for `DataStore:UpdateAsync()` transform callbacks that call `task.wait()`,
+  `wait()`, or `*Async()` methods, which Roblox aborts at runtime.
+- Added recursive directory scanning to `--check`, and a cross-file check for duplicate
+  `MarketplaceService.ProcessReceipt` assignments across the files in a single `--check` run.
+- Added `MemoryStoreService` to the server-only services checked in `.client.luau` files.
+- Added `runContext` (`"server"`, `"client"`, or `"shared"`) and Studio DataModel path prefix
+  detection (`ServerScriptService.`, `StarterPlayer.StarterPlayerScripts.`, and `StarterGui.`) to
+  the `check_luau` MCP tool, so scripts inside Roblox Studio receive context checks without a
+  `.server.luau` or `.client.luau` filename.
+- Added `.agent/rules/roblox-optimum.md` to `install rules`, alongside `.agents/rules/roblox-optimum.md`.
+
+### Changed
+
+- Updated the engine and Luau currency baseline to Engine v742/v743 and Luau 0.743 (`const`
+  variables, user-defined type functions, `RunService:BindToSimulation`, `Workspace:StepPhysics`,
+  and `AvatarSettings`), and adopted a rolling-window policy in `api-currency.md`.
+- Extracted the shared catalog, static checker, and live currency sync into `scripts/lib/` so the
+  CLI and MCP server load one copy of the rules and explanations.
+
+### Fixed
+
+- Fixed false positives on custom methods that share a name with a deprecated Roblox API, such as
+  `customTimer:Wait()`, `myQueue:Remove()`, `customPool:Destroy()`, and `Promise:Wait()`, by
+  requiring a Roblox receiver or service prefix on ambiguous method names.
+
 ## [1.12.1] - 2026-10-16
 
 ### Removed
@@ -619,6 +658,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.13.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.1...v1.13.0
 [1.12.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/andrian-syh/roblox-optimum/compare/v1.11.4...v1.11.5

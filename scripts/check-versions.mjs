@@ -135,6 +135,7 @@ const PLUGIN_FILES = [
   "mcp_config.json",
   "scripts/roblox-optimum.mjs",
   "scripts/roblox-mcp.mjs",
+  "scripts/lib/",
   "scripts/studio-mcp-antigravity.mjs",
 ];
 

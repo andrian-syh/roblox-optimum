@@ -104,23 +104,35 @@ Pass the level when invoking a skill (for example, `/roblox-optimum:best-practic
 ## Check Luau with the checker
 
 ```text
-$ npx roblox-optimum --check CoinService.luau
-Roblox standards check failed for CoinService.luau:
+$ npx roblox-optimum --check src/
+Roblox standards check failed for src/CoinService.luau:
   - Line 5: :connect() is deprecated. Use :Connect().
   - Line 6: wait() is deprecated. Use task.wait().
   - Line 8: Humanoid:LoadAnimation() is deprecated. Use Animator:LoadAnimation().
 ```
 
-The checker reports:
+Pass one or more files or directories to `--check` (directories are walked recursively). The checker reports:
 
 * **Deprecated APIs** and hazards (`RemoteFunction:InvokeClient`), along with their modern replacements.
+* **Yielding `DataStore:UpdateAsync()` callbacks**: transform callbacks that call `task.wait()`, `wait()`, or `*Async()` methods, which Roblox aborts at runtime.
+* **Duplicate `MarketplaceService.ProcessReceipt` assignments** across the files in a single `--check` run, since only the last callback assigned runs.
 * **Out-of-order section headers** (`VARIABLES`, `FUNCTIONS`, `INITIALIZATION`) in files that use them.
 * **Thread-freezing loops**: `while true do` or `repeat ... until false` loops that neither yield nor exit.
-* **Wrong-side members**: `LocalPlayer` and `UserInputService` in `.server.luau` files, and `DataStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` in `.client.luau` files.
+* **Wrong-side members**: `LocalPlayer` and `UserInputService` in `.server.luau` files, and `DataStoreService`, `MemoryStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` in `.client.luau` files.
 
 String literals and comments are ignored so prose never triggers false positives. Vendored directories (`Packages/`, `node_modules/`, etc.) are skipped automatically, and `.lua` files are checked only when they call Roblox APIs. Set `ROBLOX_OPTIMUM=off` to pause all checks temporarily.
 
-The checker finds patterns only. A clean result means no pattern matched, not that the code meets every standard.
+### Keep the checker current between releases (`sync`)
+
+Roblox ships a new engine build and API dump every week. The checker refreshes its live API currency overlay in the background when a session starts (at most once every 24 hours), or on demand:
+
+```bash
+npx roblox-optimum sync
+```
+
+`sync` fetches the live engine version, unambiguous service-level deprecations from the Roblox API dump, and the latest Luau release tag into a local cache (`~/.cache/roblox-optimum/currency-overlay.json` or `%LOCALAPPDATA%\roblox-optimum\`). Set `ROBLOX_OPTIMUM_OFFLINE=1` to disable network refresh in air-gapped or CI environments.
+
+> **Scope of the static checker:** `--check` matches deterministic syntax and API patterns in source text. For architectural, security, and logic review, run the `code-review` skill or the `roblox-auditor` subagent.
 
 ## Check Luau in Roblox Studio
 
@@ -128,10 +140,10 @@ The MCP server (`2026-07-28` and `2025-11-25`) checks Luau scripts inside Roblox
 
 | Capability | Name | Purpose |
 |---|---|---|
-| Tool | `check_luau` | Checks Luau source and returns line-by-line findings plus `structuredContent`. |
+| Tool | `check_luau` | Checks Luau source (with optional `path` or `runContext`: `"server"`, `"client"`, `"shared"`) and returns line-by-line findings plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and links to its reference page. |
 | Tool | `get_standards` | Returns the Roblox Luau invariant standards card. |
-| Resources | `roblox-optimum://references/*` | Serves the Markdown reference pages under `skills/best-practices/references/`. |
+| Resources | `roblox-optimum://references/*` | Serves the 40 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 See [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp) for setup instructions.
 

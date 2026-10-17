@@ -22,15 +22,53 @@ import {
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import {
+  CONTEXT_ERRORS,
+  DEPRECATED,
+  EXPLANATIONS,
+  HAZARDS,
+  ROBLOX_MARKERS,
+  SKIP_REASON,
+  VENDOR,
+  applyOverlay,
+  cacheDir,
+  overlayPath,
+  readOverlay,
+} from "./lib/catalog.mjs";
+import {
+  checkBatch,
+  checkFile,
+  expandPaths,
+  formatReport,
+  inspect,
+  stripNonCode,
+} from "./lib/checker.mjs";
+import {
+  extractUnambiguousDeprecations,
+  readLiveCurrencyResource,
+  renderLiveCurrencyMarkdown,
+  syncCurrency,
+  triggerBackgroundSyncIfStale,
+} from "./lib/currency-sync.mjs";
+
+export {
+  CONTEXT_ERRORS,
+  DEPRECATED,
+  EXPLANATIONS,
+  HAZARDS,
+  checkBatch,
+  checkFile,
+  expandPaths,
+  formatReport,
+  inspect,
+  stripNonCode,
+};
 
 /** The installed package, so `install` can read the standards it ships with. */
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-/** Proof that a source file is Roblox rather than another Lua dialect. */
-const ROBLOX_MARKERS =
-  /\bgame:GetService\s*\(|\bscript\.Parent\b|\bworkspace\b|\bInstance\.new\s*\(/;
 
 /** Files at a project's root that a Roblox toolchain leaves there, and nothing else does. */
 const PROJECT_MARKER =
@@ -131,301 +169,10 @@ export function routePrompt(prompt, inProject) {
   return hit === undefined ? { skill: null, why: null } : { skill: hit[1], why: hit[2] };
 }
 
-/**
- * APIs the skill forbids outright, each with the replacement to offer. A name community
- * libraries also expose needs its service named as the receiver, since a wrong complaint costs
- * more than a missed one.
- */
-export const DEPRECATED = [
-  [/(?<![.:\w])wait\s*\(/, "wait()", "task.wait()"],
-  [/(?<![.:\w])spawn\s*\(/, "spawn()", "task.spawn()"],
-  [/(?<![.:\w])delay\s*\(/, "delay()", "task.delay()"],
-  [/(?<![.:\w])tick\s*\(/, "tick()", "os.clock() or os.time()"],
-  [/:connect\s*\(/, ":connect()", ":Connect()"],
-  [/[Hh]umanoid[\w.]*:LoadAnimation\s*\(/, "Humanoid:LoadAnimation()", "Animator:LoadAnimation()"],
-  [
-    /[Aa]nimationController[\w.]*:LoadAnimation\s*\(/,
-    "AnimationController:LoadAnimation()",
-    "Animator:LoadAnimation()",
-  ],
-  [/:GetAnimationClip(?:ById)?\s*\(/, "GetAnimationClip() / GetAnimationClipById()", "GetAnimationClipAsync()"],
-  [/:SetPrimaryPartCFrame\s*\(/, "SetPrimaryPartCFrame()", "Model:PivotTo()"],
-  [/:GetPrimaryPartCFrame\s*\(/, "GetPrimaryPartCFrame()", "Model:GetPivot()"],
-  [/\.CoordinateFrame\b/, "Camera.CoordinateFrame", "Camera.CFrame"],
-  [/\.RotVelocity\b/, "BasePart.RotVelocity", "BasePart.AssemblyAngularVelocity"],
-  [/\.WorldRotation\b/, "Attachment.WorldRotation", "Attachment.WorldOrientation"],
-  [
-    /(?:\w*[Cc]ontent[Pp]rovider\w*|GetService\s*\([^)]*\)):Preload\s*\(/,
-    "ContentProvider:Preload()",
-    "ContentProvider:PreloadAsync()",
-  ],
-  [
-    /(?:\w*[Bb]adge[Ss]ervice\w*|GetService\s*\([^)]*\)):AwardBadge\s*\(/,
-    "BadgeService:AwardBadge()",
-    "BadgeService:AwardBadgeAsync()",
-  ],
-  [
-    /(?:\w*[Bb]adge[Ss]ervice\w*|GetService\s*\([^)]*\)):UserHasBadge\s*\(/,
-    "BadgeService:UserHasBadge()",
-    "BadgeService:UserHasBadgeAsync()",
-  ],
-  [
-    /:FilterStringForPlayerAsync\s*\(/,
-    "Chat:FilterStringForPlayerAsync()",
-    "TextService:FilterStringAsync()",
-  ],
-  [
-    /:(?:Make|Break)Joints\s*\(/,
-    "MakeJoints() / BreakJoints()",
-    "a WeldConstraint or HingeConstraint, created and destroyed directly",
-  ],
-  [
-    /:GetR(?:ank|ole)InGroup(?:Async)?\s*\(/,
-    "Player:GetRankInGroup() / GetRoleInGroup() (with or without Async)",
-    "GroupService:GetRolesInGroupAsync()",
-  ],
-  [
-    /\bBody(?:Velocity|Position|Gyro|AngularVelocity|Force|Thrust)\b/,
-    "Body* mover",
-    "a constraint (LinearVelocity, AlignPosition, AlignOrientation, VectorForce)",
-  ],
-  [
-    /:GetChatForUserAsync\s*\(/,
-    "TextFilterResult:GetChatForUserAsync()",
-    "TextChatService for chat, or GetNonChatStringForUserAsync() / GetNonChatStringForBroadcastAsync()",
-  ],
-  [
-    /:TeleportToSpawnByName\s*\(/,
-    "TeleportService:TeleportToSpawnByName()",
-    "TeleportService:TeleportAsync()",
-  ],
-  [
-    /\.CustomizedTeleportUI\b/,
-    "TeleportService.CustomizedTeleportUI",
-    "TeleportOptions:SetTeleportData() or TeleportService:SetTeleportGui()",
-  ],
-  [
-    /\.ModalEnabled\b/,
-    "UserInputService.ModalEnabled",
-    "GuiService.TouchControlsEnabled",
-  ],
-  [
-    /(?:\w*[Uu]ser[Ii]nput[Ss]ervice\w*|GetService\s*\([^)]*\))[:.](?:GetUserCFrame|UserCFrameChanged|UserHeadCFrame)\b/,
-    "UserInputService VR member",
-    "VRService:GetUserCFrame() / VRService.UserCFrameChanged",
-  ],
-  [
-    /:BindActionToInputTypes\s*\(/,
-    "ContextActionService:BindActionToInputTypes()",
-    "ContextActionService:BindAction()",
-  ],
-  [
-    /\.OnAdEvent\b/,
-    "AdGui.OnAdEvent",
-    "remove AdGui.OnAdEvent listener",
-  ],
-  [
-    /(?:\w*[Tt]eleport[Ss]ervice\w*|GetService\s*\([^)]*\)):ReserveServer\s*\(/,
-    "TeleportService:ReserveServer()",
-    "TeleportService:ReserveServerAsync() or TeleportOptions.ShouldReserveServer = true",
-  ],
-  [
-    /:(?:TeleportToPlaceInstance|TeleportToPrivateServer|TeleportPartyAsync)\s*\(/,
-    "TeleportToPlaceInstance() / TeleportToPrivateServer() / TeleportPartyAsync()",
-    "TeleportService:TeleportAsync() with TeleportOptions",
-  ],
-  [
-    /:Tween(?:Position|Size|SizeAndPosition)\s*\(/,
-    "GuiObject:TweenPosition() / TweenSize() / TweenSizeAndPosition()",
-    "TweenService:Create()",
-  ],
-];
-
-/**
- * Calls that are current and documented, yet still forbidden, each with what goes wrong. Kept
- * apart from DEPRECATED, since calling these deprecated would misstate why the line is wrong.
- */
-export const HAZARDS = [
-  [
-    /:InvokeClient\s*\(/,
-    "RemoteFunction:InvokeClient()",
-    "a client that returns nothing yields the calling server thread forever, and a client that " +
-      "errors or disconnects rethrows on the server. Fire a RemoteEvent and let the client reply " +
-      "on a second one",
-  ],
-];
-
-const SECTIONS = ["VARIABLES", "FUNCTIONS", "INITIALIZATION"];
-
-/**
- * Members that raise or read nil on one side of the network boundary, keyed by the filename
- * suffix that states the side. Only suffixes every sync tool agrees on, and only outright failures.
- */
-export const CONTEXT_ERRORS = [
-  {
-    suffix: /\.server\.luau?$/i,
-    side: "a server Script",
-    members: [
-      [/\.LocalPlayer\b/, "Players.LocalPlayer", "it is nil on the server; take the player from the event that fired"],
-      [/\bgame\s*\.\s*UserInputService\b/, "UserInputService", "input is client-only; send the result over a remote instead"],
-    ],
-  },
-  {
-    suffix: /\.client\.luau?$/i,
-    side: "a LocalScript",
-    members: [
-      [/\bgame\s*\.\s*DataStoreService\b/, "DataStoreService", "data stores are server-only; go through a remote"],
-      [/\bgame\s*\.\s*MessagingService\b/, "MessagingService", "cross-server messaging is server-only"],
-      [/\bgame\s*\.\s*ServerStorage\b/, "ServerStorage", "it does not replicate, so the client sees nothing"],
-      [/\bgame\s*\.\s*ServerScriptService\b/, "ServerScriptService", "it does not replicate, so the client sees nothing"],
-    ],
-  },
-];
-
-/**
- * A service is usually named inside the string `GetService` takes, which the strip blanks.
- * Matching that shape on the raw line reaches it, and the strip keeps every column, so a match
- * it kept is code while one it blanked is prose.
- */
-function serviceCall(name) {
-  return new RegExp(`(?:Get|Find)Service\\s*\\(\\s*["'\`]${name}["'\`]`);
-}
-
-/** Calls that hand the thread back to the scheduler, which is what keeps a loop from freezing it. */
-const YIELDS = /(?:\btask\.wait\b|(?<![.:\w])wait\s*\(|:[Ww]ait\s*\(|\bcoroutine\.yield\b|Async\s*\()/;
-
-/** What lets a loop body leave: a break, a return, or a raised error. A field named error is not one. */
-const EXITS = /\bbreak\b|\breturn\b|(?<![.:\w])error\s*\(/;
-
-/**
- * Calls known never to yield. A loop calling anything else might yield inside it, and a read
- * that cannot tell is not reported.
- */
-const NEVER_YIELDS =
-  /^(?:print|warn|tostring|tonumber|type|typeof|select|pairs|ipairs|next|rawget|rawset|rawequal|rawlen|assert|setmetatable|getmetatable|unpack|(?:math|string|table|bit32|buffer|utf8|vector)\.\w+|os\.(?:clock|time|date)|(?:Vector3|Vector2|CFrame|Color3|UDim2|UDim|Instance)\.\w+|task\.(?:spawn|defer|cancel)|coroutine\.(?:create|wrap|resume|status|running))$/;
-
-/** Words that read like a call before a parenthesis but are syntax. */
-const NOT_CALLS = /^(?:if|elseif|while|until|and|or|not|return|in|local|function)$/;
-
-/** The block keywords, for matching each opener to its close on stripped code. */
-const BLOCK_WORDS = /\b(?:function|do|then|repeat|end|until|elseif)\b/g;
-
-/** The loops this check is about: a `while` on a constant truthy value, and a `repeat`. */
-const LOOP_START = /\bwhile\s*(?:\(\s*)?(?:true|\d+)(?:\s*\))?\s*do\b|\brepeat\b/g;
-
-/**
- * Where the block opened just before `from` closes, with the keyword that closes it, or null
- * when it never does. The `then` after an `elseif` continues a block rather than opening one.
- */
-function blockClose(code, from) {
-  const words = new RegExp(BLOCK_WORDS.source, "g");
-  words.lastIndex = from;
-
-  let depth = 1;
-  let continues = false;
-  let word;
-
-  while ((word = words.exec(code)) !== null) {
-    const token = word[0];
-    if (token === "elseif") {
-      continues = true;
-      continue;
-    }
-    if (token === "then" && continues) {
-      continues = false;
-      continue;
-    }
-
-    depth += token === "end" || token === "until" ? -1 : 1;
-    if (depth === 0) return { at: word.index, end: word.index + token.length, token };
-  }
-
-  return null;
-}
-
-/** A loop body with every function defined inside it removed, since what a closure does is not the loop's. */
-function withoutClosures(body) {
-  const opener = /\bfunction\b/g;
-  let out = "";
-  let last = 0;
-  let found;
-
-  while ((found = opener.exec(body)) !== null) {
-    const close = blockClose(body, found.index + found[0].length);
-    if (close === null) return out + body.slice(last, found.index);
-
-    out += `${body.slice(last, found.index)} `;
-    last = close.end;
-    opener.lastIndex = close.end;
-  }
-
-  return out + body.slice(last);
-}
-
-/** Whether a loop body can yield or leave, or calls something that might, which settles nothing. */
-function mayYieldOrLeave(body) {
-  if (YIELDS.test(body) || EXITS.test(body)) return true;
-
-  const calls = body.matchAll(/([A-Za-z_]\w*(?:\s*[.:]\s*[A-Za-z_]\w*)*)\s*\(/g);
-  for (const [, callee] of calls) {
-    const name = callee.replace(/\s+/g, "");
-    if (!NOT_CALLS.test(name) && !NEVER_YIELDS.test(name)) return true;
-  }
-
-  return false;
-}
-
-/**
- * Reports every loop on a constant condition that can neither yield nor exit, which freezes the
- * thread. A loop that can leave or yield is left alone, and so is one an ambiguous read leaves open.
- */
-function frozenLoops(lines) {
-  const code = lines.join("\n");
-  const found = [];
-  const starts = new RegExp(LOOP_START.source, "g");
-  let line = 1;
-  let counted = 0;
-  let loop;
-
-  while ((loop = starts.exec(code)) !== null) {
-    for (; counted < loop.index; counted++) if (code[counted] === "\n") line++;
-
-    const isRepeat = loop[0] === "repeat";
-    const close = blockClose(code, loop.index + loop[0].length);
-    if (close === null || close.token !== (isRepeat ? "until" : "end")) continue;
-    if (isRepeat && !/^\s*(?:\(\s*)?false\b/.test(code.slice(close.end))) continue;
-
-    const body = withoutClosures(code.slice(loop.index + loop[0].length, close.at));
-    if (mayYieldOrLeave(body)) continue;
-
-    const shape = isRepeat ? "repeat ... until false, like a while true do," : "while true do";
-    found.push(
-      `Line ${line}: this ${shape} never yields and never exits, which freezes the thread. ` +
-        `Add task.wait(), or a condition that breaks.`,
-    );
-  }
-
-  return found;
-}
-
-/**
- * Directories holding code from elsewhere. A package manager rewrites them, so a finding there
- * names a file the reader is not allowed to edit.
- */
-const VENDOR = ["Packages", "DevPackages", "ServerPackages", "_Index", "node_modules"];
-
 const HOME_PAGE = "https://github.com/andrian-syh/roblox-optimum";
 
 /** A directory that cannot exist, so the selftest can prove an unopenable path is skipped. */
 const ROOT_ABSENT = "/roblox-optimum-no-such-directory";
-
-/** Why a path was passed over, so a run that checked nothing can say what it saw. */
-const SKIP_REASON = {
-  "not-luau": "not a .lua or .luau file",
-  "not-roblox": "a .lua file with no Roblox API in it",
-  vendored: "inside a package directory, so its publisher owns it",
-  unreadable: "could not be read as a file",
-};
 
 /** Marks a file this tool wrote, so it may be replaced without asking. */
 export const GENERATED = "<!-- Generated from AGENTS.md. Edit that file. -->";
@@ -506,6 +253,7 @@ trigger: always_on
   { path: ".clinerules/roblox-optimum.md", marker: ".clinerules", agent: "Cline", frontMatter: "" },
   { path: ".qoder/rules/roblox-optimum.md", marker: ".qoder", agent: "Qoder", frontMatter: "" },
   { path: ".agents/rules/roblox-optimum.md", marker: ".agents", agent: "Antigravity", frontMatter: LUAU_GLOB },
+  { path: ".agent/rules/roblox-optimum.md", marker: ".agent", agent: "Antigravity", frontMatter: LUAU_GLOB },
   { path: ".github/copilot-instructions.md", marker: ".github", agent: "GitHub Copilot", frontMatter: "" },
   { path: "QWEN.md", marker: null, agent: "Qwen Code", frontMatter: "" },
 ];
@@ -563,193 +311,6 @@ Set ROBLOX_OPTIMUM=off to disable every check without uninstalling.
 Standards: ${HOME_PAGE}
 `;
 
-/**
- * Blanks the prose in a source file so that a rule named in a comment or a string is never
- * mistaken for a use of it. An interpolated string keeps the code inside its braces.
- */
-export function stripNonCode(source, keepLineComments = false) {
-  const out = source.split("");
-  const n = source.length;
-  let i = 0;
-
-  const blank = (from, to) => {
-    for (let k = from; k < to && k < n; k++) {
-      if (out[k] !== "\n") out[k] = " ";
-    }
-  };
-
-  const longOpen = /(--)?\[(=*)\[/y;
-
-  while (i < n) {
-    const two = source.slice(i, i + 2);
-    longOpen.lastIndex = i;
-    const long = longOpen.exec(source);
-
-    if (long && (two === "--" || source[i] === "[")) {
-      const close = "]" + long[2] + "]";
-      const end = source.indexOf(close, i + long[0].length);
-      const stop = end === -1 ? n : end + close.length;
-      blank(i, stop);
-      i = stop;
-      continue;
-    }
-
-    if (two === "--") {
-      const end = source.indexOf("\n", i);
-      const stop = end === -1 ? n : end;
-      if (!keepLineComments) blank(i, stop);
-      i = stop;
-      continue;
-    }
-
-    if (source[i] === '"' || source[i] === "'") {
-      const quote = source[i];
-      let j = i + 1;
-      while (j < n && source[j] !== quote && source[j] !== "\n") {
-        if (source[j] === "\\" && source[j + 1] === "z") {
-          j += 2;
-          while (j < n && /\s/.test(source[j])) j++;
-          continue;
-        }
-        j += source[j] === "\\" ? 2 : 1;
-      }
-      blank(i, Math.min(j + 1, n));
-      i = Math.min(j + 1, n);
-      continue;
-    }
-
-    if (source[i] === "`") {
-      let j = i + 1;
-      let from = i;
-      while (j < n && source[j] !== "`" && source[j] !== "\n") {
-        if (source[j] === "\\") {
-          j += 2;
-          continue;
-        }
-        if (source[j] !== "{") {
-          j++;
-          continue;
-        }
-
-        blank(from, j + 1);
-        let depth = 1;
-        j++;
-        while (j < n && depth > 0 && source[j] !== "\n") {
-          if (source[j] === "{") depth++;
-          else if (source[j] === "}") depth--;
-          j++;
-        }
-        from = j - 1;
-      }
-      blank(from, Math.min(j + 1, n));
-      i = Math.min(j + 1, n);
-      continue;
-    }
-
-    i++;
-  }
-
-  return out.join("");
-}
-
-/**
- * Whether a file defines its own function under a deprecated global's name, such as a local
- * `wait`, in which case a call to it is the file's own and not the legacy API.
- */
-function shadowed(code, name) {
-  const global = /^(\w+)\(\)$/.exec(name)?.[1];
-  if (global === undefined) return false;
-
-  return new RegExp(`\\b(?:local\\s+function\\s+|function\\s+|local\\s+)${global}\\b`).test(code);
-}
-
-/**
- * Whether a file opted into this section layout. A project is entitled to its own scheme and
- * one shared word is not consent, so a file is judged only once it uses most of the names.
- */
-function usesThisLayout(names) {
-  return new Set(names).size >= 2;
-}
-
-/**
- * Returns the standards violations in one Luau source, in reading order rather than pattern
- * order, and nothing when it passes. A module with no function is exempt from the layout, and
- * the optional path adds the checks that turn on which side it runs.
- */
-export function inspect(source, path = "") {
-  const problems = [];
-  const code = stripNonCode(source);
-
-  if (/\bfunction\b/.test(code)) {
-    const seen = [];
-    stripNonCode(source, true).split("\n").forEach((line, idx) => {
-      if (!line.trimStart().startsWith("--")) return;
-      for (const name of SECTIONS) {
-        if (new RegExp(`\\b${name}\\b`).test(line)) seen.push({ name, line: idx + 1 });
-      }
-    });
-
-    const order = seen.map((s) => s.name);
-
-    if (usesThisLayout(order)) {
-      const present = SECTIONS.map((s) => seen.find((x) => x.name === s)).filter(Boolean);
-      for (let k = 1; k < present.length; k++) {
-        if (present[k].line < present[k - 1].line) {
-          problems.push(
-            `Section order is wrong: ${present[k].name} (line ${present[k].line}) appears before ` +
-              `${present[k - 1].name} (line ${present[k - 1].line}). Required order: ${SECTIONS.join(" > ")}.`,
-          );
-          break;
-        }
-      }
-    }
-  }
-
-  const lines = code.split("\n");
-  const deprecated = [];
-
-  for (const [pattern, name, replacement] of DEPRECATED) {
-    if (shadowed(code, name)) continue;
-    for (let k = 0; k < lines.length; k++) {
-      if (pattern.test(lines[k])) {
-        deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is deprecated. Use ${replacement}.` });
-      }
-    }
-  }
-
-  for (const [pattern, name, why] of HAZARDS) {
-    for (let k = 0; k < lines.length; k++) {
-      if (pattern.test(lines[k])) {
-        deprecated.push({ line: k + 1, text: `Line ${k + 1}: ${name} is unsafe: ${why}.` });
-      }
-    }
-  }
-
-  const raw = source.split("\n");
-
-  for (const { suffix, side, members } of CONTEXT_ERRORS) {
-    if (!suffix.test(path)) continue;
-    for (const [pattern, name, why] of members) {
-      const call = /^[A-Za-z]+$/.test(name) ? serviceCall(name) : null;
-      for (let k = 0; k < lines.length; k++) {
-        const hit = call ? call.exec(raw[k] ?? "") : null;
-        if (pattern.test(lines[k]) || (hit && lines[k]?.[hit.index] === raw[k][hit.index])) {
-          deprecated.push({
-            line: k + 1,
-            text: `Line ${k + 1}: ${name} in ${side}. The filename says which side this runs on, and ${why}.`,
-          });
-        }
-      }
-    }
-  }
-
-  deprecated.sort((a, b) => a.line - b.line);
-  problems.push(...deprecated.map((d) => d.text));
-  problems.push(...frozenLoops(lines));
-
-  return problems;
-}
-
 /** Files named by an apply_patch body, which is how Codex reports an edit. */
 const PATCH_TARGET = /^\*\*\* (?:Add File|Update File|Move to):\s*(.+?)\s*$/gm;
 
@@ -798,44 +359,6 @@ export function targetsFromPayload(payload) {
   if (typeof command !== "string") return [];
 
   return [...command.matchAll(PATCH_TARGET)].map((m) => resolve(base, m[1]));
-}
-
-/**
- * Checks one path and returns its report, or null when the file is out of scope. A path that
- * is unreadable, not Luau, or not provably Roblox is skipped rather than guessed at.
- */
-export function checkFile(path) {
-  if (typeof path !== "string") return { path: String(path), status: "unreadable", problems: [] };
-  if (!/\.luau?$/i.test(path)) return { path, status: "not-luau", problems: [] };
-
-  const parts = path.split(sep).flatMap((p) => p.split("/"));
-  if (parts.some((p) => VENDOR.includes(p))) return { path, status: "vendored", problems: [] };
-
-  let source;
-  try {
-    source = readFileSync(path, "utf8");
-  } catch {
-    return { path, status: "unreadable", problems: [] };
-  }
-
-  if (!/\.luau$/i.test(path) && !ROBLOX_MARKERS.test(source)) {
-    return { path, status: "not-roblox", problems: [] };
-  }
-
-  const problems = inspect(source, path);
-  return { path, status: problems.length === 0 ? "clean" : "problems", problems };
-}
-
-/**
- * Renders reports as the text every entry point shares, so a finding reads the same whether it
- * arrived through an agent, a commit hook, or CI, and stands alone wherever it is read.
- */
-export function formatReport(reports) {
-  const body = reports
-    .map((r) => `Roblox standards check failed for ${r.path}:\n` + r.problems.map((p) => `  - ${p}`).join("\n"))
-    .join("\n\n");
-
-  return `${body}\n\nStandards: ${HOME_PAGE}\n`;
 }
 
 /**
@@ -957,7 +480,7 @@ function runCheck(paths) {
     return 2;
   }
 
-  const results = paths.map(checkFile);
+  const results = checkBatch(paths);
   const reports = results.filter((r) => r.status === "problems");
 
   if (reports.length > 0) {
@@ -1401,6 +924,7 @@ const PLUGIN_PAYLOAD = [
   "package.json",
   join("scripts", "roblox-optimum.mjs"),
   join("scripts", "roblox-mcp.mjs"),
+  join("scripts", "lib"),
   join("scripts", "studio-mcp-antigravity.mjs"),
 ];
 
@@ -2629,6 +2153,7 @@ async function runSessionStart(summarized) {
   const payload = await readPayload();
   if (payload === null || !isRobloxProject(payloadRoot(payload))) return 0;
 
+  triggerBackgroundSyncIfStale(fileURLToPath(import.meta.url));
   addContext(
     "SessionStart",
     summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START,
@@ -3392,6 +2917,119 @@ Players.PlayerAdded:Connect(greet)
       ),
     "newly deprecated TeleportService and GuiObject methods are caught",
   );
+  ok(
+    inspect(good.replace("print(player.Name)", "CollectionService:GetCollection(tag)")).some((p) =>
+      p.includes("GetTagged"),
+    ) &&
+      inspect(good.replace("print(player.Name)", "TestService:RegisterTestLegacy()")).some((p) =>
+        p.includes("RegisterTest"),
+      ) &&
+      inspect(good.replace("print(player.Name)", "AssetService:PromptCreateAssetAsync()")).some((p) =>
+        p.includes("CreateAssetAsync"),
+      ) &&
+      inspect(good.replace("print(player.Name)", "local f = Enum.CollisionFidelity.Scalable")).some((p) =>
+        p.includes("CollisionFidelity"),
+      ),
+    "newly deprecated CollectionService, TestService, AssetService, and CollisionFidelity members are caught",
+  );
+  ok(
+    inspect("store:UpdateAsync(key, function(old)\n\ttask.wait()\n\treturn old\nend)").some((p) =>
+      p.includes("DataStore:UpdateAsync() callback is unsafe"),
+    ) &&
+      inspect("store:UpdateAsync(key, function(old)\n\treturn (old or 0) + 1\nend)").length === 0 &&
+      inspect("store:UpdateAsync(key, function(old)\n\ttask.spawn(function()\n\t\ttask.wait()\n\tend)\n\treturn old\nend)").length === 0,
+    "yielding inside DataStore:UpdateAsync() transform callback is caught while synchronous or spawned inner closures pass",
+  );
+  ok(
+    inspect('local m = game:GetService("MemoryStoreService")', "Hud.client.luau").some((p) =>
+      p.includes("MemoryStoreService"),
+    ) &&
+      inspect("local p = Players.LocalPlayer", "ServerScriptService.Combat").some((p) =>
+        p.includes("Players.LocalPlayer"),
+      ) &&
+      inspect('local d = game:GetService("DataStoreService")', "StarterPlayer.StarterPlayerScripts.Hud").some((p) =>
+        p.includes("DataStoreService"),
+      ),
+    "MemoryStoreService on client and Studio DataModel path prefixes trigger context side checks",
+  );
+  ok(
+    RULE_TARGETS.some((t) => t.path === ".agent/rules/roblox-optimum.md") &&
+      RULE_TARGETS.some((t) => t.path === ".agents/rules/roblox-optimum.md"),
+    "both singular .agent and plural .agents rule targets are supported",
+  );
+
+  const batchDir = mkdtempSync(join(tmpdir(), "roblox-optimum-batch-"));
+  mkdirSync(join(batchDir, "sub"), { recursive: true });
+  writeFileSync(
+    join(batchDir, "a.server.luau"),
+    'local MarketplaceService = game:GetService("MarketplaceService")\nMarketplaceService.ProcessReceipt = function() end\n',
+  );
+  writeFileSync(
+    join(batchDir, "sub", "b.server.luau"),
+    'local MarketplaceService = game:GetService("MarketplaceService")\nMarketplaceService.ProcessReceipt = function() end\n',
+  );
+  const batchRes = checkBatch([batchDir]);
+  rmSync(batchDir, { recursive: true, force: true });
+  ok(
+    batchRes.length === 2 &&
+      batchRes.every((r) => r.problems.some((p) => p.includes("MarketplaceService.ProcessReceipt"))),
+    "checkBatch recursively walks directories and flags duplicate MarketplaceService.ProcessReceipt across files",
+  );
+
+  const mockDump = {
+    Classes: [
+      {
+        Name: "CustomService",
+        Tags: ["Service"],
+        Members: [
+          {
+            MemberType: "Function",
+            Name: "FetchLegacyWidgetAsync",
+            Tags: ["Deprecated", { PreferredDescriptorName: "FetchModernWidgetAsync" }],
+          },
+          {
+            MemberType: "Function",
+            Name: "FetchModernWidgetAsync",
+          },
+          {
+            MemberType: "Function",
+            Name: "SharedMethodName",
+            Tags: ["Deprecated", { PreferredDescriptorName: "FetchModernWidgetAsync" }],
+          },
+        ],
+      },
+      {
+        Name: "ActiveService",
+        Tags: ["Service"],
+        Members: [
+          {
+            MemberType: "Function",
+            Name: "SharedMethodName",
+          },
+        ],
+      },
+    ],
+  };
+  const extracted = extractUnambiguousDeprecations(mockDump);
+  ok(
+    extracted.length === 1 &&
+      extracted[0].name === "CustomService:FetchLegacyWidgetAsync()" &&
+      extracted[0].replacement === "CustomService:FetchModernWidgetAsync()",
+    "extractUnambiguousDeprecations keeps unique deprecated methods and rejects ambiguous shared names",
+  );
+  const prevLen = DEPRECATED.length;
+  const addedOverlay = applyOverlay({ deprecated: extracted });
+  const caughtDynamic =
+    inspect("CustomService:FetchLegacyWidgetAsync()").some((p) =>
+      p.includes("CustomService:FetchModernWidgetAsync()"),
+    ) && inspect("unrelatedObj:FetchLegacyWidgetAsync()").length === 0;
+  DEPRECATED.length = prevLen;
+  delete EXPLANATIONS["CustomService:FetchLegacyWidgetAsync()"];
+  ok(
+    addedOverlay === 1 && caughtDynamic,
+    "applyOverlay merges dynamic deprecations into DEPRECATED and inspect catches service calls without flagging unrelated objects",
+  );
+
   ok(CLINE_WRITES.test("replace_in_file") && !CLINE_WRITES.test("read_file"), "the Cline hook checks writes, not reads");
 
   ok(writable(join(ROOT_ABSENT, "nothing.md"), GENERATED), "an absent file may be written");
@@ -3409,6 +3047,32 @@ Players.PlayerAdded:Connect(greet)
   ok(checkFile(undefined).status === "unreadable", "a missing path does not throw");
 
   if (!process.exitCode) console.log("roblox-optimum selftest: all checks passed");
+}
+
+/**
+ * Syncs the live currency overlay from the official Roblox API dump and Luau releases, writing
+ * `currency-overlay.json` and `live-currency.md` into the local cache directory.
+ */
+async function runSync(args) {
+  const quiet = args.includes("--quiet");
+  try {
+    const overlay = await syncCurrency();
+    if (!quiet) {
+      process.stdout.write(
+        `roblox-optimum sync complete:\n` +
+          `  Engine: ${overlay.engineVersion}\n` +
+          `  Luau: ${overlay.luauVersion}\n` +
+          `  Dynamic unambiguous deprecations: ${overlay.deprecated.length}\n` +
+          `  Cache: ${overlayPath()}\n`,
+      );
+    }
+    return 0;
+  } catch (error) {
+    if (!quiet) {
+      process.stderr.write(`roblox-optimum sync failed: ${error.message}\n`);
+    }
+    return 1;
+  }
 }
 
 /**
@@ -3437,6 +3101,7 @@ if (invokedDirectly) {
   else if (mode === "--prompt") process.exit(await runPromptRoute());
   else if (mode === "--pre-write") process.exit(await runPreWrite());
   else if (mode === "--check") process.exit(runCheck(rest));
+  else if (mode === "sync") process.exit(await runSync(rest));
   else if (mode === "install") process.exit(guarded(mode, () => runInstall(rest)));
   else if (mode === "doctor") process.exit(guarded(mode, () => runDoctor(rest)));
   else if (mode === "uninstall") process.exit(guarded(mode, () => runUninstall(rest)));

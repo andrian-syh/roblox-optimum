@@ -10,6 +10,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { inspect, DEPRECATED, HAZARDS, CONTEXT_ERRORS, ranAsScript } from "./roblox-optimum.mjs";
+import { EXPLANATIONS } from "./lib/catalog.mjs";
+import { readLiveCurrencyResource } from "./lib/currency-sync.mjs";
+
+export { EXPLANATIONS };
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -62,257 +66,6 @@ function invariantCard() {
   }
 }
 
-/**
- * Why each rule exists and where its full pattern lives, keyed by the name the checker
- * reports. A finding is one line by design, which is enough for an agent carrying the skills
- * and too little for one that is not.
- */
-export const EXPLANATIONS = {
-  "wait()": {
-    why:
-      "The legacy scheduler throttles under load, so a call can resume much later than asked " +
-      "and the caller has no way to tell that it did.",
-    instead: "task.wait(), which resumes on the next heartbeat and returns the delta it actually waited.",
-    read: "luau-language.md",
-  },
-  "spawn()": {
-    why:
-      "It does not start the thread now. The legacy scheduler holds it for up to a frame, so " +
-      "work that reads state written just before it runs against state that has moved on.",
-    instead: "task.spawn(), which runs the thread immediately.",
-    read: "luau-language.md",
-  },
-  "delay()": {
-    why: "Same legacy scheduler as spawn(), so the delay is a lower bound rather than a duration.",
-    instead: "task.delay(), which schedules against the engine clock.",
-    read: "luau-language.md",
-  },
-  "tick()": {
-    why:
-      "It returns local UNIX time, which jumps when the machine's clock changes and differs " +
-      "between server and client. A duration measured across such a jump is wrong, and a " +
-      "timestamp compared across the wire is meaningless.",
-    instead: "os.clock() for a duration, os.time() for a wall-clock stamp shared with the client.",
-    read: "luau-language.md",
-  },
-  ":connect()": {
-    why:
-      "The lowercase alias is deprecated. It is also worth using the moment as a reminder that " +
-      "every connection needs an owner and a teardown path, since a leaked one keeps its whole " +
-      "closure alive for the life of the session.",
-    instead: ":Connect(), with the returned connection stored and disconnected by whatever owns it.",
-    read: "patterns/lifecycle.md",
-  },
-  "Humanoid:LoadAnimation()": {
-    why:
-      "Loading on the Humanoid is deprecated. The Animator is what actually owns and replicates " +
-      "the track, so loading anywhere else leaves replication to a compatibility path.",
-    instead: "Animator:LoadAnimation(), on the Animator inside the Humanoid.",
-    read: "patterns/world.md",
-  },
-  "RemoteFunction:InvokeClient()": {
-    why:
-      "The server pays for whatever the client does. Roblox documents three outcomes: an error " +
-      "on the client is rethrown on the server, a client that disconnects mid-invocation throws, " +
-      "and a client that returns nothing yields the calling server thread forever. The last one " +
-      "has no timeout and no recovery, and an exploiter can trigger it deliberately.",
-    instead:
-      "RemoteEvent:FireClient() with the client replying on a second RemoteEvent, so a client " +
-      "that never answers costs the server nothing.",
-    read: "patterns/network.md",
-  },
-  "AnimationController:LoadAnimation()": {
-    why:
-      "Loading on the AnimationController is deprecated for the same reason it is on the " +
-      "Humanoid: the Animator owns the track and replicates it, and the controller only forwards.",
-    instead: "Animator:LoadAnimation(), on the Animator inside the AnimationController.",
-    read: "patterns/world.md",
-  },
-  "GetAnimationClip() / GetAnimationClipById()": {
-    why:
-      "Both block the thread until the clip has loaded, so a cold asset freezes the whole script " +
-      "rather than yielding it.",
-    instead: "AnimationClipProvider:GetAnimationClipAsync(), which yields while the asset loads.",
-    read: "patterns/world.md",
-  },
-  "MakeJoints() / BreakJoints()": {
-    why:
-      "Both act on surface-type joints, which the engine no longer creates for new work, so what " +
-      "they make or break depends on how the parts were authored rather than on the call.",
-    instead:
-      "a WeldConstraint or HingeConstraint, created where the joint is wanted and destroyed where " +
-      "it is not.",
-    read: "patterns/world.md",
-  },
-  "BasePart.RotVelocity": {
-    why:
-      "It is the part's original name for the property that became AssemblyAngularVelocity, and " +
-      "it reads the part rather than the assembly it belongs to.",
-    instead: "BasePart.AssemblyAngularVelocity, which is the velocity the solver actually uses.",
-    read: "style-rules.md",
-  },
-  "Attachment.WorldRotation": {
-    why: "It is the attachment's original name for the property that became WorldOrientation.",
-    instead: "Attachment.WorldOrientation, which is the same value under the current name.",
-    read: "style-rules.md",
-  },
-  "ContentProvider:Preload()": {
-    why:
-      "It blocks the thread for every asset in the list, so a slow one stalls the caller with no " +
-      "way to report which asset failed.",
-    instead: "ContentProvider:PreloadAsync(), which yields and reports each asset's status.",
-    read: "performance.md",
-  },
-  "BadgeService:AwardBadge()": {
-    why: "It is the pre-Async name for a web call, so it gives the caller no way to handle a failed award.",
-    instead: "BadgeService:AwardBadgeAsync(), wrapped in pcall like every other web call.",
-    read: "patterns/network.md",
-  },
-  "BadgeService:UserHasBadge()": {
-    why: "Same pre-Async name for a web call, with no way to tell a false answer from a failed request.",
-    instead: "BadgeService:UserHasBadgeAsync(), wrapped in pcall.",
-    read: "patterns/network.md",
-  },
-  "Chat:FilterStringForPlayerAsync()": {
-    why:
-      "It filters through the legacy Chat service, which is superseded, and it filters for one " +
-      "recipient at a time.",
-    instead:
-      "TextService:FilterStringAsync(), then the result object's per-recipient method for the " +
-      "audience the text is going to.",
-    read: "security.md",
-  },
-  "SetPrimaryPartCFrame()": {
-    why:
-      "It moves every part relative to the primary part, so accumulated float error shows up as " +
-      "drift, and it fails outright when the primary part is unset.",
-    instead: "Model:PivotTo(), which moves the model by its pivot in one operation.",
-    read: "style-rules.md",
-  },
-  "GetPrimaryPartCFrame()": {
-    why:
-      "It reads a frame that exists only while a primary part is set, so it returns nothing on a " +
-      "model that has none, and it describes the primary part rather than the model.",
-    instead: "Model:GetPivot(), which is defined for every model.",
-    read: "style-rules.md",
-  },
-  "Camera.CoordinateFrame": {
-    why:
-      "It is the camera's original name for the property that became CFrame, kept only so old " +
-      "places keep running.",
-    instead: "Camera.CFrame, which is the same value under the name the rest of the API uses.",
-    read: "style-rules.md",
-  },
-  "Player:GetRankInGroup() / GetRoleInGroup() (with or without Async)": {
-    why:
-      "Each is one web call per player per group, and calling both to learn a rank and its name " +
-      "costs two round trips for one answer.",
-    instead:
-      "GroupService:GetRolesInGroupAsync(), which returns every role in one call and lets you " +
-      "cache it.",
-    read: "style-rules.md",
-  },
-  "Body* mover": {
-    why:
-      "The Body* movers predate the constraint solver and are superseded by it. They fight the " +
-      "physics step rather than taking part in it, which is why their behaviour changes with " +
-      "framerate.",
-    instead:
-      "a constraint: LinearVelocity, AlignPosition, AlignOrientation, or VectorForce, whichever " +
-      "matches the force you meant.",
-    read: "style-rules.md",
-  },
-  "TextFilterResult:GetChatForUserAsync()": {
-    why:
-      "GetChatForUserAsync now returns an empty string, so code calling it silently displays " +
-      "nothing to the player.",
-    instead:
-      "TextChatService for chat filtering, or GetNonChatStringForUserAsync() / " +
-      "GetNonChatStringForBroadcastAsync() for non-chat text.",
-    read: "api-currency.md",
-  },
-  "TeleportService:TeleportToSpawnByName()": {
-    why: "TeleportToSpawnByName is deprecated in favor of the unified TeleportAsync API.",
-    instead: "TeleportService:TeleportAsync() with a TeleportOptions instance.",
-    read: "api-currency.md",
-  },
-  "TeleportService.CustomizedTeleportUI": {
-    why: "CustomizedTeleportUI is deprecated and no longer has any effect.",
-    instead: "TeleportService:SetTeleportGui() or TeleportOptions:SetTeleportData().",
-    read: "api-currency.md",
-  },
-  "UserInputService.ModalEnabled": {
-    why: "ModalEnabled is deprecated for toggling mobile touch controls.",
-    instead: "GuiService.TouchControlsEnabled.",
-    read: "api-currency.md",
-  },
-  "UserInputService VR member": {
-    why: "VR tracking properties and methods on UserInputService moved to VRService.",
-    instead: "VRService:GetUserCFrame() and VRService.UserCFrameChanged.",
-    read: "api-currency.md",
-  },
-  "ContextActionService:BindActionToInputTypes()": {
-    why: "BindActionToInputTypes is deprecated and superseded by BindAction.",
-    instead: "ContextActionService:BindAction(), or the Input Action System.",
-    read: "api-currency.md",
-  },
-  "AdGui.OnAdEvent": {
-    why: "AdGui.OnAdEvent was deprecated in engine v734.",
-    instead: "Remove the AdGui.OnAdEvent listener.",
-    read: "api-currency.md",
-  },
-  "TeleportService:ReserveServer()": {
-    why: "ReserveServer was deprecated at engine v702 in favor of its Async counterpart.",
-    instead:
-      "TeleportService:ReserveServerAsync(), or set TeleportOptions.ShouldReserveServer = true " +
-      "on TeleportAsync().",
-    read: "patterns/network.md",
-  },
-  "TeleportToPlaceInstance() / TeleportToPrivateServer() / TeleportPartyAsync()": {
-    why: "Legacy teleport methods were deprecated at engine v735 in favor of TeleportAsync.",
-    instead: "TeleportService:TeleportAsync() configured with a TeleportOptions instance.",
-    read: "patterns/network.md",
-  },
-  "GuiObject:TweenPosition() / TweenSize() / TweenSizeAndPosition()": {
-    why: "Callback-based GuiObject tween helpers are deprecated in the engine dump.",
-    instead: "TweenService:Create() on the GuiObject's Position or Size properties.",
-    read: "api-currency.md",
-  },
-  "Section order": {
-    why:
-      "Every script reads the same way: what it holds, what it can do, then what it does on " +
-      "load. Out of order, a reader has to search for the entry point instead of scrolling to it.",
-    instead:
-      "VARIABLES, then FUNCTIONS, then INITIALIZATION. A section with nothing to put in it is " +
-      "left out entirely rather than written as an empty header, and only the order of the " +
-      "headers a file does carry is judged.",
-    read: "section-layout.md",
-  },
-  "while true do": {
-    why:
-      "A loop that never yields keeps the scheduler from running anything else on its thread, " +
-      "and on the server that is every player. One that never exits cannot be stopped either.",
-    instead:
-      "A task.wait() or another yielding call inside the loop, or a condition that breaks it. " +
-      "Periodic work usually belongs on a signal or a timer rather than a spinning loop.",
-    read: "style-rules.md",
-  },
-  ...Object.fromEntries(
-    CONTEXT_ERRORS.flatMap(({ side, members }) =>
-      members.map(([, name, why]) => [
-        name,
-        {
-          why: `The filename says this file runs in ${side}, and ${why}.`,
-          instead:
-            "Move the code to the side that owns it and cross with a remote, or rename the file " +
-            "if its suffix names the wrong side.",
-          read: "style-rules.md",
-        },
-      ]),
-    ),
-  ),
-};
-
 const TOOLS = [
   {
     name: "check_luau",
@@ -335,8 +88,16 @@ const TOOLS = [
           type: "string",
           description:
             "Optional name to label the findings with, such as the script's path in the data model. " +
-            "A name ending in .server.luau or .client.luau also turns on the checks for members " +
-            "that fail on that side, so pass the filename when the source came from one.",
+            "A name ending in .server.luau or .client.luau, or starting with a Studio service such as " +
+            "ServerScriptService. or StarterPlayer.StarterPlayerScripts., turns on the checks for " +
+            "members that fail on that side.",
+        },
+        runContext: {
+          type: "string",
+          enum: ["server", "client", "shared"],
+          description:
+            "Optional explicit run context ('server', 'client', or 'shared') when checking source " +
+            "whose path does not already indicate its execution side.",
         },
       },
       required: ["source"],
@@ -389,8 +150,9 @@ const TOOLS = [
 
 const REFERENCES_ROOT = join(PACKAGE_ROOT, "skills", "best-practices", "references");
 const RESOURCE_PREFIX = "roblox-optimum://references/";
+const LIVE_CURRENCY_URI = `${RESOURCE_PREFIX}live-currency.md`;
 
-/** Lists every markdown reference page under `skills/best-practices/references/` as an MCP resource. */
+/** Lists every markdown reference page under `skills/best-practices/references/` plus `live-currency.md`. */
 function listResources(dir = REFERENCES_ROOT, prefix = "") {
   if (!existsSync(dir)) return [];
   const out = [];
@@ -407,11 +169,22 @@ function listResources(dir = REFERENCES_ROOT, prefix = "") {
       });
     }
   }
+  if (prefix === "") {
+    out.push({
+      uri: LIVE_CURRENCY_URI,
+      name: "live-currency.md",
+      title: "Roblox Optimum reference: live-currency.md",
+      mimeType: "text/markdown",
+    });
+  }
   return out;
 }
 
 /** Reads one reference resource by URI, or returns null when the URI is unknown or out of bounds. */
 function readResource(uri) {
+  if (uri === LIVE_CURRENCY_URI) {
+    return { uri, mimeType: "text/markdown", text: readLiveCurrencyResource() };
+  }
   if (typeof uri !== "string" || !uri.startsWith(RESOURCE_PREFIX)) return null;
   const rel = uri.slice(RESOURCE_PREFIX.length);
   if (!rel || rel.includes("..") || rel.startsWith("/") || rel.startsWith("\\")) return null;
@@ -443,7 +216,10 @@ export function uncovered() {
     .filter((name) => keyFor(name) === null);
 
   const loop = inspect("while true do\nend")[0];
-  return keyFor(loop) === "while true do" ? missing : [...missing, "while true do"];
+  if (keyFor(loop) !== "while true do") missing.push("while true do");
+  const yieldUpdate = inspect("store:UpdateAsync(k, function(v)\n\ttask.wait()\n\treturn v\nend)")[0];
+  if (keyFor(yieldUpdate) !== "DataStore:UpdateAsync() callback") missing.push("DataStore:UpdateAsync() callback");
+  return missing;
 }
 
 export function runTool(name, args) {
@@ -455,8 +231,9 @@ export function runTool(name, args) {
     }
 
     const named = typeof given.path === "string" ? given.path : "";
+    const runContext = typeof given.runContext === "string" ? given.runContext : "";
     const label = named !== "" ? named : "the source";
-    const problems = inspect(given.source, named);
+    const problems = inspect(given.source, named, runContext);
     const structuredContent = { clean: problems.length === 0, count: problems.length, findings: problems };
 
     if (problems.length === 0) {
@@ -746,6 +523,28 @@ function selftest() {
     },
   }).result;
   ok(sided.content[0].text.includes("DataStoreService"), "a path naming a side turns on that side's checks");
+  ok(
+    handle({ jsonrpc: "2.0",
+      id: 15,
+      method: "tools/call",
+      params: {
+        name: "check_luau",
+        arguments: { source: "local p = Players.LocalPlayer", path: "ServerScriptService.Main" },
+      },
+    }).result.content[0].text.includes("Players.LocalPlayer"),
+    "a Studio ServerScriptService path turns on server-side checks",
+  );
+  ok(
+    handle({ jsonrpc: "2.0",
+      id: 16,
+      method: "tools/call",
+      params: {
+        name: "check_luau",
+        arguments: { source: 'local m = game:GetService("MemoryStoreService")', runContext: "client" },
+      },
+    }).result.content[0].text.includes("MemoryStoreService"),
+    "an explicit runContext turns on side checks even without a path suffix",
+  );
   ok(
     handle({ jsonrpc: "2.0",
       id: 14,
