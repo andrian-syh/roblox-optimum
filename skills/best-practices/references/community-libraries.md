@@ -6,6 +6,17 @@ For an unknown/in-house library: read 2–3 existing usages in the codebase befo
 
 **Scope note.** This file covers **Luau libraries the project runs**. Agent-side tooling that shapes how the agent writes code, such as the optional Ponytail overlay, is not a project dependency and is handled in [minimal-code.md](minimal-code.md#ponytail-optional-agent-side-overlay). Do not add it to the community-library check or expect it in a `wally.toml`.
 
+## Contents
+
+- [Data: ProfileStore / ProfileService](#data-profilestore--profileservice)
+- [Networking: Packet / ByteNet / Zap / BridgeNet](#networking-packet--bytenet--zap--bridgenet)
+- [Cleanup: Trove / Maid / Janitor](#cleanup-trove--maid--janitor)
+- [Events/Async: GoodSignal (Signal libs), Promise](#eventsasync-goodsignal-signal-libs-promise)
+- [Frameworks: Knit / Flamework](#frameworks-knit--flamework)
+- [UI: Fusion / React-lua / Roact](#ui-fusion--react-lua--roact)
+- [ECS: Jecs](#ecs-jecs)
+- [Precedence summary](#precedence-summary)
+
 ## Data: ProfileStore / ProfileService
 
 Replaces the raw DataStore patterns in [patterns.md](patterns.md) (`UpdateAsync`, manual retry, session locking) — the library handles all of that.

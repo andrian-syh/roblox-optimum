@@ -1,6 +1,6 @@
 # Diagnosis — From Symptom to Confirmed Cause
 
-The loop behind the **diagnose** skill, and the Roblox-specific reasons a defect hides. This
+The loop for a reported symptom whose cause is not yet known, and the Roblox-specific reasons a defect hides. This
 file is read when the symptom does not fall cleanly into one area, when the first hypothesis
 fails, or when the report cannot be reproduced.
 
@@ -95,9 +95,8 @@ failures.
 | A single client | No second peer to disagree | Ownership, replication order, and streaming defects |
 
 Before treating a Studio observation as evidence about the live game, say which of these applies.
-The mechanics of driving each one belong to the **studio-ops** skill; what they distort belongs
-here. The verification levers themselves are in [verification.md](verification.md), and the
-tool-by-tool costs and irreversible operations in [studio-mcp.md](studio-mcp.md).
+How to drive each one is in [verification.md](verification.md) and [studio-mcp.md](studio-mcp.md); what they distort belongs
+here.
 
 
 ## Intermittent means a race, a yield, or a retry

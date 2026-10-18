@@ -68,13 +68,14 @@ The shape below is community practice built on the branch-place recommendation. 
 
 **Before stopping:** commit the scripts, push the branch, and note anything you changed in the place that is not in git. That note is the only record of it. Skipping it is how a UI change that a feature depends on reaches nobody.
 
-**The step that is easy to skip and costly to skip:** run the checker over what you touched before you push.
+**The step that is easy to skip and costly to skip:** run the project's static checks over what you touched before you push.
 
 ```
-npx roblox-optimum --check src/**/*.luau
+selene src
+stylua --check src
 ```
 
-Wire it as a pre-commit hook so it is not a habit anyone has to keep ([INSTALL.md](https://github.com/andrian-syh/roblox-optimum/blob/main/INSTALL.md)).
+Wire them as a pre-commit hook so it is not a habit anyone has to keep. Where [roblox-optimum](https://github.com/andrian-syh/roblox-optimum) is installed, add `npx roblox-optimum --check` for these standards' own rules.
 
 ## What git cannot merge
 
@@ -142,14 +143,13 @@ Roblox's own place model supports this directly. An experience holds multiple pl
 
 What must hold before a branch merges. Everything here runs without a human, which is the point — a gate a reviewer has to remember is a gate that lapses under deadline.
 
-- **The checker.** `npx roblox-optimum --check` over the changed files, exit 1 blocks the merge.
-- **The linter and the formatter.** `selene` and `stylua --check`, both named on Roblox's own tools page.
+- **The linter and the formatter.** `selene` and `stylua --check`, both named on Roblox's own tools page, plus `npx roblox-optimum --check` over the changed files where roblox-optimum is installed. Exit 1 blocks the merge.
 - **The type check**, where the project runs the language server in CI.
 - **The lockfile is honoured.** `wally install --locked` in CI, so a build cannot silently resolve a different dependency version than a developer had.
 
 **Everything above reads the code without running it, which is the ceiling of a static gate.** Runtime tests in CI are reachable, and Roblox publishes the shape: [`Roblox/place-ci-cd-demo`](https://github.com/Roblox/place-ci-cd-demo) runs selene, then StyLua, then builds a place with Rojo, uploads it to a **dedicated test place**, and executes the suite there through the Open Cloud Luau Execution API before deploying. It assumes a fully managed project and a branch that maps to production — the same mapping the table above describes. Two facts about it are worth carrying even if the pipeline is not copied: **Luau Execution allows two concurrent requests per universe**, so jobs need a concurrency group or they fail on contention rather than on the code, and the demo's own Python wrappers are written for the demonstration and are stated not to be general-purpose clients. A test place inside the production experience shares that experience's data stores; give the runtime suite its own experience unless the tests are meant to write live player data ([patterns/data.md](patterns/data.md)).
 
-Then the part that needs a person: read the diff against the standards the project has adopted, not against taste. The `code-review` skill owns that reading, and `roblox-auditor` owns the whole-project version of it when a branch is large enough that reading it inline would cost more than it returns.
+Then the part that needs a person: read the diff against the standards the project has adopted, not against taste. [review-checklist.md](review-checklist.md) drives that reading, and [evaluation-matrix.md](evaluation-matrix.md) the whole-project version of it when a branch is large enough to need one.
 
 **A review comment is not a merge blocker unless it names a rule.** Teams that skip this end up with review as a matter of who is most senior in the thread.
 
@@ -197,7 +197,7 @@ The whole setup, in the order that works:
 
 ## Failure modes worth naming
 
-Each of these has a symptom that points somewhere other than its cause. When one is suspected, the `diagnose` skill owns the narrowing ([diagnosis.md](diagnosis.md)).
+Each of these has a symptom that points somewhere other than its cause. When one is suspected, [diagnosis.md](diagnosis.md) owns the narrowing.
 
 | Symptom | Actual cause |
 |---|---|

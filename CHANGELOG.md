@@ -6,6 +6,18 @@ repository's own tooling, tests, or maintenance scripts are left out.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.2] - 2026-10-18
+
+### Changed
+
+- Changed the shared references to name the reference file that holds each piece of guidance instead of a sibling skill, so the same text also works in the standalone roblox-best-practices skill.
+- Changed the push and merge gates in `team-workflow.md`, and the publish gate in `release-readiness.md`, to list selene and StyLua alongside `npx roblox-optimum --check`.
+- Added a table of contents to `community-libraries.md`.
+
+### Fixed
+
+- Fixed the Azul guidance in `external-editors.md` for Azul 2.x: the `liveFsSync` setting and how to turn it off, Studio overwriting offline edits on session start, distributing a project with a sourcemap, and Azul working with Git. `daemonPath`, which Azul does not have, is removed.
+
 ## [1.13.1] - 2026-10-18
 
 ### Fixed
@@ -664,6 +676,7 @@ releases. Their bundled MCP server fails to start, and the Antigravity copy dupl
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex,
   Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.13.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.1...v1.13.0
 [1.12.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.12.0...v1.12.1

@@ -275,7 +275,7 @@ The full inventory is published, and it is the authority when a name is not list
 
 **No other file in this skill carries a date or a year.** They carry the maturity tag — **[GA]**, **[Beta]**, **[Verify]**, **[UNVERIFIED]** — and link back to the row here that holds the evidence.
 
-The reason is maintenance, not style: when a feature's status changes, exactly one file needs editing. A date copied into `luau-language.md` or `patterns/` is a second thing to remember, and the one that gets forgotten is the one that quietly starts lying. `scripts/audit.mjs` enforces this — a four-digit year on any other page fails the build.
+The reason is maintenance, not style: when a feature's status changes, exactly one file needs editing. A date copied into `luau-language.md` or `patterns/` is a second thing to remember, and the one that gets forgotten is the one that quietly starts lying. The repository's validator enforces this — a four-digit year on any other page fails the build.
 
 The same applies to "new", "recent", and "coming soon": a feature described that way stays described that way long after it stopped being true. State the tag instead.
 
@@ -300,6 +300,6 @@ This file has twice shipped rows that told the agent to flag correct code, both 
 **Rolling window & evergreen live overlay.** To keep this reference token-efficient as weekly engine releases accumulate:
 
 1. **Rolling window (~16 engine releases / ~4 months)**: Keep detailed rows here for capabilities in active rollout (`[Beta]`, `[Verify]`, `[Undocumented]`) or promoted within the last ~16 engine versions. Once a `[GA]` capability is older than that window and settled in production, fold its usage guidance into its domain reference (`luau-language.md`, `patterns/*.md`, `ui-crossplatform.md`, or `performance.md`) instead of letting this table grow unbounded.
-2. **Same-version live currency sync (`roblox-optimum sync`)**: Unambiguous `[Deprecated]` methods added in newer engine dumps after this package release are merged automatically from the local overlay cache (`~/.cache/roblox-optimum/currency-overlay.json` and MCP resource `roblox-optimum://references/live-currency.md`), keeping static checks and MCP explanations current at zero hot-path latency without requiring a package version bump.
+2. **Between releases, check the dump**: this file is a static snapshot. A member deprecated in an engine version newer than the snapshot line is not listed here, so confirm a deprecation claim against the current versioned API dump ([step 1](#how-to-verify-the-toolbox)) before relying on the table alone. Where roblox-optimum is installed, `roblox-optimum sync` merges those newer deprecations from a local cache, served as the `roblox-optimum://references/live-currency.md` MCP resource.
 
 The step-by-step refresh pass is a maintainer procedure, not something to load while answering a question about an API. It lives in `MAINTAINING.md` at the repository root.

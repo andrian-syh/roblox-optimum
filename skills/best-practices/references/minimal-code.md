@@ -72,7 +72,7 @@ These are Non-Negotiable Runtime Rules ([SKILL.md](../SKILL.md#non-negotiable-ru
 
 The ladder shortens the solution, never the reading. Walk it **after** tracing what the change touches: the callers, the remote on the other side, the place the state actually lives. A small diff in the wrong place is not lazy, it is a second defect wearing the shape of efficiency.
 
-This binds hardest on a fix. A report names a **symptom**, and the first plausible file is rarely the cause. Before editing a shared function, find every caller — a single guard inside the function is a smaller diff than one guard per call site, and patching only the path the report names leaves every sibling caller broken. Where the cause is not yet known, that work belongs to the `diagnose` skill ([diagnosis.md](diagnosis.md)) and finishes before this file applies.
+This binds hardest on a fix. A report names a **symptom**, and the first plausible file is rarely the cause. Before editing a shared function, find every caller — a single guard inside the function is a smaller diff than one guard per call site, and patching only the path the report names leaves every sibling caller broken. Where the cause is not yet known, that work belongs to [diagnosis.md](diagnosis.md) and finishes before this file applies.
 
 ## The ladder
 
@@ -174,7 +174,7 @@ Non-trivial logic ships with the smallest thing that fails when the logic breaks
 What that check is depends on the project, and none of it means adding a framework the project does not run:
 
 - Pure logic in a ModuleScript is unit-testable as it stands, which is a reason to keep it pure ([verification.md](verification.md#unit-testable-architecture-framework-agnostic)).
-- Behaviour that only exists in a running place is proved in a playtest instead, by the `studio-ops` route.
+- Behaviour that only exists in a running place is proved in a playtest instead, by [verification.md](verification.md).
 - A project already running TestEZ or Jest-Lua gets its check in that project's idiom, not a second one.
 
 Untested logic is unfinished work, not lean work.

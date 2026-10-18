@@ -46,7 +46,7 @@ Platform compliance failures can get an experience moderated or broken in restri
 ## 4. Open Cloud CI/CD & Secrets Hygiene
 
 - **Never commit API keys or webhooks in Luau source.** Store third-party tokens and webhook credentials in Creator Hub Secrets and read them at runtime with `HttpService:GetSecret(name)` ([GA]). Because `GetSecret` is unavailable in local Studio playtests unless configured in local secrets, wrap secret retrieval in `pcall` and provide a safe no-op or mock path when `RunService:IsStudio()` is true ([security.md](security.md#threat-model-assume-all-of-these-exist)).
-- **Open Cloud Place Publishing (`VersionType`).** In automated CI/CD pipelines (`universes/{universeId}/places/{placeId}/versions`), use `versionType=Saved` for staging builds and `versionType=Published` only when releasing to live servers, gated after automated checks (`npx roblox-optimum --check` and Studio CLI / `TestService` suites) pass.
+- **Open Cloud Place Publishing (`VersionType`).** In automated CI/CD pipelines (`universes/{universeId}/places/{placeId}/versions`), use `versionType=Saved` for staging builds and `versionType=Published` only when releasing to live servers, gated after automated checks pass: selene, StyLua, `npx roblox-optimum --check` where installed, and Studio CLI / `TestService` suites.
 
 ---
 
