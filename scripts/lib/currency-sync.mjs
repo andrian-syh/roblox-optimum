@@ -1,19 +1,61 @@
 /**
- * Live currency synchronization from official Roblox and Luau machine-readable feeds into a
- * local zero-latency overlay cache (`currency-overlay.json` and `live-currency.md`).
+ * Keeps the checker current between releases: reads the engine API dump mirrored by
+ * Roblox-Client-Tracker and the latest Luau release into a local cache the checker reads at start.
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 
-import { applyOverlay, builtinDeprecatedNames, cacheDir, overlayPath, readOverlay } from "./catalog.mjs";
+import {
+  applyOverlay,
+  builtinDeprecatedNames,
+  cacheDir,
+  overlayEntries,
+  overlayPath,
+  readOverlay,
+  serviceReceiverPattern,
+} from "./catalog.mjs";
 
 const TRACKER_BASE = "https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox";
 const LUAU_LATEST_URL = "https://api.github.com/repos/luau-lang/luau/releases/latest";
 
-/** Seven days in milliseconds, after which a session start may refresh the overlay in background. */
-const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+/** How old the overlay may get before a session start refreshes it in the background. */
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/** The least time between two background sync attempts, so a failing sync is not retried on every session. */
+const RETRY_AFTER_MS = 60 * 60 * 1000;
+
+/** Marker file whose modification time records the last background sync attempt. */
+const ATTEMPT_FILE = "last-sync-attempt";
+
+/** The largest response accepted from a feed, well above the API dump, so a runaway download stops. */
+const MAX_RESPONSE_BYTES = 50 * 1024 * 1024;
+
+/** An identifier as Luau and the API dump spell one. Anything else from a feed is discarded. */
+const IDENTIFIER = /^[A-Za-z_]\w*$/;
+
+/**
+ * Returns a version string from a third-party feed when it is digits and dots only, otherwise
+ * "unknown", so feed text never reaches a page the agent reads.
+ */
+export function releaseVersion(text) {
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  return /^\d+(?:\.\d+){1,3}$/.test(trimmed) ? trimmed : "unknown";
+}
+
+/**
+ * Replaces a file in one step, so a reader or a second sync never sees it half written.
+ */
+export function writeAtomic(file, text) {
+  const temporary = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temporary, text);
+    renameSync(temporary, file);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
 
 /**
  * Extracts tags from an API dump member or class, normalizing both plain string tags and
@@ -34,15 +76,6 @@ function readTags(tags) {
 }
 
 /**
- * Converts a PascalCase service name into a receiver-anchored regex fragment matching either a
- * variable ending in that service name or a direct `GetService(...)` call.
- */
-function serviceReceiverPattern(className) {
-  const mixed = className.replace(/^[A-Z]|(?<=[a-z0-9])[A-Z]/g, (ch) => `[${ch}${ch.toLowerCase()}]`);
-  return `(?:\\w*${mixed}\\w*|GetService\\s*\\([^)]*\\))`;
-}
-
-/**
  * Parses a Roblox `API-Dump.json` into unambiguous deprecated method rules. A method is accepted
  * only on a Service class when its name is unique across all classes and its replacement is a method.
  */
@@ -52,6 +85,7 @@ export function extractUnambiguousDeprecations(apiDump, existingNames = new Set(
   const candidates = [];
 
   for (const cls of classes) {
+    if (typeof cls?.Name !== "string" || !IDENTIFIER.test(cls.Name)) continue;
     const classTags = readTags(cls?.Tags);
     const isService = Array.isArray(cls?.Tags) && cls.Tags.includes("Service");
     const members = Array.isArray(cls?.Members) ? cls.Members : [];
@@ -66,7 +100,7 @@ export function extractUnambiguousDeprecations(apiDump, existingNames = new Set(
 
     for (const member of members) {
       const memberName = member?.Name;
-      if (typeof memberName !== "string" || !/^[A-Za-z_]\w*$/.test(memberName)) continue;
+      if (typeof memberName !== "string" || !IDENTIFIER.test(memberName)) continue;
 
       const memberTags = readTags(member?.Tags);
       const isDeprecated = classTags.deprecated || memberTags.deprecated;
@@ -81,7 +115,7 @@ export function extractUnambiguousDeprecations(apiDump, existingNames = new Set(
         !classTags.deprecated &&
         (member.MemberType === "Function" || member.MemberType === "YieldFunction") &&
         typeof preferred === "string" &&
-        /^[A-Za-z_]\w*$/.test(preferred) &&
+        IDENTIFIER.test(preferred) &&
         preferred !== memberName &&
         classMethods.has(preferred)
       ) {
@@ -125,7 +159,11 @@ export function extractUnambiguousDeprecations(apiDump, existingNames = new Set(
   return out;
 }
 
-/** Formats the cached overlay into a concise markdown reference page for MCP resource readers. */
+/**
+ * Formats the cached overlay into a concise markdown reference page for MCP resource readers.
+ * Every value is validated again here, so a cache written by an older version or edited by hand
+ * cannot put arbitrary text in front of the agent.
+ */
 export function renderLiveCurrencyMarkdown(overlay) {
   if (!overlay) {
     return (
@@ -135,19 +173,21 @@ export function renderLiveCurrencyMarkdown(overlay) {
     );
   }
 
+  const entries = overlayEntries(overlay);
+  const syncedAt = /^\d{4}-\d{2}-\d{2}$/.test(overlay.syncedAt ?? "") ? overlay.syncedAt : "unknown";
   const lines = [
     "# Live Currency Overlay",
     "",
-    `- **Engine Version**: \`${overlay.engineVersion || "unknown"}\``,
-    `- **Luau Release**: \`${overlay.luauVersion || "unknown"}\``,
-    `- **Synced At**: \`${overlay.syncedAt || "unknown"}\``,
-    `- **Dynamic Unambiguous Deprecations Added**: ${overlay.deprecated?.length ?? 0}`,
+    `- **Engine Version**: \`${releaseVersion(overlay.engineVersion)}\``,
+    `- **Luau Release**: \`${releaseVersion(overlay.luauVersion)}\``,
+    `- **Synced At**: \`${syncedAt}\``,
+    `- **Dynamic Unambiguous Deprecations Added**: ${entries.length}`,
     "",
   ];
 
-  if (Array.isArray(overlay.deprecated) && overlay.deprecated.length > 0) {
+  if (entries.length > 0) {
     lines.push("## Newly Detected Unambiguous Deprecations", "", "| Deprecated Member | Replacement |", "|---|---|");
-    for (const d of overlay.deprecated) {
+    for (const d of entries) {
       lines.push(`| \`${d.name}\` | \`${d.replacement}\` |`);
     }
     lines.push("");
@@ -156,7 +196,10 @@ export function renderLiveCurrencyMarkdown(overlay) {
   return lines.join("\n");
 }
 
-/** Fetches text or JSON from a URL with a strict timeout so a slow network never hangs CLI sync. */
+/**
+ * Fetches text or JSON from a URL with a strict timeout so a slow network never hangs CLI sync,
+ * and refuses a response larger than `MAX_RESPONSE_BYTES`.
+ */
 async function fetchWithTimeout(url, asJson = false, timeoutMs = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -166,7 +209,14 @@ async function fetchWithTimeout(url, asJson = false, timeoutMs = 15000) {
       headers: { "User-Agent": "roblox-optimum-currency-sync" },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-    return asJson ? await res.json() : (await res.text()).trim();
+    if (Number(res.headers.get("content-length")) > MAX_RESPONSE_BYTES) {
+      throw new Error(`response from ${url} is larger than ${MAX_RESPONSE_BYTES} bytes`);
+    }
+    const text = await res.text();
+    if (text.length > MAX_RESPONSE_BYTES) {
+      throw new Error(`response from ${url} is larger than ${MAX_RESPONSE_BYTES} bytes`);
+    }
+    return asJson ? JSON.parse(text) : text.trim();
   } finally {
     clearTimeout(timer);
   }
@@ -174,7 +224,7 @@ async function fetchWithTimeout(url, asJson = false, timeoutMs = 15000) {
 
 /**
  * Downloads the latest Roblox Engine version, Luau release tag, and `Full-API-Dump.json`, extracts
- * zero-false-positive deprecations, and writes `currency-overlay.json` and `live-currency.md`.
+ * the unambiguous deprecations, and writes `currency-overlay.json` and `live-currency.md`.
  */
 export async function syncCurrency(dir = cacheDir()) {
   const [versionText, luauRelease, apiDump] = await Promise.all([
@@ -186,15 +236,15 @@ export async function syncCurrency(dir = cacheDir()) {
   const existingNames = builtinDeprecatedNames();
   const deprecated = extractUnambiguousDeprecations(apiDump, existingNames);
   const overlay = {
-    engineVersion: versionText || "unknown",
-    luauVersion: luauRelease?.tag_name || "unknown",
+    engineVersion: releaseVersion(versionText),
+    luauVersion: releaseVersion(luauRelease?.tag_name),
     syncedAt: new Date().toISOString().slice(0, 10),
     deprecated,
   };
 
   mkdirSync(dir, { recursive: true });
-  writeFileSync(overlayPath(dir), `${JSON.stringify(overlay, null, 2)}\n`);
-  writeFileSync(join(dir, "live-currency.md"), renderLiveCurrencyMarkdown(overlay));
+  writeAtomic(overlayPath(dir), `${JSON.stringify(overlay, null, 2)}\n`);
+  writeAtomic(join(dir, "live-currency.md"), renderLiveCurrencyMarkdown(overlay));
   applyOverlay(overlay);
   return overlay;
 }
@@ -211,12 +261,27 @@ export function isOverlayStale(dir = cacheDir()) {
 }
 
 /**
+ * Returns whether a background sync started within `RETRY_AFTER_MS`. A failed sync leaves the
+ * overlay stale, and without this every session start on an offline machine would try again.
+ */
+export function attemptedRecently(dir = cacheDir()) {
+  try {
+    return Date.now() - statSync(join(dir, ATTEMPT_FILE)).mtimeMs < RETRY_AFTER_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Spawns a detached background `sync` process when the overlay cache is stale, returning
- * immediately so `--session` never waits on the network. Skipped when `ROBLOX_OPTIMUM_OFFLINE` is set.
+ * immediately so `--session` never waits on the network. Skipped when `ROBLOX_OPTIMUM_OFFLINE` is
+ * set, or when a sync was already started within the last hour.
  */
 export function triggerBackgroundSyncIfStale(scriptPath, dir = cacheDir()) {
-  if (process.env.ROBLOX_OPTIMUM_OFFLINE || !isOverlayStale(dir)) return false;
+  if (process.env.ROBLOX_OPTIMUM_OFFLINE || !isOverlayStale(dir) || attemptedRecently(dir)) return false;
   try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, ATTEMPT_FILE), `${new Date().toISOString()}\n`);
     const child = spawn(process.execPath, [scriptPath, "sync", "--quiet"], {
       detached: true,
       stdio: "ignore",
@@ -228,15 +293,10 @@ export function triggerBackgroundSyncIfStale(scriptPath, dir = cacheDir()) {
   }
 }
 
-/** Reads the markdown text for `live-currency.md`, generating it on the fly from the cached overlay. */
+/**
+ * Returns the `live-currency.md` resource, rendered from the cached overlay on every read so the
+ * page always passes the same validation as a fresh sync.
+ */
 export function readLiveCurrencyResource(dir = cacheDir()) {
-  const mdFile = join(dir, "live-currency.md");
-  if (existsSync(mdFile)) {
-    try {
-      return readFileSync(mdFile, "utf8");
-    } catch {
-      return renderLiveCurrencyMarkdown(readOverlay(dir));
-    }
-  }
   return renderLiveCurrencyMarkdown(readOverlay(dir));
 }

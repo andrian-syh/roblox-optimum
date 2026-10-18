@@ -441,8 +441,8 @@ export function overlayPath(dir = cacheDir()) {
 }
 
 /**
- * Reads a validated live currency overlay from disk in under a millisecond, or returns null
- * when no overlay exists or the file is malformed.
+ * Reads the live currency overlay from disk, or returns null when no overlay exists or the file
+ * is malformed. Its entries are validated later, by `overlayEntries`.
  */
 export function readOverlay(dir = cacheDir()) {
   const file = overlayPath(dir);
@@ -526,37 +526,53 @@ export const EXPLANATIONS = {
   ),
 };
 
+/** A service method call as the overlay names one, `Class:Member()`, with both parts identifiers. */
+const MEMBER_CALL = /^([A-Za-z_]\w*):([A-Za-z_]\w*)\(\)$/;
+
+/**
+ * Converts a PascalCase service name into a receiver-anchored regex fragment matching either a
+ * variable ending in that service name or a direct `GetService(...)` call.
+ */
+export function serviceReceiverPattern(className) {
+  const mixed = className.replace(/^[A-Z]|(?<=[a-z0-9])[A-Z]/g, (ch) => `[${ch}${ch.toLowerCase()}]`);
+  return `(?:\\w*${mixed}\\w*|GetService\\s*\\([^)]*\\))`;
+}
+
+/**
+ * Returns the overlay's deprecations that name a method and its replacement on the same service,
+ * each reduced to its parts. The cache is treated as data: nothing else in an entry is trusted.
+ */
+export function overlayEntries(overlay) {
+  if (!overlay || !Array.isArray(overlay.deprecated)) return [];
+  const entries = [];
+  for (const item of overlay.deprecated) {
+    const deprecated = MEMBER_CALL.exec(typeof item?.name === "string" ? item.name : "");
+    const preferred = MEMBER_CALL.exec(typeof item?.replacement === "string" ? item.replacement : "");
+    if (!deprecated || !preferred || deprecated[1] !== preferred[1]) continue;
+    entries.push({ name: item.name, replacement: item.replacement, className: deprecated[1], member: deprecated[2] });
+  }
+  return entries;
+}
+
 /**
  * Merges validated unambiguous deprecations from a live currency overlay into `DEPRECATED` and
- * `EXPLANATIONS` without duplicating rules that are already registered.
+ * `EXPLANATIONS` without duplicating rules that are already registered. Patterns and explanations
+ * are rebuilt from the names, never read from the cache.
  */
 export function applyOverlay(overlay = readOverlay()) {
-  if (!overlay || !Array.isArray(overlay.deprecated)) return 0;
   const known = new Set(DEPRECATED.map(([, name]) => name));
   let added = 0;
 
-  for (const item of overlay.deprecated) {
-    if (
-      typeof item?.pattern !== "string" ||
-      typeof item?.name !== "string" ||
-      typeof item?.replacement !== "string" ||
-      known.has(item.name)
-    ) {
-      continue;
-    }
-    try {
-      const regex = new RegExp(item.pattern);
-      DEPRECATED.push([regex, item.name, item.replacement]);
-      EXPLANATIONS[item.name] = {
-        why: item.why || `${item.name} is marked Deprecated in the Roblox Engine API dump.`,
-        instead: item.instead || `${item.replacement}.`,
-        read: item.read || "api-currency.md",
-      };
-      known.add(item.name);
-      added++;
-    } catch {
-      continue;
-    }
+  for (const { name, replacement, className, member } of overlayEntries(overlay)) {
+    if (known.has(name)) continue;
+    DEPRECATED.push([new RegExp(`${serviceReceiverPattern(className)}:${member}\\s*\\(`), name, replacement]);
+    EXPLANATIONS[name] = {
+      why: `${name} is marked Deprecated in the Roblox Engine API dump in favor of ${replacement}.`,
+      instead: `${replacement}.`,
+      read: "api-currency.md",
+    };
+    known.add(name);
+    added++;
   }
   return added;
 }

@@ -20,9 +20,9 @@ The CLI (`scripts/roblox-optimum.mjs`) and MCP server (`scripts/roblox-mcp.mjs`)
 
 | Module | Responsibility |
 |---|---|
-| `scripts/lib/catalog.mjs` | Single source of truth for `DEPRECATED`, `HAZARDS`, `CONTEXT_ERRORS`, `EXPLANATIONS`, and the runtime overlay merger (`applyOverlay`). |
+| `scripts/lib/catalog.mjs` | Single source of truth for `DEPRECATED`, `HAZARDS`, `CONTEXT_ERRORS`, `EXPLANATIONS`, and the runtime overlay merger (`applyOverlay`, `overlayEntries`). |
 | `scripts/lib/checker.mjs` | Static analysis engine (`stripNonCode`, `inspect`, `yieldingUpdates`, `frozenLoops`, `checkFile`, `expandPaths`, `checkBatch`, `formatReport`). |
-| `scripts/lib/currency-sync.mjs` | Live currency fetcher and zero-false-positive API dump filter (`extractUnambiguousDeprecations`, `syncCurrency`, `spawnBackgroundSync`, `formatLiveCurrencyMarkdown`). |
+| `scripts/lib/currency-sync.mjs` | Live currency fetcher and unambiguous API dump filter, with feed and cache validation (`extractUnambiguousDeprecations`, `syncCurrency`, `triggerBackgroundSyncIfStale`, `renderLiveCurrencyMarkdown`, `releaseVersion`, `writeAtomic`). |
 
 Host-specific rule frontmatter (`RULE_TARGETS`) and subagent transformations (`AGENT_FORMS`) live in `scripts/roblox-optimum.mjs` and are shared with `scripts/sync-rules.mjs`.
 

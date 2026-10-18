@@ -130,7 +130,7 @@ Roblox ships a new engine build and API dump every week. The checker refreshes i
 npx roblox-optimum sync
 ```
 
-`sync` fetches the live engine version, unambiguous service-level deprecations from the Roblox API dump, and the latest Luau release tag into a local cache (`~/.cache/roblox-optimum/currency-overlay.json` or `%LOCALAPPDATA%\roblox-optimum\`). Set `ROBLOX_OPTIMUM_OFFLINE=1` to disable network refresh in air-gapped or CI environments.
+`sync` fetches the live engine version, unambiguous service-level deprecations from the Roblox API dump, and the latest Luau release tag into a local cache, `~/.cache/roblox-optimum/currency-overlay.json` on every platform, or the folder named by `ROBLOX_OPTIMUM_CACHE_DIR`. Set `ROBLOX_OPTIMUM_OFFLINE=1` to disable network refresh in air-gapped or CI environments.
 
 > **Scope of the static checker:** `--check` matches deterministic syntax and API patterns in source text. For architectural, security, and logic review, run the `code-review` skill or the `roblox-auditor` subagent.
 
