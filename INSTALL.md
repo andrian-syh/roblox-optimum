@@ -30,7 +30,7 @@
 
 ## Requirements
 
-* **Node.js 18 or later**, with `npm` and `npx` on your `PATH`. Run `node --version` to check.
+* **Node.js 22 or later**, with `npm` and `npx` on your `PATH`. Run `node --version` to check.
 * **Git**, for the pre-commit hook.
 * **Roblox Studio**, only if you connect an agent to Studio through MCP.
 * One of the agents in [Set up each agent](#set-up-each-agent), or any agent that reads `AGENTS.md`.
@@ -837,12 +837,6 @@ For hosts that read a JSON configuration file:
 
 > Keep a version number out of the package name so the server stays in sync with the skills. `@latest` is not a version pin; it prevents `npx` from mistaking a plugin directory's `package.json` for the package to run.
 
-To run the MCP server's self-test on its own:
-
-```bash
-npx -y -p roblox-optimum@latest roblox-mcp --selftest
-```
-
 ---
 
 ## Add the pre-commit hook
@@ -885,7 +879,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npx roblox-optimum --check .
 ```
 
@@ -976,7 +970,7 @@ The agent is reading `roblox-optimum` from two places, such as a plugin and a lo
 <details>
 <summary><strong><code>npx</code> is not recognized</strong></summary>
 
-Install Node.js 18 or later, then close and reopen your terminal so that `npx` is on your `PATH`.
+Install Node.js 22 or later, then close and reopen your terminal so that `npx` is on your `PATH`.
 
 </details>
 

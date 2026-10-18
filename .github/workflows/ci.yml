@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        # The oldest Node package.json promises, and the current LTS line.
-        node: ["18", "24"]
+        # The two Node.js release lines still in support, the older of which package.json promises.
+        node: ["22", "24"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,13 +30,30 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      # The same chain a release is held to: version drift, the structural audit, and every
-      # self-test, so nothing passes here that npm test would stop.
+      # The same chain a release is held to: version drift, the structural audit, and the test
+      # suite, so nothing passes here that npm test would stop.
       - name: npm test
         run: npm test
 
       - name: Per-agent rule copies match AGENTS.md
         run: node scripts/sync-rules.mjs --check
+
+      # Catches a package that would publish tests or evals, or lose a module the CLI imports,
+      # before a tag publishes it rather than after.
+      - name: Package holds what it should, and nothing else
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        shell: bash
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const fs = require("fs");
+            const files = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))[0].files.map((f) => f.path);
+            const stray = files.filter((p) => /^(test|evals)\/|\/evals\//.test(p));
+            const missing = fs.readdirSync("scripts/lib").map((n) => `scripts/lib/${n}`).filter((p) => !files.includes(p));
+            for (const p of stray) console.log(`::error::ships ${p}, which is not for users`);
+            for (const p of missing) console.log(`::error::does not ship ${p}, which the CLI imports`);
+            process.exit(stray.length + missing.length > 0 ? 1 : 0);
+          ' "$RUNNER_TEMP/pack.json"
 
       - name: Shipped changes require a version bump
         if: matrix.os == 'ubuntu-latest' && matrix.node == '24' && github.event_name == 'pull_request'

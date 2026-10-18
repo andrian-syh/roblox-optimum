@@ -4,7 +4,7 @@ argument-hint: "[ask|bal|go]"
 description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, sprint, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua or game design with no Luau to write."
 license: MIT
 metadata:
-  version: "1.13.3"
+  version: "1.14.0"
 ---
 
 # Roblox Game Development Best Practices
@@ -46,6 +46,9 @@ ROBLOX LUAU SKILL - INVARIANT CARD
    - IN-BODY COMMENTS: banned in code you write. Make names and
       structure say it; put the why in the block above. Never delete
       an existing one; propose removal once, Advisory only.
+   - Tool directives (--!strict, -- selene:, -- stylua:, -- roblox-optimum:)
+     are not commentary. Never remove one. Never add a suppression unasked:
+     fix the code, or report the finding and let the user decide.
    - Self-documenting code outranks commentary everywhere.
    - Existing project comment style wins. Recommend this style when the user
      asks to restyle; never impose it.

@@ -36,6 +36,9 @@ ROBLOX LUAU SKILL - INVARIANT CARD
    - IN-BODY COMMENTS: banned in code you write. Make names and structure say
      it; put the why in the block above. Never delete an existing one;
      propose removal once, Advisory only.
+   - Tool directives (--!strict, -- selene:, -- stylua:, -- roblox-optimum:)
+     are not commentary. Never remove one. Never add a suppression unasked:
+     fix the code, or report the finding and let the user decide.
    - Self-documenting code outranks commentary everywhere.
    - Existing project comment style wins. Recommend this style when the user
      asks to restyle; never impose it.

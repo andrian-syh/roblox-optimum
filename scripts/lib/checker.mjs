@@ -20,6 +20,7 @@ import {
   VENDOR,
   YIELDS,
 } from "./catalog.mjs";
+import { applySuppressions, slugOf } from "./suppress.mjs";
 
 /**
  * A service is usually named inside the string `GetService` takes, which the strip blanks.
@@ -267,6 +268,19 @@ function usesThisLayout(names) {
  * order, and nothing when it passes. The optional path or runContext enables side checks.
  */
 export function inspect(source, path = "", runContext = "") {
+  return inspectDetailed(source, path, runContext).problems;
+}
+
+/**
+ * The findings that stand after suppression directives, how many a directive allowed, and the
+ * rules the file's header allows, which a cross-file check must honour too.
+ */
+export function inspectDetailed(source, path = "", runContext = "") {
+  return applySuppressions(stripNonCode(source, true), findingsIn(source, path, runContext));
+}
+
+/** Every finding in one source before suppression directives are applied. */
+function findingsIn(source, path, runContext) {
   const problems = [];
   const code = stripNonCode(source);
 
@@ -364,9 +378,9 @@ export function checkFile(path) {
     return { path, status: "not-roblox", problems: [] };
   }
 
-  const problems = inspect(source, path);
+  const { problems, suppressed, fileAllows } = inspectDetailed(source, path);
   const hasProcessReceipt = /\.ProcessReceipt\s*=(?!=)/.test(stripNonCode(source));
-  return { path, status: problems.length === 0 ? "clean" : "problems", problems, hasProcessReceipt };
+  return { path, status: problems.length === 0 ? "clean" : "problems", problems, suppressed, fileAllows, hasProcessReceipt };
 }
 
 /**
@@ -408,6 +422,10 @@ export function checkBatch(paths) {
   if (receiptOwners.length > 1) {
     const names = receiptOwners.map((r) => r.path).join(", ");
     for (const owner of receiptOwners) {
+      if (owner.fileAllows?.has("marketplaceservice-processreceipt")) {
+        owner.suppressed++;
+        continue;
+      }
       owner.problems.push(
         `MarketplaceService.ProcessReceipt is assigned in multiple files (${names}): Roblox allows ` +
           `only one callback per place, so the last assignment overwrites the others.`,
@@ -425,7 +443,11 @@ export function checkBatch(paths) {
  */
 export function formatReport(reports) {
   const body = reports
-    .map((r) => `Roblox standards check failed for ${r.path}:\n` + r.problems.map((p) => `  - ${p}`).join("\n"))
+    .map(
+      (r) =>
+        `Roblox standards check failed for ${r.path}:\n` +
+        r.problems.map((p) => `  - ${p}${slugOf(p) === null ? "" : ` [${slugOf(p)}]`}`).join("\n"),
+    )
     .join("\n\n");
 
   return `${body}\n\nStandards: https://github.com/andrian-syh/roblox-optimum\n`;

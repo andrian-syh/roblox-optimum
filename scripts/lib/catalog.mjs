@@ -526,6 +526,30 @@ export const EXPLANATIONS = {
   ),
 };
 
+/** A rule's short name, as a suppression directive spells it: lowercase words joined by hyphens. */
+export function ruleSlug(key) {
+  return key
+    .toLowerCase()
+    .replace(/\(\)/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
+ * The explanation key a finding or a rule's short name refers to, or null when none matches.
+ * The longest key wins, so a name that contains a shorter one resolves to itself.
+ */
+export function keyFor(finding) {
+  const text = String(finding ?? "");
+  const keys = Object.keys(EXPLANATIONS);
+
+  return (
+    keys.find((k) => ruleSlug(k) === text.trim()) ??
+    keys.sort((a, b) => b.length - a.length).find((k) => text.includes(k)) ??
+    null
+  );
+}
+
 /** A service method call as the overlay names one, `Class:Member()`, with both parts identifiers. */
 const MEMBER_CALL = /^([A-Za-z_]\w*):([A-Za-z_]\w*)\(\)$/;
 

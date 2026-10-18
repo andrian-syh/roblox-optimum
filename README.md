@@ -33,7 +33,7 @@ Roblox and Luau standards for AI agents, paired with a deterministic static chec
 
 ## Quick start
 
-Requires **Node.js 18 or later**.
+Requires **Node.js 22 or later**.
 
 ```bash
 # 1. In your Roblox project root: install rules and the Git pre-commit hook
@@ -106,9 +106,9 @@ Pass the level when invoking a skill (for example, `/roblox-optimum:best-practic
 ```text
 $ npx roblox-optimum --check src/
 Roblox standards check failed for src/CoinService.luau:
-  - Line 5: :connect() is deprecated. Use :Connect().
-  - Line 6: wait() is deprecated. Use task.wait().
-  - Line 8: Humanoid:LoadAnimation() is deprecated. Use Animator:LoadAnimation().
+  - Line 5: :connect() is deprecated. Use :Connect(). [connect]
+  - Line 6: wait() is deprecated. Use task.wait(). [wait]
+  - Line 8: Humanoid:LoadAnimation() is deprecated. Use Animator:LoadAnimation(). [humanoid-loadanimation]
 ```
 
 Pass one or more files or directories to `--check` (directories are walked recursively). The checker reports:
@@ -121,6 +121,32 @@ Pass one or more files or directories to `--check` (directories are walked recur
 * **Wrong-side members**: `LocalPlayer` and `UserInputService` in `.server.luau` files, and `DataStoreService`, `MemoryStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` in `.client.luau` files.
 
 String literals and comments are ignored so prose never triggers false positives. Vendored directories (`Packages/`, `node_modules/`, etc.) are skipped automatically, and `.lua` files are checked only when they call Roblox APIs. Set `ROBLOX_OPTIMUM=off` to pause all checks temporarily.
+
+### Report to CI and code scanning
+
+`--format json` prints every file, finding, line, and rule on stdout for a script to read. `--format sarif` prints a SARIF 2.1.0 log, which GitHub code scanning shows as an annotation on the line of a pull request:
+
+```yaml
+- run: npx roblox-optimum --check src --format sarif > roblox-optimum.sarif || true
+- uses: github/codeql-action/upload-sarif@v4
+  with:
+    sarif_file: roblox-optimum.sarif
+```
+
+Both formats keep the exit code: 1 when there are findings.
+
+### Allow a finding you have judged intentional
+
+The name in brackets after a finding is its rule. To allow it, name the rule in a comment on the line, or on the line above:
+
+```lua
+-- roblox-optimum: allow(wait)
+wait(1)
+
+local started = tick() -- roblox-optimum: allow(tick)
+```
+
+To allow a rule for a whole file, put `-- roblox-optimum: allow-file(rule)` in the file's header, before the first line of code. A directive must name a rule: `allow()` and `allow(*)` are reported, and so is an unknown rule name and a directive that allows nothing, so a stale one does not linger. The checker states how many findings directives allowed. Agents following these standards never add a directive on their own; they fix the code or report the finding to you.
 
 ### Keep the checker current between releases (`sync`)
 

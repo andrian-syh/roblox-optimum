@@ -56,7 +56,7 @@ Out of scope:
 
 ### Dependencies
 
-- The package uses only Node.js built-in modules (Node.js 18 or later).
+- The package uses only Node.js built-in modules (Node.js 22 or later).
 - It has no npm dependencies and defines no `preinstall` or `postinstall` script.
 
 ### File writes

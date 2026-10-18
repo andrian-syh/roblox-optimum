@@ -16,15 +16,35 @@ Edit only the source files below. Derived files are generated automatically, and
 
 ### Core script modules
 
-The CLI (`scripts/roblox-optimum.mjs`) and MCP server (`scripts/roblox-mcp.mjs`) share three modules under `scripts/lib/`:
+`scripts/roblox-optimum.mjs` is the CLI entry point: it parses arguments and dispatches. The work lives in modules under `scripts/lib/`, which the CLI, the MCP server (`scripts/roblox-mcp.mjs`), and `scripts/sync-rules.mjs` share:
 
 | Module | Responsibility |
 |---|---|
+| `scripts/lib/package.mjs` | Package root, version, the CLI script path, and small file and process helpers (`readJson`, `readStdin`, `ranAsScript`, `stamped`). |
+| `scripts/lib/hosts.mjs` | Every agent host's locations: skills, agents, plugins, hooks, and MCP config files. Supporting a new host or following one that moved starts here. |
+| `scripts/lib/project.mjs` | Whether a directory is a Roblox project. |
+| `scripts/lib/router.mjs` | Prompt-to-skill routing (`routePrompt`). |
+| `scripts/lib/rules.mjs` | Per-agent rule files generated from `AGENTS.md` (`RULE_TARGETS`, `GENERATED`). |
+| `scripts/lib/agent-forms.mjs` | The subagent rewritten into each host's front matter (`AGENT_FORMS`, `forCopilot`, `forKiro`, and the rest). |
+| `scripts/lib/hooks.mjs` | The agent hooks: post-write check, session start, pre-write, and prompt routing. |
+| `scripts/lib/install.mjs` | `install`, project and global, including plugins, MCP registration, and the pre-commit hook. |
+| `scripts/lib/doctor.mjs` | `doctor` and `uninstall`. |
+| `scripts/lib/suppress.mjs` | `allow` and `allow-file` directives: parsing, scoping, and the findings for malformed or stale ones. |
+| `scripts/lib/report.mjs` | `--check --format json` and `--format sarif`. |
 | `scripts/lib/catalog.mjs` | Single source of truth for `DEPRECATED`, `HAZARDS`, `CONTEXT_ERRORS`, `EXPLANATIONS`, and the runtime overlay merger (`applyOverlay`, `overlayEntries`). |
 | `scripts/lib/checker.mjs` | Static analysis engine (`stripNonCode`, `inspect`, `yieldingUpdates`, `frozenLoops`, `checkFile`, `expandPaths`, `checkBatch`, `formatReport`). |
 | `scripts/lib/currency-sync.mjs` | Live currency fetcher and unambiguous API dump filter, with feed and cache validation (`extractUnambiguousDeprecations`, `syncCurrency`, `triggerBackgroundSyncIfStale`, `renderLiveCurrencyMarkdown`, `releaseVersion`, `writeAtomic`). |
 
-Host-specific rule frontmatter (`RULE_TARGETS`) and subagent transformations (`AGENT_FORMS`) live in `scripts/roblox-optimum.mjs` and are shared with `scripts/sync-rules.mjs`.
+`scripts/roblox-optimum.mjs` re-exports the names other scripts import, so an import from it keeps working when code moves between modules.
+
+### Tests
+
+The tests live in `test/*.test.mjs` and run on Node.js's built-in test runner, so they add no dependency. They ship with the repository, not the npm package.
+
+- `npm test` runs the version check, the structural audit, and every test file.
+- `node --test "test/*.test.mjs"` runs the tests alone. Each check is its own subtest, so a failure names what broke.
+- `test/router.test.mjs` runs every skill's trigger queries through the prompt router, plus repository chores and game requests written in several languages. Add a misrouted prompt there before changing a route, and keep route signals to file and tool names, which read the same in any language.
+- CI runs `npm test` on Ubuntu and Windows with Node.js 22 and 24, then checks that the package ships every `scripts/lib/` module and no test or eval file.
 
 ## Refresh the API currency baseline
 

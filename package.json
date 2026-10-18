@@ -1,6 +1,6 @@
 {
   "name": "roblox-optimum",
-  "version": "1.13.3",
+  "version": "1.14.0",
   "description": "Roblox and Luau standards for AI agents, paired with a deterministic static checker.",
   "keywords": [
     "roblox",
@@ -36,7 +36,7 @@
     "scripts/studio-mcp-antigravity.mjs"
   ],
   "scripts": {
-    "test": "node scripts/check-versions.mjs && node scripts/audit.mjs && node scripts/roblox-optimum.mjs --selftest && node scripts/roblox-mcp.mjs --selftest && node scripts/studio-mcp-antigravity.mjs --selftest"
+    "test": "node scripts/check-versions.mjs && node scripts/audit.mjs && node --test \"test/*.test.mjs\""
   },
   "author": {
     "name": "andrian-syh",
@@ -50,6 +50,6 @@
     "url": "git+https://github.com/andrian-syh/roblox-optimum.git"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

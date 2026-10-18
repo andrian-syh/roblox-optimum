@@ -397,7 +397,7 @@ const TRAILING = /[;,)\]}]\s*\/\/|^\s*[^\s/*"'`].*\s\/\/\s/;
 function auditComments() {
   let blocks = 0;
 
-  for (const path of walk(join(ROOT, "scripts"), /\.mjs$/)) {
+  for (const path of [...walk(join(ROOT, "scripts"), /\.mjs$/), ...walk(join(ROOT, "test"), /\.mjs$/)]) {
     const name = relative(ROOT, path);
     const lines = readFileSync(path, "utf8").split("\n");
 

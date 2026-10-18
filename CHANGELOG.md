@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-10-18
+
+Upgrade note: roblox-optimum now requires Node.js 22 or later. Node.js 18 and 20 have reached end of life. Run `node --version`, and upgrade Node.js before you update the package.
+
+### Added
+
+- Added `--check --format json` and `--check --format sarif`. SARIF 2.1.0 output lets GitHub code scanning show each finding on its line in a pull request, with a link to the reference page behind the rule. Both formats keep the exit code.
+- Added suppression directives for a finding you have judged intentional: `-- roblox-optimum: allow(rule)` on or above a line, and `-- roblox-optimum: allow-file(rule)` in a file's header. A directive must name a rule. One that names no rule, an unknown rule, or allows nothing is reported, and the checker states how many findings directives allowed. They apply to `--check`, the hooks, and `check_luau` alike.
+- Added each finding's rule name in brackets, such as `[wait]`, which is the name a directive uses. `explain_finding` accepts that name too.
+- Added a standards rule: tool directives (`--!strict`, `-- selene:`, `-- stylua:`, `-- roblox-optimum:`) are not commentary. An agent never removes one, and never adds a suppression unless asked.
+
+### Changed
+
+- Changed the minimum Node.js version from 18 to 22.
+- Changed the prompt router so a request about a repository's own files, such as the changelog, README, `package.json`, a `.mjs` script, CI, a commit, or a release tag, no longer loads a Luau skill. The router reads only file and tool names for this, so it works the same in any language.
+- Changed the prompt router to send a reported loss, such as "players lose coins", to the `diagnose` skill.
+- Changed the prompt router to send a request that quotes a Luau or engine error, such as `attempt to index nil` or `Infinite yield possible`, to the `diagnose` skill. These messages are English in every locale, so this works in any language the request is written in.
+
+### Fixed
+
+- Fixed the prompt router reading "lag" inside longer words, such as "lagi", as a performance symptom.
+- Fixed this package's own name, `roblox-optimum`, counting as a sign that a request is about a Roblox game.
+- Changed `roblox-optimum --selftest` to run the test suite from a repository checkout. In an npm install it says where the tests are, since they no longer ship in the package.
+- Changed the package to ship no test code, which makes it about 1,200 lines smaller. The CLI no longer loads its tests on every run.
+
+### Removed
+
+- Removed the `--selftest` option from `roblox-mcp` and from the Studio MCP proxy. Their tests run with the repository's test suite.
+
 ## [1.13.3] - 2026-10-18
 
 ### Fixed
@@ -461,6 +490,7 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.14.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.3...v1.14.0
 [1.13.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.0...v1.13.1

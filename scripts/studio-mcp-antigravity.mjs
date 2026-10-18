@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { readdirSync, statSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join } from "node:path";
 
 import { ranAsScript } from "./roblox-optimum.mjs";
 
@@ -19,7 +19,7 @@ const PROBE = "server/discover";
  * Where Studio keeps one directory per installed version, each with its own copy of the server.
  * An empty variable counts as unset, since it would make the path relative to wherever this runs.
  */
-function versionsRoot() {
+export function versionsRoot() {
   const local = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
   return join(local, "Roblox", "Versions");
 }
@@ -110,39 +110,6 @@ function run() {
   process.stdin.on("end", () => child.stdin.end());
 }
 
-function selftest() {
-  const assert = (ok, what) => {
-    if (!ok) {
-      process.stderr.write(`studio-mcp-antigravity selftest failed: ${what}\n`);
-      process.exit(1);
-    }
-  };
-
-  const probe = interception('{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}');
-  assert(probe !== null, "the probe is answered rather than forwarded");
-  assert(JSON.parse(probe).id === 1, "the answer carries the id it was asked with");
-  assert(
-    JSON.parse(probe).error?.code === -32601 && !("result" in JSON.parse(probe)),
-    "the probe is refused as a legacy server refuses it, so the client falls back to initialize",
-  );
-
-  assert(
-    interception('{"jsonrpc":"2.0","method":"server/discover"}') === "",
-    "a probe with no id is dropped, since a notification takes no reply",
-  );
-  assert(
-    interception('{"jsonrpc":"2.0","id":2,"method":"initialize","params":{}}') === null,
-    "initialize is forwarded to the real server",
-  );
-  assert(interception("not json") === null, "an unparsable line is forwarded, not swallowed");
-  assert(findStudioMcp("/no-such-directory") === null, "a missing Studio install reports null");
-  assert(isAbsolute(versionsRoot()), "the versions directory never resolves against the working directory");
-
-  process.stdout.write("studio-mcp-antigravity selftest: all checks passed\n");
-  return 0;
-}
-
 if (ranAsScript(import.meta.url)) {
-  if (process.argv[2] === "--selftest") process.exit(selftest());
-  else run();
+  run();
 }
