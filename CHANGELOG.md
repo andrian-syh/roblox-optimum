@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.2] - 2026-10-31
+
+The Studio MCP guide now covers how the tools actually behave, so agents with small context windows or weaker reasoning can follow it step by step. Each change was checked against the Studio MCP docs page, the live tool schemas of Studio 745, Roblox's DevForum announcements and bug reports, or the Open Cloud Luau Execution reference.
+
+### Added
+
+- Added fixed recipes to the Studio MCP guide for session start, reading, editing, bulk changes, playtests, and asset generation. Each recipe has a stop condition.
+- Added a list of Studio MCP calls that report success while nothing changed, such as `multi_edit` with `replace_all` reading `old_string` as a Lua pattern, with the read-back that catches each one.
+- Added a table of Studio MCP errors and when to stop, including an empty Studio list and `Target is not reachable` during play.
+- Added a table of which DataModel each Studio MCP call reaches, and rules for running Luau through the tool without freezing Studio.
+- Added guidance on Roblox Assistant skills over MCP: `list_skills` and `skill` as a second opinion, and `create_skill` and `edit_skill` only when the user asks.
+- Added two invariant card rules to studio-ops: keep the session facts in view after compaction, and treat a write as done only when a separate read shows it.
+
+### Changed
+
+- Changed the studio-ops skill to load before the first Studio MCP tool call, not only when the user asks about tooling. Prompts that name Studio MCP or one of its tools now route to studio-ops.
+- Changed the MCP server instructions to point at the Studio MCP guide when Studio MCP tools are connected.
+- Changed the Studio MCP tool snapshot to the live server of Studio 745, which lists 33 tools, 8 more than the docs page.
+- Changed the Studio CLI notes to the current docs address, and noted that it is separate from the MCP server and documents no exit codes.
+
+### Fixed
+
+- Fixed the claim that Luau run through Studio MCP has no undo. A probe in Studio 745 showed that each `execute_luau` call is one undo step. The guide still treats undo as a safety net, not a plan.
+- Fixed the client probe advice for a playtest already running. A LocalScript put in `StarterPlayerScripts` during play never runs; it goes in the player's `PlayerGui`.
+- Fixed the Open Cloud Luau Execution limit. It allows ten incomplete tasks per place, not two concurrent requests per universe.
+
 ## [1.14.1] - 2026-10-31
 
 The API currency baseline now reflects engine 745 and Luau 0.744. Every change below was checked against the engine API dump, the Engine API Reference, or a probe in Studio 745.
@@ -517,6 +543,7 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.14.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.1...v1.14.2
 [1.14.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.3...v1.14.0
 [1.13.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.2...v1.13.3

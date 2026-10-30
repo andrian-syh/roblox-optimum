@@ -35,7 +35,9 @@ const INSTRUCTIONS =
   "For Roblox or Luau work, whether or not the user names this server: call get_standards " +
   "once before writing Luau, and check_luau on every script written or edited before " +
   "handing it back, including source read out of Studio. Findings are one line each; " +
-  "explain_finding expands one into the rule behind it.";
+  "explain_finding expands one into the rule behind it. When Roblox Studio MCP tools are " +
+  "connected, read the Studio MCP guide (resource roblox-optimum://references/studio-mcp.md) " +
+  "before the first Studio write, and read every write back.";
 
 /** The version this package ships, which the client reads back in `serverInfo`. */
 const VERSION = (() => {

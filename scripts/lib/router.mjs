@@ -45,7 +45,7 @@ const AUTHORING_LEAD =
  */
 const PROMPT_ROUTES = [
   [
-    /\b(?:rojo|argon|azul|script sync|studio mcp|playtest)\w*|\bconnect to studio|\brunning session|\bplace (?:file|back)|\btest\b.*\b(?:\d+|two|three|multiple) (?:players|clients)/i,
+    /\b(?:rojo|argon|azul|script sync|studio mcp|playtest)\w*|\bmcp\b[^.?!]{0,30}\bstudio\b|\b(?:execute_luau|multi_edit|list_roblox_studios|start_stop_play|get_console_output|search_game_tree|script_grep)\b|\bconnect to studio|\brunning session|\bplace (?:file|back)|\btest\b.*\b(?:\d+|two|three|multiple) (?:players|clients)/i,
     "studio-ops",
     "tooling or a playtest",
   ],

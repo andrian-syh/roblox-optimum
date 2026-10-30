@@ -1,9 +1,9 @@
 ---
 name: studio-ops
-description: "Operates a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change works in the running engine. Use whenever the user asks why their edits are being overwritten, how to set up or fix a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Hand-offs: authoring Luau goes to the best-practices skill, judging existing code to the code-review skill, working out why a reported symptom happens to the diagnose skill, which calls on this one to run the probe."
+description: "Operates a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change works in the running engine. Use before the first Studio MCP tool call of a session (list_roblox_studios, execute_luau, multi_edit, start_stop_play, and the rest), and whenever the user asks why their edits are being overwritten, how to set up or fix a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Hand-offs: authoring Luau goes to the best-practices skill, judging existing code to the code-review skill, working out why a reported symptom happens to the diagnose skill, which calls on this one to run the probe."
 license: MIT
 metadata:
-  version: "1.14.1"
+  version: "1.14.2"
 ---
 
 # Roblox Studio Operations
@@ -38,6 +38,10 @@ ROBLOX STUDIO OPS - INVARIANT CARD
 7  Leave no residue: test scripts, tags, and instances created to verify
    are removed when done.
 8  User authority outranks this skill.
+9  Keep three session facts in view: studio_id, Edit or Play, and who
+   owns the files. Restate them after compaction, before the next write.
+10 A write is done only when a separate read shows it. Same error twice:
+   stop and report, never a third identical call.
 ```
 
 Everything below expands these; nothing below overrides them.
