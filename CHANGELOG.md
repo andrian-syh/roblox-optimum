@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-10-31
+
+The API currency baseline now reflects engine 745 and Luau 0.744. Every change below was checked against the engine API dump, the Engine API Reference, or a probe in Studio 745.
+
+### Added
+
+- Added checks for deprecated calls that are common in game code: `Player:LoadCharacter` and `LoadCharacterWithHumanoidDescription`, `Humanoid:ApplyDescription` and `ApplyDescriptionReset`, `Player:IsInGroup`, `Player:GetFriendsOnline`, `WorldRoot:FindPartOnRay` and its two variants, and `DataModel.VIPServerId` and `VIPServerOwnerId`. Each finding names the replacement.
+- Added `coroutine.finally` to the standards as available in Studio, with its documented contract and the `coroutine.wrap` trap.
+- Added the TextChatService migration to the standards: code that reads chat message content stops working when a game moves to the updated chat.
+- Added the Device Trust API to the standards, with the rule that only the server reads it.
+
+### Changed
+
+- Changed the `ReserveServer` finding to recommend `TeleportAsync` with `TeleportOptions.ReservedServerId`. Its old advice, `ReserveServerAsync` or `ShouldReserveServer`, is deprecated too. The teleport patterns now use server IDs.
+- Changed the `RegisterTestLegacy` finding to name `TestService:RunTestsAsync`, and updated the TestService notes for the new `RegisterTest(testName, callback, options)` argument order.
+- Changed the price-display rule to read prices with `MarketplaceService:GetProductInfoAsync`, since `GetProductInfo` is deprecated.
+- Changed the data store limits to say that per-server request limits are defaults that `SetRateLimitForRequestType` can change, and added the memory store limit of 1,000,000 items and 100 MB for one sorted map or queue.
+- Changed several references from undocumented to documented now that the Engine API Reference covers them, including `RunService:BindToAnimation`, `Player.FrustumStreaming`, `TeleportOptions.ReservedServerId`, the `WorldRoot` collision group methods, and `Logger`.
+
+### Fixed
+
+- Fixed the `Collection` entry, which listed members the engine does not document. It now gives the documented callback API, and notes that `CreateCollection` raises "Collections are not enabled" in Studio 745.
+- Fixed the advice to run `wally install --locked` in CI. Stable Wally has no such flag, so CI now checks that `wally install` leaves `wally.lock` unchanged.
+- Fixed the claim that secrets never work in a local playtest. Local Secrets in Experience Settings provide values for local testing.
+- Fixed the `PromptCreateAssetAsync` and `CollisionFidelity.Scalable` explanations, which contradicted their own replacements.
+- Fixed the 64-bit integer type and exact table types being described as possible future features. Luau has withdrawn both.
+
 ## [1.14.0] - 2026-10-18
 
 Upgrade note: roblox-optimum now requires Node.js 22 or later. Node.js 18 and 20 have reached end of life. Run `node --version`, and upgrade Node.js before you update the package.
@@ -490,6 +517,7 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.14.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.3...v1.14.0
 [1.13.3]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.1...v1.13.2

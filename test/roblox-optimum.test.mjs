@@ -775,7 +775,7 @@ Players.PlayerAdded:Connect(greet)
   );
   ok(
     inspect(good.replace("print(player.Name)", "TeleportService:ReserveServer(123)")).some((p) =>
-      p.includes("ReserveServerAsync"),
+      p.includes("ReservedServerId"),
     ) &&
       inspect(good.replace("print(player.Name)", "frame:TweenPosition(UDim2.new())")).some((p) =>
         p.includes("TweenService:Create"),
@@ -790,12 +790,27 @@ Players.PlayerAdded:Connect(greet)
         p.includes("RegisterTest"),
       ) &&
       inspect(good.replace("print(player.Name)", "AssetService:PromptCreateAssetAsync()")).some((p) =>
-        p.includes("CreateAssetAsync"),
+        p.includes("PromptCreatePlatformContentAsync"),
       ) &&
       inspect(good.replace("print(player.Name)", "local f = Enum.CollisionFidelity.Scalable")).some((p) =>
-        p.includes("CollisionFidelity"),
+        p.includes("CollisionFidelity.Tunable"),
       ),
     "newly deprecated CollectionService, TestService, AssetService, and CollisionFidelity members are caught",
+  );
+  ok(
+    [
+      ["player:LoadCharacter()", "LoadCharacterAsync"],
+      ["player:LoadCharacterWithHumanoidDescription(desc)", "LoadCharacterWithHumanoidDescriptionAsync"],
+      ["humanoid:ApplyDescription(desc)", "ApplyDescriptionAsync"],
+      ["player:IsInGroup(123)", "IsInGroupAsync"],
+      ["player:GetFriendsOnline(10)", "GetFriendsOnlineAsync"],
+      ["workspace:FindPartOnRayWithIgnoreList(ray, {})", "Raycast"],
+      ["local id = game.VIPServerId", "PrivateServerId"],
+    ].every(([line, hint]) => inspect(good.replace("print(player.Name)", line)).some((p) => p.includes(hint))) &&
+      ["player:LoadCharacterAsync()", "humanoid:ApplyDescriptionAsync(desc)", "player:IsInGroupAsync(1)", "workspace:Raycast(o, d, params)", "local id = game.PrivateServerId"].every(
+        (line) => inspect(good.replace("print(player.Name)", line)).length === 0,
+      ),
+    "pre-Async Player and Humanoid calls, FindPartOnRay, and VIPServerId are caught while their replacements pass",
   );
   ok(
     inspect("store:UpdateAsync(key, function(old)\n\ttask.wait()\n\treturn old\nend)").some((p) =>

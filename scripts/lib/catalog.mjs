@@ -320,11 +320,14 @@ const BUILTIN_DEPRECATED = [
   {
     pattern: /(?:\w*[Tt]eleport[Ss]ervice\w*|GetService\s*\([^)]*\)):ReserveServer\s*\(/,
     name: "TeleportService:ReserveServer()",
-    replacement: "TeleportService:ReserveServerAsync() or TeleportOptions.ShouldReserveServer = true",
-    why: "ReserveServer was deprecated at engine v702 in favor of its Async counterpart.",
+    replacement: "TeleportService:TeleportAsync() with TeleportOptions.ReservedServerId",
+    why:
+      "ReserveServer was deprecated in favor of ReserveServerAsync, and Roblox has since deprecated " +
+      "the whole access-code path (ReserveServerAsync, ShouldReserveServer, ReservedServerAccessCode) " +
+      "in favor of targeting a server by ID.",
     instead:
-      "TeleportService:ReserveServerAsync(), or set TeleportOptions.ShouldReserveServer = true " +
-      "on TeleportAsync().",
+      "TeleportService:TeleportAsync() with TeleportOptions.ReservedServerId set to " +
+      "HttpService:GenerateGUID(false) for a new server, or to a stored ID to return to the same one.",
     read: "patterns/network.md",
   },
   {
@@ -332,7 +335,9 @@ const BUILTIN_DEPRECATED = [
     name: "TeleportToPlaceInstance() / TeleportToPrivateServer() / TeleportPartyAsync()",
     replacement: "TeleportService:TeleportAsync() with TeleportOptions",
     why: "Legacy teleport methods were deprecated at engine v735 in favor of TeleportAsync.",
-    instead: "TeleportService:TeleportAsync() configured with a TeleportOptions instance.",
+    instead:
+      "TeleportService:TeleportAsync() configured with a TeleportOptions instance, with " +
+      "ReservedServerId or VipServerId set when the target is a private server.",
     read: "patterns/network.md",
   },
   {
@@ -356,23 +361,71 @@ const BUILTIN_DEPRECATED = [
     name: "TestService:RegisterTestLegacy()",
     replacement: "TestService:RegisterTest()",
     why: "RegisterTestLegacy() was deprecated at engine v742 in favor of the TestService test runner.",
-    instead: "TestService:RegisterTest(name, callback, options) and TestService:RunAsync().",
+    instead: "TestService:RegisterTest(name, callback, options) and TestService:RunTestsAsync().",
     read: "api-currency.md",
   },
   {
     pattern: /:PromptCreateAssetAsync\s*\(/,
     name: "AssetService:PromptCreateAssetAsync()",
     replacement: "AssetService:PromptCreatePlatformContentAsync()",
-    why: "PromptCreateAssetAsync() was deprecated in favor of AssetService:CreateAssetAsync().",
-    instead: "AssetService:CreateAssetAsync().",
+    why: "PromptCreateAssetAsync() was removed from the engine at v738, so the call raises an error.",
+    instead: "AssetService:PromptCreatePlatformContentAsync().",
     read: "api-currency.md",
   },
   {
     pattern: /\bEnum\.CollisionFidelity\.Scalable\b/,
     name: "Enum.CollisionFidelity.Scalable",
     replacement: "Enum.CollisionFidelity.Tunable",
-    why: "Enum.CollisionFidelity.Scalable is deprecated on TriangleMeshPart.",
-    instead: "Enum.CollisionFidelity.Default, Box, Hull, or PreciseConvexDecomposition.",
+    why: "Enum.CollisionFidelity.Scalable was removed from the engine at v738, so reading it raises an error.",
+    instead: "Enum.CollisionFidelity.Tunable.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /:LoadCharacter(?:WithHumanoidDescription)?\s*\(/,
+    name: "Player:LoadCharacter() / LoadCharacterWithHumanoidDescription()",
+    replacement: "LoadCharacterAsync() / LoadCharacterWithHumanoidDescriptionAsync()",
+    why: "Both are the pre-Async names of calls that yield, and the engine API dump marks them deprecated.",
+    instead: "Player:LoadCharacterAsync() or Player:LoadCharacterWithHumanoidDescriptionAsync().",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /:ApplyDescription(?:Reset)?\s*\(/,
+    name: "Humanoid:ApplyDescription() / ApplyDescriptionReset()",
+    replacement: "ApplyDescriptionAsync() / ApplyDescriptionResetAsync()",
+    why: "Both are the pre-Async names of calls that yield, and the engine API dump marks them deprecated.",
+    instead: "Humanoid:ApplyDescriptionAsync() or Humanoid:ApplyDescriptionResetAsync(), wrapped in pcall.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /:IsInGroup\s*\(/,
+    name: "Player:IsInGroup()",
+    replacement: "Player:IsInGroupAsync()",
+    why: "It is the pre-Async name for a web call, so it gives the caller no hint that the call can fail.",
+    instead: "Player:IsInGroupAsync(), wrapped in pcall, with a failed check kept apart from a no.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /:GetFriendsOnline\s*\(/,
+    name: "Player:GetFriendsOnline()",
+    replacement: "Player:GetFriendsOnlineAsync()",
+    why: "It is the pre-Async name for a web call, and the engine API dump marks it deprecated.",
+    instead: "Player:GetFriendsOnlineAsync(), wrapped in pcall.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /:[Ff]indPartOnRay(?:WithIgnoreList|WithWhitelist)?\s*\(/,
+    name: "WorldRoot:FindPartOnRay*()",
+    replacement: "WorldRoot:Raycast() with RaycastParams",
+    why: "The Ray-based queries are deprecated, and each variant hard-codes one way of filtering.",
+    instead: "WorldRoot:Raycast(origin, direction, params), with the filter set on a RaycastParams.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /\.VIPServer(?:Owner)?Id\b/,
+    name: "DataModel.VIPServerId / VIPServerOwnerId",
+    replacement: "DataModel.PrivateServerId / PrivateServerOwnerId",
+    why: "Both are deprecated old names, and the engine API dump points each one at its PrivateServer name.",
+    instead: "game.PrivateServerId and game.PrivateServerOwnerId.",
     read: "api-currency.md",
   },
 ];
