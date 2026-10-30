@@ -7,9 +7,10 @@
 Roblox and Luau standards for AI agents, paired with a deterministic static checker.
 
 [![npm](https://img.shields.io/npm/v/roblox-optimum?color=CB3837&label=npm)](https://www.npmjs.com/package/roblox-optimum)
+[![skills.sh](https://skills.sh/b/andrian-syh/roblox-optimum)](https://skills.sh/andrian-syh/roblox-optimum)
 [![CI](https://github.com/andrian-syh/roblox-optimum/actions/workflows/ci.yml/badge.svg)](https://github.com/andrian-syh/roblox-optimum/actions/workflows/ci.yml)
 [![dependencies](https://img.shields.io/badge/dependencies-0-success)](package.json)
-[![node](https://img.shields.io/badge/node-%3E%3D18-informational)](package.json)
+[![node](https://img.shields.io/badge/node-%3E%3D22-informational)](package.json)
 [![license](https://img.shields.io/github/license/andrian-syh/roblox-optimum?color=blue)](LICENSE)
 
 </div>
