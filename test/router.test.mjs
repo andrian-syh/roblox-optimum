@@ -43,6 +43,10 @@ const GAME_REQUESTS = [
   ["the game lags after a few minutes with 20 players", "diagnose"],
   ["use roblox-optimum to write a shop RemoteEvent handler", "best-practices"],
   ["ショップの RemoteEvent ハンドラーを review して", "code-review"],
+  ["Ads Manager のキャンペーン予算はどう決めればいい?", "publishing"],
+  ["¿por qué bajaron mis impressions en Recommended for You?", "publishing"],
+  ["write the AnalyticsService funnel that tracks D1 retention", "best-practices"],
+  ["add a promo code redeem system to my shop", "best-practices"],
 ];
 
 const skills = readdirSync(join(PACKAGE_ROOT, "skills"));

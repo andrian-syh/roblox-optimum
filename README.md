@@ -17,7 +17,7 @@ Roblox and Luau standards for AI agents, paired with a deterministic static chec
 
 **roblox-optimum** holds AI coding agents to production Roblox Luau standards and checks the code they write. It has two parts:
 
-* **The standards**: rules, four skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`), and the `roblox-auditor` review subagent covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. Works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
+* **The standards**: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. Works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
 * **The checker**: a zero-dependency Node.js CLI and Dual-Era MCP server (`2026-07-28` and `2025-11-25`) that runs as an agent hook, a Git pre-commit hook, or a CI step.
 
 ## Contents
@@ -87,6 +87,7 @@ The standards reach your agent in three ways:
 | `code-review` | Review files, diffs, or pull requests, and score a system's health. |
 | `diagnose` | Trace a reported symptom to its root cause before changing code. |
 | `studio-ops` | Work with Studio MCP, sync tools (Script Sync, Rojo, Argon, Azul), and playtests. |
+| `publishing` | Plan the launch, store listing, discovery, ads, and live ops, and check what Roblox policy allows. |
 
 `roblox-auditor` is a read-only subagent (installed for hosts that support Markdown subagents) that audits an entire repository in an isolated context window and returns a 1–5 scorecard across security, lifecycle safety, performance, networking, data safety, and structure.
 

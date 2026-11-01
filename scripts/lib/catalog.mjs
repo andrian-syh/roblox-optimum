@@ -428,6 +428,22 @@ const BUILTIN_DEPRECATED = [
     instead: "game.PrivateServerId and game.PrivateServerOwnerId.",
     read: "api-currency.md",
   },
+  ...[
+    ["FireCustomEvent", "AnalyticsService:LogCustomEvent()"],
+    ["FireEvent", "AnalyticsService:LogCustomEvent(), LogEconomyEvent(), or LogProgressionEvent()"],
+    ["FireInGameEconomyEvent", "AnalyticsService:LogEconomyEvent()"],
+    ["FireLogEvent", "AnalyticsService:LogCustomEvent()"],
+    ["FirePlayerProgressionEvent", "AnalyticsService:LogProgressionEvent()"],
+  ].map(([member, replacement]) => ({
+    pattern: new RegExp(`${serviceReceiverPattern("AnalyticsService")}:${member}\\s*\\(`),
+    name: `AnalyticsService:${member}()`,
+    replacement,
+    why:
+      "The engine API dump marks the Fire* analytics calls deprecated. The Log* families replace " +
+      "them, and those are what the Creator Hub analytics dashboards are built on.",
+    instead: `${replacement}, called from the server.`,
+    read: "growth-apis.md",
+  })),
 ];
 
 /**
@@ -451,6 +467,22 @@ const BUILTIN_HAZARDS = [
       "RemoteEvent:FireClient() with the client replying on a second RemoteEvent, so a client " +
       "that never answers costs the server nothing.",
     read: "patterns/network.md",
+  },
+  {
+    pattern: /\bAllowedExternalLinkReferences\b/,
+    name: "PolicyInfo.AllowedExternalLinkReferences",
+    why:
+      "it returns an empty list, because links, handles, and invites inside an experience are " +
+      "banned for every player; point players to the experience page instead",
+    explainWhy:
+      "Roblox emptied this list when it banned off-platform links inside experiences. Code that " +
+      "waits for it to allow a platform shows nothing, and code that shows a link anyway breaks " +
+      "the Community Standards. The only allowed form is text pointing to the social links on " +
+      "the experience's own page, which only age-checked users 16 and older can see.",
+    instead:
+      'Remove the link UI, or replace it with text such as "Check out our social media links on ' +
+      "our game's page\".",
+    read: "monetization-policy.md",
   },
 ];
 
@@ -477,6 +509,11 @@ export const CONTEXT_ERRORS = [
       [/\bgame\s*\.\s*DataStoreService\b/, "DataStoreService", "data stores are server-only; go through a remote"],
       [/\bgame\s*\.\s*MemoryStoreService\b/, "MemoryStoreService", "memory stores are server-only; go through a remote"],
       [/\bgame\s*\.\s*MessagingService\b/, "MessagingService", "cross-server messaging is server-only"],
+      [
+        /\bgame\s*\.\s*AnalyticsService\b/,
+        "AnalyticsService",
+        "analytics events count only when the server sends them, and GetPlayerSegmentsAsync throws on the client",
+      ],
       [/\bgame\s*\.\s*ServerStorage\b/, "ServerStorage", "it does not replicate, so the client sees nothing"],
       [/\bgame\s*\.\s*ServerScriptService\b/, "ServerScriptService", "it does not replicate, so the client sees nothing"],
     ],

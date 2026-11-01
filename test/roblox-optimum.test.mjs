@@ -209,6 +209,12 @@ Players.PlayerAdded:Connect(greet)
   ok(lint('local CP = game:GetService("ContentProvider")\nContentProvider:Preload(ids)').length === 1, "the service's own deprecated method is caught");
   ok(lint("local t: ServerStorage = nil\nlocal f = ReplicatedStorage.ServerStorage", "a.client.luau").length === 0, "a type or a folder named after a service is not that service");
   ok(lint("local s = game.ServerStorage", "a.client.luau").length === 1, "reaching a server service from the client is caught");
+  ok(lint('local A = game:GetService("AnalyticsService")', "a.client.luau").length === 1, "analytics on the client is caught");
+  ok(lint('local A = game:GetService("AnalyticsService")', "a.server.luau").length === 0, "analytics on the server is left alone");
+  ok(lint('game:GetService("AnalyticsService"):FireCustomEvent(p, "x")').some((p) => p.includes("LogCustomEvent")), "a deprecated analytics call is caught");
+  ok(lint("bus:FireEvent(\"x\")\nAnalyticsService:LogCustomEvent(p, \"x\")").length === 0, "FireEvent on another object and the Log* calls are left alone");
+  ok(lint("print(info.AllowedExternalLinkReferences)").some((p) => p.includes("empty list")), "reading the emptied link list is caught");
+  ok(lint('local key = "AllowedExternalLinkReferences"').length === 0, "the link list named in a string is prose");
   ok(
     inspect(`-- // INITIALIZATION // --\nlocal Players = game:GetService("Players")\nlocal p = Players.LocalPlayer`, "src/Main.server.luau").some((p) =>
       p.includes("Players.LocalPlayer"),

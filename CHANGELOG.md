@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-11-02
+
+Adds a fifth skill, publishing, for the work that decides whether players find a Roblox experience and stay: the store listing, discovery, audience gates, launch readiness, ads, and live ops. The parts that touch code went into the existing rules instead. Each fact was checked against Creator Hub documentation, staff DevForum posts, Roblox shareholder letters, or the engine API dump, and every dated fact lives in the currency file.
+
+### Added
+
+- Added the publishing skill, with its own invariant card, a launch readiness review that keeps code, place, and Creator Hub evidence apart, and hand-offs to the other four skills.
+- Added two references for it: `publishing.md` covers discovery, the store listing, icons and thumbnails, maturity and age tiers, and the marketing Roblox forbids, and ends with a launch checklist with stable IDs. `live-ops.md` covers the analytics dashboard, retention targets, falling impressions, Ads Manager, re-engagement tools, payouts, update cadence, and the first 90 days.
+- Added `growth-apis.md` to the coding references: AnalyticsService events and limits, player segments, experiments, experience notifications, and referrals.
+- Added the full paid random items rules, rewarded and immersive ads, and regional price levels for trades and gifts to the monetization reference.
+- Added seven checker rules: `AnalyticsService` in client code, the five deprecated `AnalyticsService:Fire*` calls, and reads of `AllowedExternalLinkReferences`. The checker now has 101 rules.
+- Added a publishing platform state table to the currency file, with the date of each fact the new references rely on.
+- Added prompt routing for the publishing skill. It routes on product names that read the same in any language, and leaves a request that names a coding API to the coding skills.
+
+### Fixed
+
+- Fixed the advice to show the social links that `AllowedExternalLinkReferences` allows. The list is always empty, because links, handles, and invites inside an experience are banned for every player.
+
 ## [1.14.2] - 2026-10-31
 
 The Studio MCP guide now covers how the tools actually behave, so agents with small context windows or weaker reasoning can follow it step by step. Each change was checked against the Studio MCP docs page, the live tool schemas of Studio 745, Roblox's DevForum announcements and bug reports, or the Open Cloud Luau Execution reference.
@@ -543,6 +561,7 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.15.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.2...v1.15.0
 [1.14.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.1...v1.14.2
 [1.14.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.13.3...v1.14.0

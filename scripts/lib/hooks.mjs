@@ -157,7 +157,8 @@ export async function runPostToolUse(shape) {
 /** Which skill fits which request, for a model left to pick one itself. */
 const SKILL_CHOICES =
   "best-practices to write or change code, code-review to judge existing code, diagnose for " +
-  "a reported symptom with no file named, studio-ops for sync tools, Studio MCP, or playtests";
+  "a reported symptom with no file named, studio-ops for sync tools, Studio MCP, or playtests, " +
+  "publishing for launch, store listing, discovery, ads, and live ops";
 
 /**
  * What a session opening in a Roblox project is told, so the skills load on requests that

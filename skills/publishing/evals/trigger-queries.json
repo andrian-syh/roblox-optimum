@@ -1,0 +1,24 @@
+[
+  { "query": "how do i get my roblox game onto recommended for you", "should_trigger": true },
+  { "query": "my game's impressions dropped by half this week, what happened", "should_trigger": true },
+  { "query": "is my thumbnail good enough to launch with, and how many should i upload", "should_trigger": true },
+  { "query": "write a store description and title for my pet simulator listing", "should_trigger": true },
+  { "query": "how should i spend 50 dollars on ads manager for my launch", "should_trigger": true },
+  { "query": "why can't kids under 16 find my new game", "should_trigger": true },
+  { "query": "can i give players a reward for joining my discord", "should_trigger": true },
+  { "query": "is a D1 retention of 9 percent bad for an obby", "should_trigger": true },
+  { "query": "plan the first month after my game goes public", "should_trigger": true },
+  { "query": "bagaimana cara promosi game roblox saya supaya banyak pemain", "should_trigger": true },
+  { "query": "check if my game is ready to publish to the public", "should_trigger": true },
+  { "query": "how often should i update my game to keep players coming back", "should_trigger": true },
+
+  { "query": "write the server code that logs an onboarding funnel with AnalyticsService", "should_trigger": false },
+  { "query": "add an odds display to my egg shop UI", "should_trigger": false },
+  { "query": "review my ProcessReceipt handler for double grants", "should_trigger": false },
+  { "query": "my shop gives free pets sometimes and i dont know why", "should_trigger": false },
+  { "query": "publish my place from studio, the button is greyed out with rojo running", "should_trigger": false },
+  { "query": "publish this npm package to the registry", "should_trigger": false },
+  { "query": "load the player's avatar thumbnail into an ImageLabel", "should_trigger": false },
+  { "query": "how do i market my startup's mobile app on tiktok", "should_trigger": false },
+  { "query": "set up github actions to lint my luau on every push", "should_trigger": false }
+]

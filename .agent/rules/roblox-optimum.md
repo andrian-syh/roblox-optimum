@@ -68,7 +68,7 @@ ROBLOX LUAU SKILL - INVARIANT CARD
 ## Full standards
 
 This card is the part that must survive a summary. The complete standards, with the reference
-files behind each rule, live in four skills:
+files behind each rule, live in five skills:
 
 | Skill | Covers |
 |---|---|
@@ -76,12 +76,13 @@ files behind each rule, live in four skills:
 | `code-review` | Reviewing, auditing, and scoring existing code |
 | `diagnose` | Finding the cause of a reported symptom, before any file is named |
 | `studio-ops` | Studio MCP, sync toolchains, verifying in a running session |
+| `publishing` | Store listing, discovery, audience gates, launch readiness, ads, and live ops, outside the code |
 
 Read the one whose task matches. Each reference file is self-contained; read one, not the set.
 
 Where they are depends on how they were installed. As a plugin they are invoked by name, such as
 `/roblox-optimum:best-practices`. Copied into the project they are directories named
-`roblox-best-practices`, `roblox-code-review`, `roblox-diagnose`, and `roblox-studio-ops`, under an `.agents` or
+`roblox-best-practices`, `roblox-code-review`, `roblox-diagnose`, `roblox-studio-ops`, and `roblox-publishing`, under an `.agents` or
 `.claude` skills directory. If neither is present, `npx roblox-optimum install skills` writes them.
 
 ## The checks run outside you

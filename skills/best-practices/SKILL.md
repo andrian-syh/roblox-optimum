@@ -1,10 +1,10 @@
 ---
 name: best-practices
 argument-hint: "[ask|bal|go]"
-description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, sprint, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Packet, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua or game design with no Luau to write."
+description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua; launch and marketing with no Luau go to the publishing skill."
 license: MIT
 metadata:
-  version: "1.14.2"
+  version: "1.15.0"
 ---
 
 # Roblox Game Development Best Practices
@@ -108,7 +108,8 @@ Everything below expands these; nothing below overrides them.
 - [patterns/world.md](references/patterns/world.md) — CollectionService binding and attributes, client input, anti-patterns to reject on sight
 - [patterns.md](references/patterns.md) — index of the four pattern files above
 - [security.md](references/security.md) — anti-exploit, remote validation depth, movement sanity checks, text filtering
-- [monetization-policy.md](references/monetization-policy.md) — `ProcessReceipt`, Developer Products and passes, PolicyService compliance
+- [monetization-policy.md](references/monetization-policy.md) — `ProcessReceipt`, Developer Products and passes, regional prices in trades, PolicyService, paid random items and odds, ads, the in-experience link ban
+- [growth-apis.md](references/growth-apis.md) — AnalyticsService funnels and events, player segments, experiments, experience notifications, referrals and invites
 - [server-authority.md](references/server-authority.md) — anything touching movement, physics, input, camera, animation timing, `BindToSimulation`, network ownership
 - [ui-crossplatform.md](references/ui-crossplatform.md) — UI construction, cross-platform and accessibility, input device handling
 - [genres.md](references/genres.md) — simulator, FPS, obby, RPG, racing, horror, social, tower defense, battlegrounds
@@ -118,6 +119,7 @@ Everything below expands these; nothing below overrides them.
 - [workflow.md](references/workflow.md) — resolving a session-setup decision, supervision behavior, opening a review, the preflight before a non-trivial system
 - [team-workflow.md](references/team-workflow.md) — more than one person on the project, or one person keeping it tidy: git alongside a place file, branch places, who owns which tree, the review gate, shipping
 - Tooling — a Studio MCP connection, a sync toolchain (Rojo, Argon, Script Sync, Azul), or proving a change works in a running session: the **studio-ops** skill owns all three
+- Launch, store listing, discovery, ads, and live ops, with no Luau to write: the **publishing** skill
 - [false-positives.md](references/false-positives.md) — reviewing code: whether a finding is real, how severe, what NOT to flag
 - [review-checklist.md](references/review-checklist.md) — **finishing any task**: the completion gate before calling work done
 - [release-readiness.md](references/release-readiness.md) — **shipping or publishing a place**: `BindToClose`, `PolicyService` compliance, `ProcessReceipt` safety, Open Cloud CI/CD, and live-ops telemetry gates

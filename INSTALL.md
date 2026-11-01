@@ -2,13 +2,13 @@
 
 **roblox-optimum** has two parts that you can install together or separately:
 
-* **The standards**: rules, four skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`), and the `roblox-auditor` review subagent that hold an AI agent to secure, server-authoritative, leak-free Luau.
+* **The standards**: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent that hold an AI agent to secure, server-authoritative, leak-free Luau.
 * **The checker**: a zero-dependency Node.js CLI and MCP server (`2026-07-28` and `2025-11-25`) that checks Luau for deprecated APIs, out-of-order sections, loops that freeze their thread, and members used on the wrong side.
 
 | Component | What it installs | Scope |
 |---|---|---|
 | `rules` | `AGENTS.md` and each agent's own rule file | project |
-| `skills` | The `best-practices`, `code-review`, `diagnose`, and `studio-ops` skills | project or machine |
+| `skills` | The `best-practices`, `code-review`, `diagnose`, `studio-ops`, and `publishing` skills | project or machine |
 | `agent` | The `roblox-auditor` review subagent (for hosts that support Markdown subagents) | project or machine |
 | `hook` | A Git pre-commit hook, and Kiro's project file hook | project |
 | MCP server | `check_luau`, `explain_finding`, `get_standards`, and reference resources | machine |
@@ -57,7 +57,7 @@ Select your agent below to view its supported components, exact file locations, 
 <details>
 <summary><strong>Claude Code</strong></summary>
 
-The marketplace plugin installs all four skills, the `roblox-auditor` subagent, the MCP server, and hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse`).
+The marketplace plugin installs all five skills, the `roblox-auditor` subagent, the MCP server, and hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse`).
 
 ### Install
 

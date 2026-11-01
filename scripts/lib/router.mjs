@@ -49,6 +49,11 @@ const PROMPT_ROUTES = [
     "studio-ops",
     "tooling or a playtest",
   ],
+  [
+    /^(?!.*\b(?:analyticsservice|experiencenotificationservice|policyservice|adservice|marketplaceservice|socialservice|configservice|luau|scripts?|code|modules?|remotes?|function|webhooks?|httpservice|imagelabel|imagebutton)\b).*(?:\brecommended for you\b|\brfy\b|\bq?ptr\b|play-?through rate|\bimpressions?\b|ads manager|sponsored (?:ads?|tiles?)|creator (?:hub|rewards)|\bdevex\b|standout games|experience (?:events?|notifications?)|roblox (?:kids|select|plus)\b|audience reach|content maturity|maturity (?:&|and) compliance|social (?:media )?links?|\bdiscord\b|(?<!avatar |user |player |headshot )\bthumbnails?\b|\bgame icon\b|\b(?:store|game) (?:listing|description|page)\b|\bd(?:1|7|30) retention\b|\bunder[- ]16\b|\bmarketing\b|\bpemasaran\b|\bpromo\w*|\bgo(?:es|ing)? public\b|\b(?:publish|release|launch)\w* (?:\w+ ){0,3}(?:to|for) (?:the )?public\b|\bready to (?:launch|publish)\b|\bcoming back\b|\bupdate (?:cadence|schedule)\b|\bhow often (?:should|do) (?:i|we) update\b|\bgrow (?:my|the|our) (?:game|players?)\b)/is,
+    "publishing",
+    "launching, promoting, or growing the game",
+  ],
   [AUTHORING_LEAD, "best-practices", "writing or changing Luau"],
   [
     /\b(?:review|audit|judge)\w*|\brank(?:ed)? (?:my|this|these|the|them|it|whatever|by)\b|\bscore (?:my|this)|\bhow (?:good|safe|bad)\b|\b(?:risky|take a look)\b|\bmemory leaks?\b|\bcheck (?:the|my) (?:diff|code)|\bis (?:this|it|my)\b[^.?!]{0,40}\b(?:safe|good|secure)\b|\b(?:cek|periksa|nilai)\b[^.?!]{0,30}\b(?:kode|script|skrip)\b|\baman (?:atau|gak|nggak|tidak|ga)\b/i,

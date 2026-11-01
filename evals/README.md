@@ -9,7 +9,7 @@ package, so they never reach an installed copy.
 
 ## Why the negatives matter more here than usual
 
-These four skills share one domain. A prompt about Roblox code could plausibly land in any of
+These five skills share one domain. A prompt about Roblox code could plausibly land in any of
 them, and the boundary each description states, a `Not for ...` clause or the `Hand-offs:` sentence
 naming the sibling that owns a request, is the only thing keeping them apart. So
 almost every `should_trigger: false` entry is a **near miss owned by a sibling skill** — a real
@@ -23,6 +23,7 @@ The boundaries under test:
 | Judge Luau that already exists — a file, a diff, a PR, a whole place | **code-review** |
 | A symptom is reported and no file has been named yet | **diagnose** |
 | Sync, Studio MCP, playtests — driving the tooling, not the code | **studio-ops** |
+| Launch, store listing, discovery, ads, live ops — no code to write | **publishing** |
 
 Two pairs are genuinely easy to confuse, and each set tests them deliberately:
 
@@ -30,6 +31,8 @@ Two pairs are genuinely easy to confuse, and each set tests them deliberately:
   to diagnose; "is this combat script safe? here it is" (file handed over) belongs to code-review.
 - **diagnose vs best-practices** — "why does the event fire twice" is diagnose; "fix the
   double-fire in PurchaseHandler.luau line 88" names the file and the fix, so it is authoring.
+- **publishing vs best-practices** — "why did my impressions drop" belongs to publishing; "write the
+  AnalyticsService funnel" names the API, so it is authoring.
 
 Each set also includes an Indonesian prompt, because this project is worked in Indonesian and a
 description written only in English can fail to route a prompt that is not.
