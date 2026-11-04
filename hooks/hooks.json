@@ -2,12 +2,23 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|mcp__.*__multi_edit",
         "hooks": [
           {
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--pre-write"],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*__open_cloud_invoke",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--open-cloud"],
             "timeout": 10
           }
         ]

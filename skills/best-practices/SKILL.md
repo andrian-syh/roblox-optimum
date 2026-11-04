@@ -4,7 +4,7 @@ argument-hint: "[ask|bal|go]"
 description: "Roblox/Luau coding standards for writing any game code. Use whenever the user asks to write, add, build, implement, fix, or refactor Luau (Script, LocalScript, ModuleScript) or a game system in a Roblox project - a shop, DataStore save, RemoteEvent, NPC spawner, UI - even when Roblox or Luau is never named, and when the user asks to keep best practices in mind as standing guidance. Enforces the VARIABLES/FUNCTIONS/INITIALIZATION layout, naming, performance, memory, networking, and security rules under any framework or genre, adapting to the project's style and community libraries (ProfileStore, Trove, Knit, Fusion, ...). Hand-offs: reviewing or auditing existing code goes to the code-review skill, a reported symptom with no file named to the diagnose skill, sync, Studio MCP, or playtests to the studio-ops skill. Not for non-Roblox Lua; launch and marketing with no Luau go to the publishing skill."
 license: MIT
 metadata:
-  version: "1.15.0"
+  version: "1.16.0"
 ---
 
 # Roblox Game Development Best Practices
@@ -75,7 +75,7 @@ Everything below expands these; nothing below overrides them.
 
 **Load only what the situation needs.** Each reference is self-contained; read one, not the set. Nothing below loads until a line matches the task at hand.
 
-`references/` is the shared pool for all four roblox-optimum skills — **code-review**, **diagnose**, and **studio-ops** read these same files rather than carrying copies that would drift. Renaming or removing one breaks a sibling skill, so `scripts/audit.mjs` fails the build on any cross-skill link that leaves this pool.
+`references/` is the shared pool for all five roblox-optimum skills — **code-review**, **diagnose**, **publishing**, and **studio-ops** read these same files rather than carrying copies that would drift. Renaming or removing one breaks a sibling skill, so `scripts/audit.mjs` fails the build on any cross-skill link that leaves this pool.
 
 **Authoring**
 

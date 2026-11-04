@@ -65,7 +65,8 @@ export function forCursor(text) {
 
 /**
  * The agent as Antigravity reads it. It takes native tool names in a list and grants none when
- * the list is missing, so the read-only tools are named one by one.
+ * the list is missing, so App and IDE read-only tools are named. It runs only as a subagent,
+ * and with commands off, since an audit never executes.
  */
 export function forAntigravity(text) {
   const { read, body } = splitFront(text);
@@ -73,7 +74,11 @@ export function forAntigravity(text) {
     "---",
     `name: ${read("name")}`,
     `description: ${read("description")}`,
-    'tools: ["view_file", "list_dir", "find_by_name", "grep_search"]',
+    'tools: ["read_file", "view_file", "list_dir", "find_by_name", "grep_search"]',
+    "mainAgent: false",
+    "subagent: true",
+    "model: inherit",
+    "commandExecutionPolicy: off",
     "---",
   ];
   return `${front.join("\n")}\n${DERIVED_AGENT}\n${body}`;

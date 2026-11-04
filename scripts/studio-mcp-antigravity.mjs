@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * A stdio proxy that keeps Roblox's Studio MCP server usable from Antigravity. It answers the
- * `server/discover` probe that StudioMCP predates, and starts the executable without `mcp.bat`.
+ * `server/discover` probe, starts the executable without `mcp.bat`, and refuses the Open
+ * Cloud calls an agent must never send.
  */
 
 import { spawn } from "node:child_process";
@@ -10,6 +11,7 @@ import { readdirSync, statSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { decide } from "./lib/open-cloud.mjs";
 import { ranAsScript } from "./roblox-optimum.mjs";
 
 /** The method Antigravity probes with, which no MCP server implements. */
@@ -58,6 +60,16 @@ export function interception(line) {
     message = JSON.parse(line);
   } catch {
     return null;
+  }
+
+  if (message?.method === "tools/call" && message.params?.name === "open_cloud_invoke") {
+    const verdict = decide(message.params.arguments, process.cwd());
+    if (verdict?.decision !== "deny") return null;
+    return JSON.stringify({
+      jsonrpc: "2.0",
+      id: message.id,
+      result: { content: [{ type: "text", text: verdict.reason }], isError: true },
+    });
   }
 
   if (message?.method !== PROBE) return null;

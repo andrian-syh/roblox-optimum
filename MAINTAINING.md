@@ -12,7 +12,7 @@ Edit only the source files below. Derived files are generated automatically, and
 | `hooks/hooks.json` | `hooks/codex-hooks.json` | `node scripts/sync-rules.mjs` |
 | `mcp.json` | `mcp_config.json` | `node scripts/sync-rules.mjs` |
 | `agents/*.md` | `.github/agents/*.agent.md` | `node scripts/sync-rules.mjs` |
-| `package.json` (`version`) | All 7 plugin manifests and 4 `skills/*/SKILL.md` cards | `node scripts/check-versions.mjs --fix` |
+| `package.json` (`version`) | All 7 plugin manifests and 5 `skills/*/SKILL.md` cards | `node scripts/check-versions.mjs --fix` |
 
 ### Core script modules
 
@@ -26,7 +26,8 @@ Edit only the source files below. Derived files are generated automatically, and
 | `scripts/lib/router.mjs` | Prompt-to-skill routing (`routePrompt`). |
 | `scripts/lib/rules.mjs` | Per-agent rule files generated from `AGENTS.md` (`RULE_TARGETS`, `GENERATED`). |
 | `scripts/lib/agent-forms.mjs` | The subagent rewritten into each host's front matter (`AGENT_FORMS`, `forCopilot`, `forKiro`, and the rest). |
-| `scripts/lib/hooks.mjs` | The agent hooks: post-write check, session start, pre-write, and prompt routing. |
+| `scripts/lib/hooks.mjs` | The agent hooks: post-write check, session start, pre-write (files and Studio `multi_edit`), prompt routing, the Open Cloud gate (`runOpenCloudGate`), and the Antigravity `PreInvocation` and `Stop` handlers. |
+| `scripts/lib/open-cloud.mjs` | Open Cloud call classification (`classify`, `decide`, `universeOf`, `devUniverses`), shared by the hook, the Antigravity proxy, and the `classify_open_cloud_call` MCP tool. |
 | `scripts/lib/install.mjs` | `install`, project and global, including plugins, MCP registration, and the pre-commit hook. |
 | `scripts/lib/doctor.mjs` | `doctor` and `uninstall`. |
 | `scripts/lib/suppress.mjs` | `allow` and `allow-file` directives: parsing, scoping, and the findings for malformed or stale ones. |
@@ -44,6 +45,7 @@ The tests live in `test/*.test.mjs` and run on Node.js's built-in test runner, s
 - `npm test` runs the version check, the structural audit, and every test file.
 - `node --test "test/*.test.mjs"` runs the tests alone. Each check is its own subtest, so a failure names what broke.
 - `test/router.test.mjs` runs every skill's trigger queries through the prompt router, plus repository chores and game requests written in several languages. Add a misrouted prompt there before changing a route, and keep route signals to file and tool names, which read the same in any language.
+- `test/open-cloud.test.mjs` holds one row per Open Cloud endpoint pattern in `TIERS`, plus the hook output for Claude Code and Antigravity. Add a row for every pattern you add or change.
 - CI runs `npm test` on Ubuntu and Windows with Node.js 22 and 24, then checks that the package ships every `scripts/lib/` module and no test or eval file.
 
 ## Refresh the API currency baseline
@@ -51,7 +53,7 @@ The tests live in `test/*.test.mjs` and run on Node.js's built-in test runner, s
 API currency is maintained on two tiers:
 
 1. **Automated runtime overlay (`npx roblox-optimum sync`)**: Fetches the current engine version, the Roblox API dump, and the latest Luau release tag into a local cache (also triggered in the background at most once every 24 hours on `--session`). To avoid false positives, the filter imports only deprecated service methods whose name is unique across all classes in the dump and whose `PreferredDescriptorName` is an active method on the same service.
-2. **Curated baseline (`skills/best-practices/references/api-currency.md`)**: Tracks engine and Luau features across releases. To keep this file under 200 lines, follow a **rolling-window policy**: keep items currently in transition (`[Beta]`, `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`) or promoted to `[GA]` within the last ~6 engine versions (~2 months), and move older settled `[GA]` entries into their domain reference pages (`luau-language.md`, `physics-and-movement.md`, `ui.md`, etc.).
+2. **Curated baseline (`skills/best-practices/references/api-currency.md`)**: Tracks engine and Luau features across releases. Agents load it whole, so keep it under 40 KB with a **rolling-window policy**: give a full row only to items in transition (`[Beta]`, `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`) or promoted to `[GA]` within the last ~6 engine versions (~2 months). Fold older settled `[GA]` items into the one-line "Settled" list at the top of their section, or into their domain reference page (`luau-language.md`, `ui-crossplatform.md`, `performance.md`, and so on), and keep a full row only where it stops a known mistake.
 
 ### How to run a manual baseline pass
 
@@ -82,6 +84,9 @@ Before changing how the installer writes files for an agent host, check the host
 | OpenCode | `opencode.ai/docs` |
 | GitHub Copilot | `docs.github.com/en/copilot` |
 | Agent Plugins spec | `agent-plugins.org` |
+| Roblox Studio MCP | `create.roblox.com/docs/studio/mcp`, `create.roblox.com/docs/assistant/`, `github.com/Roblox/roblox-studio-agent-plugin` |
+
+Host documentation can disagree with the host's behavior. Antigravity's pages, for example, describe plugin hooks and rules as CLI-only, while Antigravity 2.0 and the IDE load them. When the two differ, trust a probe in the host itself, and record the evidence in `INSTALL.md`. Antigravity ships built-in skills for its own customizations (under `~/.gemini/antigravity/builtin/skills/`), which make a reliable probe guide.
 
 Test installer changes against an isolated home directory before committing:
 
@@ -89,6 +94,23 @@ Test installer changes against an isolated home directory before committing:
 mkdir -p /tmp/home/.cursor
 HOME=/tmp/home USERPROFILE=/tmp/home npx roblox-optimum install --global
 ```
+
+## Maintain the Open Cloud gate
+
+Roblox has not documented `open_cloud_invoke` or the MCP Permissions page yet, so the gate rests on the tool's schema and on probes. Classification lives in one place, `scripts/lib/open-cloud.mjs`, and every caller reads it from there.
+
+To add or change an endpoint:
+
+1. Read its method, path, and scopes in the Open Cloud reference (`create.roblox.com/docs/cloud`).
+2. Add the pattern to the matching list in `open-cloud.mjs`: `BREAK_GLASS`, `IRREVERSIBLE`, `REVERSIBLE`, or `READS`. Leave an endpoint unlisted rather than guess; unlisted writes are treated as irreversible.
+3. Add a row to `TIERS` in `test/open-cloud.test.mjs`.
+4. Update the classification table in `skills/best-practices/references/open-cloud.md`, and the decisions in `SECURITY.md` when a break-glass call changes.
+
+When Roblox changes the permission page or the tool:
+
+1. Recheck the Roblox Studio MCP sources in [Update host integrations](#update-host-integrations).
+2. Probe only in a private experience with no players. Switch on one scope at a time under **Custom**, and remove every probe entry, asset, or message afterwards.
+3. Record what you proved, with its date, in the Studio MCP section of `api-currency.md`, and move each fact in `open-cloud.md` between **Verified** and **Unverified**.
 
 ## Repository audit rules (`npm test`)
 
@@ -99,6 +121,9 @@ HOME=/tmp/home USERPROFILE=/tmp/home npx roblox-optimum install --global
 * **Description length**: Every `SKILL.md` `description` must stay at or below 90% of the 1,024-character limit (921 characters max).
 * **Script comments**: Comments in `scripts/**/*.mjs` must be `/** ... */` doc blocks of at most 3 lines and 250 characters, without `@param` or `@return` tags, and never placed inline or inside a function body.
 * **No dates in evergreen pages**: Only `api-currency.md` may contain a 4-digit year among the skill Markdown files.
+* **Internal links**: Every relative link in the skills must resolve to a file.
+* **Reference ownership**: Every reference page must be linked from at least one `SKILL.md`, so a new page such as `open-cloud.md` needs a link from a skill before the audit passes.
+* **Hook targets**: Every script named in `hooks/hooks.json` must exist.
 
 ## Release checklist
 
@@ -117,13 +142,15 @@ HOME=/tmp/home USERPROFILE=/tmp/home npx roblox-optimum install --global
    npm test
    ```
 
-5. Commit using a [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) message (subject $\le 50$ characters, body wrapped at 72 characters).
-6. Push `main` and an annotated version tag:
+5. Commit using a [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) message, with a subject of 50 characters or fewer and a body wrapped at 72 characters.
+6. Push `main` and an annotated version tag, replacing `X.Y.Z` with the new version:
 
    ```bash
-   git tag -a v1.13.0 -m "v1.13.0"
-   git push origin main v1.13.0
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push origin main vX.Y.Z
    ```
+
+   Never move or delete a published tag. A wrong tag means a new patch version.
 
 7. In GitHub **Actions**, approve the `publish` job when prompted by the `npm` environment gate.
 8. Complete two-factor authentication approval on npm to publish the staged release:

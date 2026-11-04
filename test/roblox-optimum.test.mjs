@@ -40,7 +40,7 @@ import {
   writeAtomic,
 } from "../scripts/lib/currency-sync.mjs";
 import { condition, places, registrations, removeMcp } from "../scripts/lib/doctor.mjs";
-import { CLINE_WRITES, injectPending, pendingFile, targetsFromPayload } from "../scripts/lib/hooks.mjs";
+import { CLINE_WRITES, injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
 import {
   COPY_HOOKS,
   EARLIER_BODIES,
@@ -618,7 +618,11 @@ Players.PlayerAdded:Connect(greet)
   ok(copilot.includes('tools: ["read", "search"]'), "the Copilot agent keeps to the read-only tool aliases");
   const antigravity = forAntigravity(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8"));
   ok(
-    antigravity.includes('tools: ["view_file", "list_dir", "find_by_name", "grep_search"]') &&
+    antigravity.includes('tools: ["read_file", "view_file", "list_dir", "find_by_name", "grep_search"]') &&
+      antigravity.includes("mainAgent: false") &&
+      antigravity.includes("subagent: true") &&
+      antigravity.includes("model: inherit") &&
+      antigravity.includes("commandExecutionPolicy: off") &&
       !antigravity.includes("skills:"),
     "the Antigravity agent names its read-only tools natively",
   );
@@ -758,10 +762,46 @@ Players.PlayerAdded:Connect(greet)
   process.stdout.write = (text) => ((injected += text), true);
   injectPending(conversation);
   injectPending(conversation);
+  injectPending({
+    conversationId: conversation.conversationId,
+    invocationNum: 0,
+    lastUserInput: "fix my DataStore save, players lose coins",
+    workspacePaths: [PACKAGE_ROOT],
+  });
+  injectPending({
+    conversationId: conversation.conversationId,
+    invocationNum: 1,
+    lastUserInput: "fix my DataStore save, players lose coins",
+    workspacePaths: [PACKAGE_ROOT],
+  });
   process.stdout.write = written;
   ok(
-    injected === '{"injectSteps":[{"ephemeralMessage":"finding"}]}{}',
-    "Antigravity findings are injected once at the next model call",
+    injected.startsWith('{"injectSteps":[{"ephemeralMessage":"finding"}]}{}') &&
+      injected.includes("roblox-optimum:diagnose") &&
+      injected.endsWith("{}"),
+    "Antigravity PreInvocation injects stored findings once and routes lastUserInput only on invocationNum 0",
+  );
+
+  const stopDir = mkdtempSync(join(tmpdir(), "roblox-optimum-stop-"));
+  const brokenLuau = join(stopDir, "broken.luau");
+  writeFileSync(brokenLuau, "wait(1)\n");
+  const stopConv = { conversationId: `stop-${process.pid}`, terminationReason: "NO_TOOL_CALL" };
+  appendFileSync(pendingFile(stopConv, "-touched"), `${brokenLuau}\n`);
+  let stopOut = "";
+  process.stdout.write = (text) => ((stopOut += text), true);
+  stopAntigravity(stopConv);
+  let secondStop = "";
+  process.stdout.write = (text) => ((secondStop += text), true);
+  stopAntigravity(stopConv);
+  process.stdout.write = written;
+  rmSync(pendingFile(stopConv, "-touched"), { force: true });
+  rmSync(pendingFile(stopConv, "-stopped"), { force: true });
+  rmSync(stopDir, { recursive: true, force: true });
+  ok(
+    JSON.parse(stopOut).decision === "continue" &&
+      JSON.parse(stopOut).reason.includes("task.wait") &&
+      secondStop === "{}",
+    "the Antigravity Stop hook continues once for a broken file and lets the second stop through",
   );
 
   ok(
@@ -771,13 +811,18 @@ Players.PlayerAdded:Connect(greet)
   );
   ok(
     targetsFromPayload({ workspacePaths: ["/ag"], toolCall: { name: "write_to_file", args: { TargetFile: "src/a.luau" } } })[0] ===
-      resolve("/ag", "src/a.luau"),
-    "an Antigravity payload resolves a relative path against workspacePaths",
+      resolve("/ag", "src/a.luau") &&
+      targetsFromPayload({ workspacePaths: ["/ag"], toolCall: { name: "write_file", args: { Path: "src/b.luau" } } })[0] ===
+        resolve("/ag", "src/b.luau"),
+    "an Antigravity payload resolves a relative path against workspacePaths across App and IDE write tools",
   );
+  const agHooks = PLUGIN_HOOKS.antigravity("node scripts/roblox-optimum.mjs")[PLUGIN];
   ok(
-    PLUGIN_HOOKS.antigravity("node scripts/roblox-optimum.mjs")[PLUGIN].SessionStart[0].command ===
-      "node scripts/roblox-optimum.mjs --session",
-    "the Antigravity plugin hook includes SessionStart and PreToolUse",
+    agHooks.SessionStart[0].command === "node scripts/roblox-optimum.mjs --session" &&
+      agHooks.PreToolUse[0].matcher === "call_mcp_tool" &&
+      agHooks.PostToolUse[0].matcher.includes("write_file") &&
+      agHooks.Stop[0].command === "node scripts/roblox-optimum.mjs --hook antigravity",
+    "the Antigravity plugin hook covers SessionStart, Open Cloud PreToolUse, App and IDE PostToolUse, PreInvocation, and Stop",
   );
   ok(
     inspect(good.replace("print(player.Name)", "TeleportService:ReserveServer(123)")).some((p) =>

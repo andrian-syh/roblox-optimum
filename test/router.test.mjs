@@ -39,6 +39,8 @@ const GAME_REQUESTS = [
   ["my default.project.json keeps getting overwritten when rojo syncs", "studio-ops"],
   ["pelajari MCP Roblox Studio dan cara agent memakainya dengan benar", "studio-ops"],
   ["multi_edit replace_all did nothing on my script", "studio-ops"],
+  ["open_cloud_invoke returns Scope not authorized", "studio-ops"],
+  ["which Open Cloud scopes should the agent get", "studio-ops"],
   ["fix my DataStore save, players lose coins", "diagnose"],
   ["the game lags after a few minutes with 20 players", "diagnose"],
   ["use roblox-optimum to write a shop RemoteEvent handler", "best-practices"],

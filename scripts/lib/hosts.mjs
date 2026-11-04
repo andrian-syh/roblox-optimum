@@ -82,8 +82,8 @@ export const COPILOT_AGENTS = join(".github", "agents");
 /** How a host starts the checker from a hook, without a global install to depend on. */
 const HOOK_COMMAND = "npx -y -p roblox-optimum@latest roblox-optimum";
 
-/** The tools Antigravity names when it writes a file, which are the ones worth checking after. */
-const ANTIGRAVITY_WRITES = "write_to_file|replace_file_content|multi_replace_file_content";
+/** The tools Antigravity names when it writes a file, across the App and the IDE. */
+const ANTIGRAVITY_WRITES = "write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content";
 
 /**
  * The hook file each host reads, in the shape that host documents, given the command that runs
@@ -99,8 +99,8 @@ export const PLUGIN_HOOKS = {
       SessionStart: [{ type: "command", command: `${command} --session`, timeout: 10 }],
       PreToolUse: [
         {
-          matcher: ANTIGRAVITY_WRITES,
-          hooks: [{ type: "command", command: `${command} --pre-write`, timeout: 10 }],
+          matcher: "call_mcp_tool",
+          hooks: [{ type: "command", command: `${command} --open-cloud`, timeout: 10 }],
         },
       ],
       PostToolUse: [
@@ -110,6 +110,7 @@ export const PLUGIN_HOOKS = {
         },
       ],
       PreInvocation: [{ type: "command", command: `${command} --hook antigravity`, timeout: 15 }],
+      Stop: [{ type: "command", command: `${command} --hook antigravity`, timeout: 15 }],
     },
   }),
 };

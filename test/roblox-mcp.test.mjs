@@ -50,7 +50,7 @@ test("roblox-mcp", async (t) => {
   ok(answer({ jsonrpc: "2.0", id: {}, method: "ping" }).id === null, "an id that is not a string or number is refused");
 
   const list = handle({ jsonrpc: "2.0", id: 2, method: "tools/list" }).result.tools;
-  ok(list.length === TOOLS.length && list.length === 3, "every tool this server carries is listed");
+  ok(list.length === TOOLS.length && list.length === 4, "every tool this server carries is listed");
   ok(
     list.every((t) => t.name && t.description && t.inputSchema?.type === "object"),
     "every tool carries a name, a description, and an object schema",

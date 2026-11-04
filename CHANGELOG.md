@@ -4,6 +4,34 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-11-04
+
+Studio's Assistant can now call Roblox Open Cloud through the MCP tool `open_cloud_invoke`, limited to the scopes the creator grants on the new MCP Permissions page. Neither is documented yet, so every fact here comes from the tool's schema and from probes in a private dev experience. This release also catches up with what Claude Code and Antigravity can do, based on each host's documentation and on probes in Antigravity 2.0.
+
+### Added
+
+- Added `open-cloud.md`, a reference for `open_cloud_invoke`. It covers the permission levels and nine groups, what the permissions do and do not gate, R/W/X classification by method and path, a cloud preflight, recipes for data, live ops, publishing, prices, bans, analytics, and uploads, rollback points, permission profiles by project phase, errors, and rate limits.
+- Added `open_cloud_invoke` to the Studio MCP guide's tool list, capability map, preflight, and error table, and a line in the MCP server instructions that points to the new reference before any write.
+- Added prompt routing to studio-ops for `open_cloud_invoke`, Open Cloud, and MCP Permissions.
+- Added an Open Cloud gate (`roblox-optimum --open-cloud`): a Claude Code PreToolUse hook on `open_cloud_invoke`, and an Antigravity PreToolUse hook on `call_mcp_tool`. Reads pass, writes ask with the call and its target universe, and flushing memory stores, changing secrets, asset permissions, groups, or ad campaigns is denied. Unknown writes count as irreversible. A project can list its dev universes under `openCloud.devUniverses` in `.roblox-optimum.json`; any other universe is named as production.
+- Added the same refusal to the Antigravity Studio proxy: a break-glass `open_cloud_invoke` call returns an error before it reaches Studio.
+- Added `classify_open_cloud_call` to the MCP server. It returns the same tier and decision offline, from the method and endpoint alone, so hosts without the hook get the same check.
+- Added a Claude Code PreToolUse hook on the Studio MCP `multi_edit` tool. A script edited in Studio never reaches disk, so no post-write check sees it; the agent now gets the standards before the edit and a reminder to read the lines back and run `check_luau` after.
+- Added Antigravity prompt routing on `PreInvocation` (`lastUserInput` when `invocationNum` is `0`), and a `Stop` hook that keeps the agent working once per broken Luau file written in the session.
+- Added Open Cloud trigger queries to the studio-ops evals.
+
+### Changed
+
+- The studio-ops invariant card now asks for each Open Cloud call to be classified, and treats a denied scope as the user's answer. The publishing card's "never act outward" rule now names Open Cloud as well, and diagnose keeps player values out of reports when reading live evidence through it.
+- The Antigravity copy of the auditor agent now reads with `read_file` as well as `view_file`, so it works in both Antigravity 2.0 and the IDE, and sets `mainAgent: false`, `subagent: true`, `model: inherit`, and `commandExecutionPolicy: off`.
+- Trimmed `suggestedPrompts` in `plugin.json` to three entries, since Antigravity drops the fourth.
+- Cut the API currency baseline (`api-currency.md`) from 69 KB to 40 KB without dropping a fact an agent acts on. Settled APIs now sit in one "Settled [GA]" line per section, the deprecated list is a table of old and new names, and the repeated warnings about the documentation site lagging the engine are stated once.
+
+### Fixed
+
+- Fixed Antigravity 2.0 writes going unchecked: the write hook now matches `write_file` and `edit_file` (`args.Path`) as well as the IDE's `write_to_file`, `replace_file_content`, and `multi_replace_file_content`.
+- Fixed the Antigravity `PreToolUse` reminder before a Luau write failing the tool call. Antigravity accepts only a permission decision there, so the reminder was removed.
+
 ## [1.15.0] - 2026-11-02
 
 Adds a fifth skill, publishing, for the work that decides whether players find a Roblox experience and stay: the store listing, discovery, audience gates, launch readiness, ads, and live ops. The parts that touch code went into the existing rules instead. Each fact was checked against Creator Hub documentation, staff DevForum posts, Roblox shareholder letters, or the engine API dump, and every dated fact lives in the currency file.
@@ -561,6 +589,7 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[1.16.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.2...v1.15.0
 [1.14.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.1...v1.14.2
 [1.14.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.0...v1.14.1

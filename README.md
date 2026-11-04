@@ -79,7 +79,7 @@ The standards reach your agent in three ways:
 
 * **Rules**: `AGENTS.md` and each agent's native rule file load the invariant standards card into your project.
 * **Skills**: your agent loads the matching skill automatically based on your prompt, even when you do not name `roblox-optimum`.
-* **Hooks**: in Claude Code and Codex, the plugin points each session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks the file afterward. In Antigravity, the plugin points each session at the skills on startup, restates the standards before a Luau write, and injects post-write findings before the next model call. In Cursor, Copilot CLI, Cline, and the Kiro IDE, the hook checks each Luau file after it is written or saved and returns any findings to the agent.
+* **Hooks**: in Claude Code and Codex, the plugin points each session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks the file afterward. Claude Code also restates them before a Studio `multi_edit` and asks before any Open Cloud write. In Antigravity, the plugin points each session at the skills on startup, routes each prompt, injects post-write findings before the next model call, asks before Open Cloud writes, and keeps the agent working once when a file it wrote still has findings. In Cursor, Copilot CLI, Cline, and the Kiro IDE (and in Qwen Code and Qoder, with a hook added by hand), the hook checks each Luau file after it is written or saved and returns any findings to the agent.
 
 | Skill | Use it to |
 |---|---|
@@ -171,7 +171,8 @@ The MCP server (`2026-07-28` and `2025-11-25`) checks Luau scripts inside Roblox
 | Tool | `check_luau` | Checks Luau source (with optional `path` or `runContext`: `"server"`, `"client"`, `"shared"`) and returns line-by-line findings plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and links to its reference page. |
 | Tool | `get_standards` | Returns the Roblox Luau invariant standards card. |
-| Resources | `roblox-optimum://references/*` | Serves the 40 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
+| Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint. |
+| Resources | `roblox-optimum://references/*` | Serves the 44 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 See [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp) for setup instructions.
 

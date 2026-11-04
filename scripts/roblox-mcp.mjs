@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { inspect, DEPRECATED, HAZARDS, CONTEXT_ERRORS, ranAsScript } from "./roblox-optimum.mjs";
 import { EXPLANATIONS, keyFor } from "./lib/catalog.mjs";
 import { readLiveCurrencyResource } from "./lib/currency-sync.mjs";
+import { classify, decide } from "./lib/open-cloud.mjs";
 import { HOME_PAGE, REFERENCE_BASE } from "./lib/package.mjs";
 
 export { keyFor };
@@ -37,7 +38,9 @@ const INSTRUCTIONS =
   "handing it back, including source read out of Studio. Findings are one line each; " +
   "explain_finding expands one into the rule behind it. When Roblox Studio MCP tools are " +
   "connected, read the Studio MCP guide (resource roblox-optimum://references/studio-mcp.md) " +
-  "before the first Studio write, and read every write back.";
+  "before the first Studio write, and read every write back. Before any open_cloud_invoke " +
+  "call that is not a GET, read roblox-optimum://references/open-cloud.md and call " +
+  "classify_open_cloud_call.";
 
 /** The version this package ships, which the client reads back in `serverInfo`. */
 const VERSION = (() => {
@@ -142,6 +145,25 @@ export const TOOLS = [
       "one. It returns the rules themselves, not a judgement of any code, and not the reference " +
       "pages behind them: check_luau judges source, and explain_finding points at the pages.",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "classify_open_cloud_call",
+    title: "Classify an Open Cloud call before sending it",
+    description:
+      "Given the method and endpoint of a planned open_cloud_invoke call, return its tier: R " +
+      "reads, W writes with a way back, X is outward or cannot be undone, deny is never sent by " +
+      "an agent. Also names what the call does and whether the universe it targets is listed as " +
+      "dev in the project's .roblox-optimum.json. Call it before any open_cloud_invoke that is not " +
+      "a GET. It works offline from the method and path alone, sends nothing, and an endpoint it " +
+      "does not recognise comes back X.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        method: { type: "string", description: "The HTTP method: GET, POST, PUT, PATCH, or DELETE." },
+        endpoint: { type: "string", description: "The path under https://apis.roblox.com, as passed to open_cloud_invoke." },
+      },
+      required: ["method", "endpoint"],
+    },
   },
 ];
 
@@ -254,6 +276,17 @@ export function runTool(name, args) {
       `${key}\n\nWhy: ${why}\n\nUse instead: ${instead}\n\n` +
         `Full pattern: ${read}, in this package under skills/best-practices/references/, or at ${REFERENCE_BASE}/${read}`,
     );
+  }
+
+  if (name === "classify_open_cloud_call") {
+    if (typeof given.method !== "string" || typeof given.endpoint !== "string") {
+      return fail("classify_open_cloud_call needs `method` and `endpoint` strings.");
+    }
+
+    const { tier, reason } = classify(given.method, given.endpoint);
+    const verdict = decide(given, process.cwd());
+    const structuredContent = { tier, reason, decision: verdict?.decision ?? "allow" };
+    return { ...text(verdict?.reason ?? `${given.method.toUpperCase()} ${given.endpoint} ${reason}: tier R, send it.`), structuredContent };
   }
 
   if (name === "get_standards") {

@@ -9,6 +9,7 @@ import { isAbsolute, join, resolve } from "node:path";
 
 import { checkFile, formatReport } from "./checker.mjs";
 import { triggerBackgroundSyncIfStale } from "./currency-sync.mjs";
+import { decide } from "./open-cloud.mjs";
 import { CLI_SCRIPT, readStdin } from "./package.mjs";
 import { isRobloxProject } from "./project.mjs";
 import { routePrompt } from "./router.mjs";
@@ -17,7 +18,7 @@ import { routePrompt } from "./router.mjs";
 const PATCH_TARGET = /^\*\*\* (?:Add File|Update File|Move to):\s*(.+?)\s*$/gm;
 
 /** The keys a host has been seen to name a written file under, inside its tool arguments. */
-const PATH_KEYS = ["file_path", "filePath", "path", "TargetFile", "target_file"];
+const PATH_KEYS = ["file_path", "filePath", "path", "Path", "TargetFile", "target_file"];
 
 /**
  * The file a tool call names, read from arguments that may arrive as an object or as the JSON
@@ -73,9 +74,17 @@ export const CLINE_WRITES = /^(write_to_file|replace_in_file|apply_patch|new_rul
  * Where Antigravity findings wait for the next model call. Its PostToolUse output is discarded,
  * so the check stores what it found and PreInvocation hands it to the agent.
  */
-export function pendingFile(payload) {
+export function pendingFile(payload, kind = "") {
   const id = String(payload?.conversationId ?? "none").replace(/[^\w-]/g, "_");
-  return join(tmpdir(), `roblox-optimum-${id}.txt`);
+  return join(tmpdir(), `roblox-optimum-${id}${kind}.txt`);
+}
+
+/** The prompt a request routes to, when it arrives on the first PreInvocation of a turn. */
+function promptLine(payload) {
+  if (payload?.invocationNum !== 0 || typeof payload?.lastUserInput !== "string") return "";
+
+  const route = routePrompt(payload.lastUserInput, isRobloxProject(payloadRoot(payload)));
+  return route === null ? "" : `${routeMessage(route)} Mention roblox-optimum to the user the first time it shapes an answer.`;
 }
 
 /** Injects and clears the findings stored for this conversation, as PreInvocation reads them. */
@@ -86,7 +95,46 @@ export function injectPending(payload) {
     text = readFileSync(file, "utf8");
     rmSync(file, { force: true });
   } catch {}
-  process.stdout.write(JSON.stringify(text ? { injectSteps: [{ ephemeralMessage: text }] } : {}));
+  const routed = promptLine(payload);
+  const steps = [routed, text].filter(Boolean).map((ephemeralMessage) => ({ ephemeralMessage }));
+  process.stdout.write(JSON.stringify(steps.length > 0 ? { injectSteps: steps } : {}));
+  return 0;
+}
+
+/**
+ * Checks the files this conversation wrote before the agent stops, and continues once per file
+ * with findings. A clean stop clears the record, so the next turn starts fresh.
+ */
+export function stopAntigravity(payload) {
+  if (payload?.terminationReason !== "NO_TOOL_CALL") {
+    process.stdout.write("{}");
+    return 0;
+  }
+
+  let lines = [];
+  try {
+    lines = readFileSync(pendingFile(payload, "-touched"), "utf8").split("\n").filter(Boolean);
+  } catch {}
+
+  let stopped = new Set();
+  try {
+    stopped = new Set(readFileSync(pendingFile(payload, "-stopped"), "utf8").split("\n").filter(Boolean));
+  } catch {}
+
+  const reports = [...new Set(lines)]
+    .filter((file) => !stopped.has(file))
+    .map(checkFile)
+    .filter((r) => r.status === "problems");
+
+  if (reports.length === 0) {
+    rmSync(pendingFile(payload, "-touched"), { force: true });
+    rmSync(pendingFile(payload, "-stopped"), { force: true });
+    process.stdout.write("{}");
+    return 0;
+  }
+
+  appendFileSync(pendingFile(payload, "-stopped"), `${reports.map((r) => r.path).join("\n")}\n`);
+  process.stdout.write(JSON.stringify({ decision: "continue", reason: formatReport(reports) }));
   return 0;
 }
 
@@ -104,17 +152,19 @@ export async function runPostToolUse(shape) {
     return 0;
   }
 
+  if (shape === "antigravity" && typeof payload.terminationReason === "string") return stopAntigravity(payload);
   if (shape === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
   if (shape === "cline" && !CLINE_WRITES.test(payload?.postToolUse?.tool ?? "")) {
     process.stdout.write('{"cancel":false}');
     return 0;
   }
 
-  const reports = targetsFromPayload(payload)
-    .map(checkFile)
-    .filter((r) => r.status === "problems");
+  const results = targetsFromPayload(payload).map(checkFile);
+  const reports = results.filter((r) => r.status === "problems");
 
   if (shape === "antigravity") {
+    const checked = results.filter((r) => r.status === "clean" || r.status === "problems").map((r) => r.path);
+    if (checked.length > 0) appendFileSync(pendingFile(payload, "-touched"), `${checked.join("\n")}\n`);
     if (reports.length > 0) appendFileSync(pendingFile(payload), formatReport(reports));
     process.stdout.write("{}");
     return 0;
@@ -213,6 +263,14 @@ export async function runSessionStart(summarized) {
   return 0;
 }
 
+/** A Studio MCP tool that writes a script's source, which never touches a file on disk. */
+const STUDIO_SCRIPT_EDIT = /^mcp__.+__multi_edit$/;
+
+/** What a Studio edit needs afterwards, since no post-write hook can read the script back. */
+const AFTER_STUDIO_EDIT =
+  "This edit lands in Studio, not on disk, so no hook checks it: read the changed lines back " +
+  "and pass the script's source to check_luau before handing it back.";
+
 /** The invariant card in brief, for the moment a Luau file is about to be written. */
 const PRE_WRITE =
   "roblox-optimum: this writes Luau. New code follows the invariant card: VARIABLES, " +
@@ -233,11 +291,67 @@ export async function runPreWrite() {
   if (payload === null) return 0;
 
   const cwd = payloadRoot(payload);
-  const luau = targetsFromPayload(payload).some(
-    (p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)),
-  );
-  if (luau) addContext("PreToolUse", PRE_WRITE, payload);
+  const studio = STUDIO_SCRIPT_EDIT.test(payload.tool_name ?? "");
+  const luau =
+    studio ||
+    targetsFromPayload(payload).some((p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)));
+  if (luau) addContext("PreToolUse", studio ? `${PRE_WRITE} ${AFTER_STUDIO_EDIT}` : PRE_WRITE, payload);
   return 0;
+}
+
+/** A tool call's arguments as an object, from the object or JSON string a host sends. */
+function toolArguments(args) {
+  if (typeof args !== "string") return args;
+  try {
+    return JSON.parse(args);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Puts an Open Cloud write in front of the user before it is sent, and stops the calls the
+ * agent must never make. A read passes with no output, so the host's own rules decide it.
+ */
+export async function runOpenCloudGate() {
+  const payload = await readPayload();
+  const antigravity = payload?.toolCall !== undefined;
+  if (
+    process.env.ROBLOX_OPTIMUM === "off" ||
+    (antigravity && payload.toolCall?.args?.ToolName !== "open_cloud_invoke")
+  ) {
+    if (antigravity) process.stdout.write('{"decision":"allow"}');
+    return 0;
+  }
+
+  const input = toolArguments(antigravity ? payload.toolCall?.args?.Arguments : payload?.tool_input);
+  const verdict = decide(input, payloadRoot(payload));
+  if (verdict === undefined) {
+    if (antigravity) process.stdout.write('{"decision":"allow"}');
+    return 0;
+  }
+
+  process.stdout.write(
+    JSON.stringify(
+      antigravity
+        ? { decision: verdict.decision, reason: verdict.reason }
+        : {
+            hookSpecificOutput: {
+              hookEventName: "PreToolUse",
+              permissionDecision: verdict.decision,
+              permissionDecisionReason: verdict.reason,
+            },
+          },
+    ),
+  );
+  return 0;
+}
+
+/** The instruction that points a routed prompt at the skill it needs. */
+function routeMessage(route) {
+  return route.skill === null
+    ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
+    : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
 }
 
 /**
@@ -253,10 +367,6 @@ export async function runPromptRoute() {
   const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
-  const load =
-    route.skill === null
-      ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
-      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
-  addContext("UserPromptSubmit", `${load} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
+  addContext("UserPromptSubmit", `${routeMessage(route)} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
   return 0;
 }

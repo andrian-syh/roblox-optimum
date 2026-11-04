@@ -3,7 +3,7 @@ name: publishing
 description: "Plans and checks how a Roblox experience reaches players, outside the code: store listing, icon, thumbnails and video, Recommended for You and the other discovery surfaces, the maturity questionnaire and Roblox Kids and Select age tiers, launch readiness, Ads Manager, experience events and notifications, reading retention and revenue analytics, update cadence, and the marketing Roblox forbids. Use whenever the user asks how to launch, promote, market, or grow a game, why impressions or players fell, what a title or thumbnail should be, or whether a growth idea breaks platform policy, even when no code is involved. Hand-offs: writing or changing Luau, including analytics events and odds disclosure, goes to the best-practices skill, judging existing code to the code-review skill, broken game behaviour to the diagnose skill, Studio tooling, sync, and playtests to the studio-ops skill."
 license: MIT
 metadata:
-  version: "1.15.0"
+  version: "1.16.0"
 ---
 
 # Roblox Publishing and Live Ops
@@ -32,7 +32,8 @@ ROBLOX PUBLISHING - INVARIANT CARD
    (only the user can see it in Creator Hub). Never report a hub item as
    done until the user confirms it.
 3  Recommend; never act outward. No publishing, spending, campaign, metadata
-   change, or nomination without an explicit ask for that action.
+   change, or nomination without an explicit ask for that action. That
+   holds through open_cloud_invoke too, even when the scope is granted.
 4  Never propose growth that breaks policy: links or invites in the game,
    contests, like rewards, misleading assets or metadata, undisclosed paid
    content. State the rule once and offer the allowed path.

@@ -11,7 +11,7 @@
 | `skills` | The `best-practices`, `code-review`, `diagnose`, `studio-ops`, and `publishing` skills | project or machine |
 | `agent` | The `roblox-auditor` review subagent (for hosts that support Markdown subagents) | project or machine |
 | `hook` | A Git pre-commit hook, and Kiro's project file hook | project |
-| MCP server | `check_luau`, `explain_finding`, `get_standards`, and reference resources | machine |
+| MCP server | `check_luau`, `explain_finding`, `get_standards`, `classify_open_cloud_call`, and reference resources | machine |
 
 ## Contents
 
@@ -107,7 +107,7 @@ claude plugin marketplace remove andrian-syh   # optional: also remove the marke
 <details>
 <summary><strong>Antigravity (<code>agy</code> / Antigravity IDE / Antigravity 2.0)</strong></summary>
 
-Antigravity 2.0, the Antigravity IDE, and the `agy` CLI share `~/.gemini/config/plugins/`, so one install serves all three. It installs the plugin (skills, `roblox-auditor`, rules, and hooks) into `~/.gemini/config/plugins/roblox-optimum` and registers the MCP server in `~/.gemini/config/mcp_config.json`.
+Antigravity 2.0, the Antigravity IDE, and the `agy` CLI share `~/.gemini/config/plugins/`, so one install serves all three. Despite individual Antigravity documentation pages describing plugin hooks, rules, and skills as CLI-only, all three surfaces load skills, `rules/*.md`, `agents/*.md`, and `hooks.json` directly from `~/.gemini/config/plugins/roblox-optimum` (and workspace `.agents/plugins/`). The installer writes the plugin there and registers the MCP server in `~/.gemini/config/mcp_config.json`.
 
 ### Install
 
@@ -117,16 +117,24 @@ npx roblox-optimum install --global
 
 * Do not also run `install skills --global` for Antigravity, as loose skill copies would duplicate the plugin.
 * To install for a single workspace only, clone the repository into `.agents/plugins/roblox-optimum` at the workspace root. Because a checkout carries its own `mcp_config.json`, turn off the checkout's MCP server in the MCP panel if you also ran `install --global`.
-* Antigravity discards `PostToolUse` stdout, so the plugin's `PostToolUse` hook records findings and the `PreInvocation` hook injects them before the next model call (alongside `SessionStart` and `PreToolUse` reminders).
+* The plugin's hooks work around two Antigravity limits: `PostToolUse` output is discarded, and `PreToolUse` accepts only a permission decision. Each hook does one job:
+  * `SessionStart` points the session at the skills.
+  * `PostToolUse` checks each Luau file written by the App (`write_file`, `edit_file`) or the IDE (`write_to_file`, `replace_file_content`, `multi_replace_file_content`) and stores the findings.
+  * `PreInvocation` routes the user's prompt (`lastUserInput`, first invocation of a turn) and injects stored findings before the next model call.
+  * `PreToolUse` on `call_mcp_tool` asks before an `open_cloud_invoke` write and denies break-glass calls.
+  * `Stop` keeps the agent working once per written file that still has findings.
 
 ### Verify
 
 ```bash
-agy plugin list
 npx roblox-optimum doctor --global
 ```
 
-In the IDE, confirm **Roblox Optimum** appears under **Customizations**, then click **Refresh** in the MCP panel to see `check_luau`, `explain_finding`, and `get_standards`.
+Where the `agy` CLI is installed, `agy plugin list` lists the plugin and `agy plugin validate --strict` checks it.
+
+> **Note:** The Windows Antigravity 2.0 desktop installer does not include the `agy` binary, so the two commands above are unverified there.
+
+In the App or IDE, confirm **Roblox Optimum** appears under **Skills & Customizations**, then click **Refresh** in the MCP panel to see `check_luau`, `explain_finding`, `classify_open_cloud_call`, and `get_standards`.
 
 ### Update
 
@@ -144,7 +152,7 @@ npx roblox-optimum uninstall --global
 
 ### Connect Antigravity to Roblox Studio
 
-Antigravity opens each MCP session with a `server/discover` request (MCP `2026-07-28`), which Roblox's `StudioMCP.exe` does not implement, and Roblox's `mcp.bat` fails under `cmd`. The bundled `studio-mcp-antigravity.mjs` bridge answers `server/discover` and launches the newest installed `StudioMCP.exe` directly:
+Antigravity opens each MCP session with a `server/discover` request (MCP `2026-07-28`), which Roblox's `StudioMCP.exe` does not implement, and Roblox's `mcp.bat` fails under `cmd`. The bundled `studio-mcp-antigravity.mjs` bridge answers `server/discover`, launches the newest installed `StudioMCP.exe` directly, and refuses break-glass `open_cloud_invoke` calls:
 
 1. In `~/.gemini/config/mcp_config.json`, replace the `Roblox_Studio` entry using an absolute path with forward slashes on Windows:
 
@@ -159,6 +167,8 @@ Antigravity opens each MCP session with a `server/discover` request (MCP `2026-0
    }
    ```
 
+   (Shipping `Roblox_Studio` inside the plugin's own `mcp_config.json` with `${PLUGIN_ROOT}` works, but Antigravity namespaces plugin MCP servers as `roblox-optimum_Roblox_Studio` and fails the plugin if Roblox Studio is closed, so keep `Roblox_Studio` in `~/.gemini/config/mcp_config.json`.)
+
 2. Start Roblox Studio and turn on **Studio as MCP server** under **Assistant** > **Manage MCP Servers**.
 3. In the Antigravity MCP panel, click **Refresh**.
 
@@ -167,7 +177,7 @@ Antigravity opens each MCP session with a `server/discover` request (MCP `2026-0
 <details>
 <summary><strong>Cursor</strong></summary>
 
-The plugin installs into `~/.cursor/plugins/local/roblox-optimum` and carries the four skills, the read-only `roblox-auditor` subagent, the rules, the MCP server, and a `postToolUse` hook that checks Luau files after `Write`.
+The plugin installs into `~/.cursor/plugins/local/roblox-optimum` and carries the five skills, the read-only `roblox-auditor` subagent, the rules, the MCP server, and a `postToolUse` hook that checks Luau files after `Write`.
 
 ### Install
 
@@ -222,7 +232,7 @@ npx roblox-optimum uninstall --global
 <details>
 <summary><strong>Codex</strong></summary>
 
-The Codex plugin carries the four skills, the hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse` for `apply_patch`, `Edit`, and `Write`), and the MCP server.
+The Codex plugin carries the five skills, the hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse` for `apply_patch`, `Edit`, and `Write`), and the MCP server.
 
 | Component | Location | Scope |
 |---|---|---|
@@ -683,7 +693,7 @@ To install specific components:
 
 ```bash
 npx roblox-optimum install rules     # AGENTS.md and detected agent rule files
-npx roblox-optimum install skills    # the four skills, into the directories your project has
+npx roblox-optimum install skills    # the five skills, into the directories your project has
 npx roblox-optimum install agent     # the roblox-auditor subagent (.claude/agents and .github/agents)
 npx roblox-optimum install hook      # the Git pre-commit hook
 ```
@@ -741,8 +751,9 @@ The installer writes only to agents whose home directory (`~/.cursor`, `~/.gemin
 
 | Host | Automatic hook behavior |
 |---|---|
-| Claude Code, Codex | Points the session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks it afterward. |
-| Antigravity | Points the session at the skills on startup, restates the standards before a Luau write, checks the file after each write, and hands findings to the agent before its next model call. |
+| Claude Code | Points the session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file or a Studio `multi_edit` is written, checks the file afterward, and asks before an Open Cloud write. |
+| Codex | Points the session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks it afterward. |
+| Antigravity | Points the session at the skills, routes each prompt, checks each Luau write and injects the findings before the next model call, asks before an Open Cloud write, and keeps the agent working once per file that still has findings. |
 | Cursor | Checks a Luau file after each `Write` edit. |
 | Copilot CLI | Checks a Luau file after the `create` and `edit` tools. |
 | Cline | Checks a Luau file after each write. |
@@ -764,7 +775,7 @@ npx roblox-optimum doctor --global     # inspect global agent directories only
 
 | Status reported by `doctor` | Meaning |
 |---|---|
-| `at <version>` | Installed by the current release (`1.13.1`). |
+| `at <version>` | Installed by the current release. |
 | `copied from <version>` | Installed by an older release. Run `install --force` to update. |
 | `written by this tool` | Unmodified rule file or hook generated by `roblox-optimum`. |
 | `not written by this tool` | User-authored file. The installer and uninstaller never overwrite or delete it. |
@@ -801,7 +812,8 @@ The MCP server lets an agent check Luau scripts that live inside Roblox Studio a
 | Tool | `check_luau` | Checks Luau source (with optional `path` or `runContext`: `"server"`, `"client"`, `"shared"`) and returns one finding per rule it breaks, plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and points to its reference page. |
 | Tool | `get_standards` | Returns the invariant standards card. |
-| Resources | `roblox-optimum://references/*` | Serves the 40 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
+| Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint. |
+| Resources | `roblox-optimum://references/*` | Serves the 44 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 ### Use with Roblox Studio
 
@@ -809,6 +821,23 @@ The MCP server lets an agent check Luau scripts that live inside Roblox Studio a
 2. Connect your agent to both the Studio MCP server and the `roblox-optimum` MCP server.
 
 The agent reads a script with `script_read`, checks it with `check_luau`, and writes it back with `multi_edit`.
+
+### Gate Open Cloud calls
+
+Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with the scopes granted under **Assistant Settings** > **MCP Permissions**, and Studio shows no dialog before a granted write. roblox-optimum adds that check:
+
+* **Claude Code and Antigravity:** a `PreToolUse` hook lets reads through, asks before writes, and denies calls an agent must never make, such as flushing memory stores or changing secrets.
+* **Other hosts:** the agent calls `classify_open_cloud_call` before any call that is not a `GET`.
+
+To mark experiences as safe for writes, list their universe IDs in `.roblox-optimum.json` at the project root. Any universe not listed is named as production in the prompt:
+
+```json
+{
+  "openCloud": {
+    "devUniverses": [1234567890]
+  }
+}
+```
 
 ### Register the server manually
 

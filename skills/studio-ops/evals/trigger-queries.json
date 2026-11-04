@@ -12,6 +12,9 @@
   { "query": "how do i prove this fix actually works in a running session, not just typecheck", "should_trigger": true },
   { "query": "me and two other devs are on this place, how do we not clobber each other", "should_trigger": true },
   { "query": "can you connect to studio and tell me what tools you have", "should_trigger": true },
+  { "query": "open_cloud_invoke keeps returning Scope not authorized, what now", "should_trigger": true },
+  { "query": "which MCP Permissions level should the agent run with on my live game", "should_trigger": true },
+  { "query": "pakai open cloud untuk ubah data pemain lewat agent, aman nggak?", "should_trigger": true },
 
   { "query": "write me a datastore module for saving coins and gems", "should_trigger": false },
   { "query": "review my PR #42 before i merge it", "should_trigger": false },

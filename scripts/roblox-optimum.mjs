@@ -13,7 +13,7 @@ import { overlayPath, SKIP_REASON } from "./lib/catalog.mjs";
 import { checkBatch, formatReport } from "./lib/checker.mjs";
 import { syncCurrency } from "./lib/currency-sync.mjs";
 import { runDoctor, runUninstall } from "./lib/doctor.mjs";
-import { HOOK_SHAPES, runPostToolUse, runPreWrite, runPromptRoute, runSessionStart } from "./lib/hooks.mjs";
+import { HOOK_SHAPES, runOpenCloudGate, runPostToolUse, runPreWrite, runPromptRoute, runSessionStart } from "./lib/hooks.mjs";
 import { runInstall } from "./lib/install.mjs";
 import { HOME_PAGE, PACKAGE_ROOT, ranAsScript } from "./lib/package.mjs";
 import { FORMATS, formatJson, formatSarif } from "./lib/report.mjs";
@@ -22,7 +22,7 @@ export { agentAs, forAntigravity, forCopilot, forCursor, forKiro, forOpenCode, f
 export { CONTEXT_ERRORS, DEPRECATED, EXPLANATIONS, HAZARDS } from "./lib/catalog.mjs";
 export { checkBatch, checkFile, expandPaths, formatReport, inspect, stripNonCode } from "./lib/checker.mjs";
 export { condition, liveCopies, places } from "./lib/doctor.mjs";
-export { targetsFromPayload } from "./lib/hooks.mjs";
+export { injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "./lib/hooks.mjs";
 export { COMPONENTS, namespaced, parseComponents, retitle, routeFor } from "./lib/install.mjs";
 export { order, ranAsScript, stamped, stampedFrom } from "./lib/package.mjs";
 export { isRobloxProject } from "./lib/project.mjs";
@@ -47,6 +47,8 @@ Usage:
                                      Naming no part also registers the MCP server and the
                                      hooks; naming parts writes only those.
                                      Rules and the hook stay with the project that needs them.
+  roblox-optimum sync [--quiet]      Refresh the local API currency cache from the Roblox API
+                                     dump and the latest Luau release. --quiet prints nothing on success.
   roblox-optimum doctor              Report what is installed and how old it is, for this project
                                      and this machine. --project or --global narrows it to one.
                                      Reads only; it changes nothing.
@@ -76,6 +78,8 @@ Usage:
                                      prints the skill it needs.
   roblox-optimum --pre-write         Read a pre-write hook payload on stdin. Before a Luau file
                                      is written, prints the standards in brief.
+  roblox-optimum --open-cloud        Read a pre-tool payload for open_cloud_invoke on stdin.
+                                     Asks before a write, denies a break-glass call.
   roblox-optimum --help              Show this text.
 
 Exit codes: 0 nothing to report, 1 findings, 2 findings for an agent or a usage error.
@@ -195,6 +199,7 @@ if (invokedDirectly) {
   else if (mode === "--session") process.exit(await runSessionStart(false));
   else if (mode === "--prompt") process.exit(await runPromptRoute());
   else if (mode === "--pre-write") process.exit(await runPreWrite());
+  else if (mode === "--open-cloud") process.exit(await runOpenCloudGate());
   else if (mode === "--check") process.exit(runCheck(rest));
   else if (mode === "sync") process.exit(await runSync(rest));
   else if (mode === "install") process.exit(guarded(mode, () => runInstall(rest)));

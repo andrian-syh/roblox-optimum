@@ -12,6 +12,15 @@ test("studio-mcp-antigravity", async (t) => {
   const checks = [];
   const ok = (cond, label) => checks.push([label, Boolean(cond)]);
 
+  const flush = JSON.parse(
+    interception(JSON.stringify({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "open_cloud_invoke", arguments: { method: "POST", endpoint: "/cloud/v2/universes/1/memory-store:flush" } } })),
+  );
+  ok(flush.id === 7 && flush.result.isError === true, "a break-glass Open Cloud call is refused before it reaches Studio");
+  ok(
+    interception(JSON.stringify({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "open_cloud_invoke", arguments: { method: "POST", endpoint: "/cloud/v2/universes/1:publishMessage" } } })) === null,
+    "any other Open Cloud call is forwarded",
+  );
+
   const probe = interception('{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}');
   ok(probe !== null, "the probe is answered rather than forwarded");
   ok(JSON.parse(probe).id === 1, "the answer carries the id it was asked with");

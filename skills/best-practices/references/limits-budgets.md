@@ -49,7 +49,7 @@ Ordered data stores carry the same experience-level numbers; their per-server wr
 **Caching and versions**, both of which change what a read means:
 
 - `GetAsync` serves a **local cache for four seconds**. Cached reads cost no budget and no throughput, and they can return a value the backend no longer holds. Set `DataStoreGetOptions.UseCache = false` when the answer must be authoritative — above all when checking whether a failed write actually landed before retrying or refunding.
-- Overwritten versions are retained **30 days**; the latest version never expires. **Multiple writes to the same key within one UTC hour overwrite each other permanently**, so a tight autosave loop destroys its own version history.
+- Overwritten versions are retained **30 days**; the latest version never expires. **Only the first write to a key in each UTC hour is kept as a version**; later writes that hour replace the current value without a backup, so a tight autosave loop destroys its own version history.
 - **Each request type queues at most 30 requests.** While a request waits its call keeps yielding; past 30 the request is dropped with a throttle error (`301`-`306`, one per request type), so a burst of saves fails rather than waits.
 - `ListKeysAsync` with **key prefixes** is the current way to organize a store. Legacy scopes still work; prefixes are what new work should use.
 

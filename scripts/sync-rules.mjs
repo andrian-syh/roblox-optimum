@@ -32,14 +32,19 @@ const HOOKS_SOURCE = "hooks/hooks.json";
 const HOOKS_TARGET = "hooks/codex-hooks.json";
 
 /**
- * Rewrites the Claude hooks for Codex. Codex reads a command string and drops an argument list
- * unread, so each argument is folded into the command, and its patch tool is matched by name.
+ * Rewrites the Claude hooks for Codex: arguments fold into the command string, the patch tool
+ * is matched by name, and MCP tool matchers are dropped, since Codex is unproven on them.
  */
 function codexHooks(text) {
   const config = JSON.parse(text);
 
-  for (const entries of Object.values(config.hooks)) {
+  for (const [event, all] of Object.entries(config.hooks)) {
+    const entries = all.filter((entry) => !(entry.matcher ?? "").startsWith("mcp__"));
+    config.hooks[event] = entries;
     for (const entry of entries) {
+      if (typeof entry.matcher === "string") {
+        entry.matcher = entry.matcher.split("|").filter((name) => !name.startsWith("mcp__")).join("|");
+      }
       if (entry.matcher === "Write|Edit|MultiEdit") entry.matcher = "apply_patch|Edit|Write";
 
       for (const hook of entry.hooks) {

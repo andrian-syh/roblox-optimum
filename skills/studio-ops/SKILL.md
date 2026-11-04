@@ -3,7 +3,7 @@ name: studio-ops
 description: "Operates a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change works in the running engine. Use before the first Studio MCP tool call of a session (list_roblox_studios, execute_luau, multi_edit, start_stop_play, and the rest), and whenever the user asks why their edits are being overwritten, how to set up or fix a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Hand-offs: authoring Luau goes to the best-practices skill, judging existing code to the code-review skill, working out why a reported symptom happens to the diagnose skill, which calls on this one to run the probe, launch and marketing to the publishing skill."
 license: MIT
 metadata:
-  version: "1.15.0"
+  version: "1.16.0"
 ---
 
 # Roblox Studio Operations
@@ -15,7 +15,7 @@ actually do, and how a change is proven to work.
 **Goal, in priority order:** do not destroy work → know before acting → prove it → spend few tokens.
 
 > **This skill ships as part of a set and does not stand alone.** Every reference it cites lives in
-> `../best-practices/references/`, the pool shared by all four roblox-optimum skills. Installing
+> `../best-practices/references/`, the pool shared by all five roblox-optimum skills. Installing
 > this directory on its own leaves those links pointing at nothing. If a reference will not open,
 > the install is incomplete — say so rather than working from memory.
 
@@ -30,7 +30,9 @@ ROBLOX STUDIO OPS - INVARIANT CARD
    overwrites the user's work and there is no undo. Confirm, never infer.
 3  Never start, stop, or reconfigure a sync session unasked.
 4  On an MCP connection, run the preflight before ANY write, and name an
-   irreversible operation as irreversible before performing it.
+   irreversible operation as irreversible before performing it. Classify
+   each open_cloud_invoke call R/W/X by method and path; a denied scope
+   is the user's answer, never a thing to route around.
 5  A change is not verified by reading it. Drive the affected flow in a
    running session and observe the result.
 6  Replication, remotes, and StreamingEnabled need multiple clients.
@@ -53,6 +55,7 @@ Everything below expands these; nothing below overrides them.
 |---|---|
 | Edits overwritten, sync setup, which side wins, Rojo / Argon / Script Sync / Azul | [external-editors.md](../best-practices/references/external-editors.md) |
 | An MCP connection is present: which tool, what it costs, what cannot be undone | [studio-mcp.md](../best-practices/references/studio-mcp.md) |
+| Calling Open Cloud through `open_cloud_invoke`: MCP Permissions, scopes, data stores, publishing, prices, bans | [open-cloud.md](../best-practices/references/open-cloud.md) |
 | Proving a change works: playtests, multi-client sessions, telemetry, testable architecture | [verification.md](../best-practices/references/verification.md) |
 | More than one person on the project: git beside a place file, branch places, tree ownership, the review gate, shipping | [team-workflow.md](../best-practices/references/team-workflow.md) |
 

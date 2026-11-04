@@ -9,11 +9,11 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "matcher": "call_mcp_tool",
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/roblox-optimum.mjs --pre-write",
+            "command": "node scripts/roblox-optimum.mjs --open-cloud",
             "timeout": 10
           }
         ]
@@ -21,7 +21,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "matcher": "write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content",
         "hooks": [
           {
             "type": "command",
@@ -32,6 +32,13 @@
       }
     ],
     "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node scripts/roblox-optimum.mjs --hook antigravity",
+        "timeout": 15
+      }
+    ],
+    "Stop": [
       {
         "type": "command",
         "command": "node scripts/roblox-optimum.mjs --hook antigravity",

@@ -6,6 +6,7 @@
 - [Report a vulnerability](#report-a-vulnerability)
 - [Scope](#scope)
 - [Security model](#security-model)
+  - [Open Cloud gate](#open-cloud-gate)
 - [Official distribution channels](#official-distribution-channels)
 - [Verify package provenance](#verify-package-provenance)
 - [Report impersonation or malicious copies](#report-impersonation-or-malicious-copies)
@@ -16,8 +17,8 @@ Security fixes are released for the current minor version only.
 
 | Version | Supported |
 |---|---|
-| `1.13.x` | Yes |
-| `< 1.13.0` | No. Upgrade to the latest release first. |
+| `1.16.x` | Yes |
+| `< 1.16.0` | No. Upgrade to the latest release first. |
 
 ## Report a vulnerability
 
@@ -66,6 +67,7 @@ Out of scope:
 | `install --global`, `uninstall --global` | The skills, agent, MCP, and hook configuration directories of the agents you target. |
 | `install`, `uninstall` in a project | The project's rule files and its Git `pre-commit` hook. |
 | `sync` and the background refresh | The local cache only. See [Currency sync](#currency-sync). |
+| The Antigravity hooks | Small text files in the system temp directory, one set per conversation: findings waiting to be injected, the Luau files written, and the files a `Stop` hook has already held. |
 
 `install` and `uninstall` never overwrite or remove a file this tool did not write. A file is recognized as its own by the `roblox-optimum` stamp or digest inside it.
 
@@ -75,7 +77,21 @@ Out of scope:
 |---|---|---|
 | `install` | `git rev-parse` | To find the project's hooks directory. Arguments are passed as a list, never through a shell. |
 | Session start hook | `roblox-optimum sync --quiet`, detached | To refresh a stale cache without delaying the session. |
-| `roblox-studio-mcp-antigravity` | The newest `StudioMCP.exe` under `%LOCALAPPDATA%\Roblox\Versions` | To proxy Roblox Studio's own MCP server. |
+| `roblox-studio-mcp-antigravity` | The newest `StudioMCP.exe` under `%LOCALAPPDATA%\Roblox\Versions` | To proxy Roblox Studio's own MCP server, refusing break-glass `open_cloud_invoke` calls on the way. |
+
+### Open Cloud gate
+
+Roblox Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with the scopes the creator grants under **Assistant Settings** > **MCP Permissions**. Those scopes are the security boundary. roblox-optimum adds a confirmation step in front of them, not a replacement for them.
+
+| Property | Behavior |
+|---|---|
+| Where it runs | A `PreToolUse` hook in Claude Code and Antigravity, and the Antigravity Studio proxy. Other hosts get the offline `classify_open_cloud_call` tool, which advises but cannot block. |
+| How it decides | From the call's method and endpoint path only. It sends no request and reads no response. |
+| Decisions | Reads pass. Writes ask the user. Flushing memory stores and changing secrets, asset permissions, groups, or ad campaigns are denied. An endpoint it does not recognise is treated as irreversible. |
+| Files read | `.roblox-optimum.json` at the project root, for `openCloud.devUniverses`. A missing or invalid file lists no dev universes. |
+| Opt out | `ROBLOX_OPTIMUM=off` disables the gate along with every other check. |
+
+The gate matches patterns, so a new or renamed Open Cloud endpoint can be classified wrongly. Grant only the scopes a task needs, and treat the gate as a second check.
 
 ### Currency sync
 
