@@ -15,26 +15,26 @@ Roblox and Luau standards for AI agents, paired with a deterministic static chec
 
 </div>
 
-**roblox-optimum** holds AI coding agents to production Roblox Luau standards and checks the code they write. It has two parts:
+roblox-optimum holds AI coding agents to production Roblox Luau standards and checks the code they write. It has two parts:
 
-* **The standards**: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. Works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
-* **The checker**: a zero-dependency Node.js CLI and Dual-Era MCP server (`2026-07-28` and `2025-11-25`) that runs as an agent hook, a Git pre-commit hook, or a CI step.
+- The standards: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. It works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
+- The checker: a zero-dependency Node.js CLI and Dual-Era MCP server (`2026-07-28` and `2025-11-25`) that runs as an agent hook, a Git pre-commit hook, or a CI step.
 
 ## Contents
 
-* [Quick start](#quick-start)
-* [How the agent uses it](#how-the-agent-uses-it)
-* [Check Luau with the checker](#check-luau-with-the-checker)
-* [Check Luau in Roblox Studio](#check-luau-in-roblox-studio)
-* [What the standards cover](#what-the-standards-cover)
-* [Official sources](#official-sources)
-* [Documentation](#documentation)
-* [Get help and contribute](#get-help-and-contribute)
-* [License](#license)
+- [Install](#install)
+- [How the agent uses it](#how-the-agent-uses-it)
+- [Check Luau with the checker](#check-luau-with-the-checker)
+- [Check Luau in Roblox Studio](#check-luau-in-roblox-studio)
+- [What the standards cover](#what-the-standards-cover)
+- [Documentation](#documentation)
+- [Get help and contribute](#get-help-and-contribute)
+- [Security and official sources](#security-and-official-sources)
+- [License](#license)
 
-## Quick start
+## Install
 
-Requires **Node.js 22 or later**.
+Prerequisite: Node.js 22 or later.
 
 ```bash
 # 1. In your Roblox project root: install rules and the Git pre-commit hook
@@ -48,7 +48,7 @@ npx roblox-optimum doctor
 ```
 
 <details>
-<summary><strong>Install directly from an agent marketplace (Claude Code, Codex, Copilot, Qwen, Cursor, Kiro)</strong></summary>
+<summary>Install from an agent marketplace (Claude Code, Codex, Copilot, Qwen, Cursor, Kiro)</summary>
 
 ```bash
 # Claude Code
@@ -66,20 +66,20 @@ codex plugin marketplace add andrian-syh/roblox-optimum
 qwen extensions install https://github.com/andrian-syh/roblox-optimum
 ```
 
-* **Cursor**: search for `https://github.com/andrian-syh/roblox-optimum` under **Settings** > **Plugins**.
-* **Kiro**: import `https://github.com/andrian-syh/roblox-optimum` as a Custom Power.
+- Cursor: search for `https://github.com/andrian-syh/roblox-optimum` under Settings > Plugins.
+- Kiro: import `https://github.com/andrian-syh/roblox-optimum` as a Custom Power.
 
 </details>
 
-For per-agent **Install**, **Verify**, **Update**, and **Uninstall** guides and host-specific limitations, see **[INSTALL.md](INSTALL.md#set-up-each-agent)**.
+For per-agent install, verify, update, and uninstall steps and host-specific limitations, see [Set up each agent in INSTALL.md](INSTALL.md#set-up-each-agent).
 
 ## How the agent uses it
 
 The standards reach your agent in three ways:
 
-* **Rules**: `AGENTS.md` and each agent's native rule file load the invariant standards card into your project.
-* **Skills**: your agent loads the matching skill automatically based on your prompt, even when you do not name `roblox-optimum`.
-* **Hooks**: in Claude Code and Codex, the plugin points each session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks the file afterward. Claude Code also restates them before a Studio `multi_edit` and asks before any Open Cloud write. In Antigravity, the plugin points each session at the skills on startup, routes each prompt, injects post-write findings before the next model call, asks before Open Cloud writes, and keeps the agent working once when a file it wrote still has findings. In Cursor, Copilot CLI, Cline, and the Kiro IDE (and in Qwen Code and Qoder, with a hook added by hand), the hook checks each Luau file after it is written or saved and returns any findings to the agent.
+- Rules: `AGENTS.md` and each agent's native rule file load the invariant standards card into your project.
+- Skills: your agent loads the matching skill automatically based on your prompt, even when you do not name `roblox-optimum`.
+- Hooks: in Claude Code and Codex, the plugin points each session at the skills in a Roblox project, routes each prompt to a skill, restates the standards before a Luau file is written, and checks the file afterward. Claude Code also restates them before a Studio `multi_edit` and asks before any Open Cloud write. In Antigravity, the plugin points each session at the skills on startup, routes each prompt, injects post-write findings before the next model call, asks before Open Cloud writes, and keeps the agent working once when a file it wrote still has findings. In Cursor, Copilot CLI, Cline, and the Kiro IDE (and in Qwen Code and Qoder, with a hook added by hand), the hook checks each Luau file after it is written or saved and returns any findings to the agent.
 
 | Skill | Use it to |
 |---|---|
@@ -89,7 +89,7 @@ The standards reach your agent in three ways:
 | `studio-ops` | Work with Studio MCP, sync tools (Script Sync, Rojo, Argon, Azul), and playtests. |
 | `publishing` | Plan the launch, store listing, discovery, ads, and live ops, and check what Roblox policy allows. |
 
-`roblox-auditor` is a read-only subagent (installed for hosts that support Markdown subagents) that audits an entire repository in an isolated context window and returns a 1–5 scorecard across security, lifecycle safety, performance, networking, data safety, and structure.
+`roblox-auditor` is a read-only subagent (installed for hosts that support Markdown subagents) that audits an entire repository in an isolated context window and returns a 1 to 5 scorecard across security, lifecycle safety, performance, networking, data safety, and structure.
 
 ### Supervision level
 
@@ -98,10 +98,10 @@ The supervision level controls how often the agent pauses to confirm design deci
 | Level | Behavior |
 |---|---|
 | `ask` | Confirms every decision before writing code. |
-| `bal` | Asks only when a decision has significant architectural impact *(default)*. |
+| `bal` | Asks only when a decision has significant architectural impact (default). |
 | `go` | Executes end-to-end and states its assumptions afterward. |
 
-Pass the level when invoking a skill (for example, `/roblox-optimum:best-practices go`), or set it persistently in Claude Code via `/plugin` > **Installed** > **roblox-optimum** > **Configure options**.
+Pass the level when invoking a skill (for example, `/roblox-optimum:best-practices go`), or set it persistently in Claude Code via `/plugin` > Installed > roblox-optimum > Configure options.
 
 ## Check Luau with the checker
 
@@ -115,14 +115,14 @@ Roblox standards check failed for src/CoinService.luau:
 
 Pass one or more files or directories to `--check` (directories are walked recursively). The checker reports:
 
-* **Deprecated APIs** and hazards (`RemoteFunction:InvokeClient`), along with their modern replacements.
-* **Yielding `DataStore:UpdateAsync()` callbacks**: transform callbacks that call `task.wait()`, `wait()`, or `*Async()` methods, which Roblox aborts at runtime.
-* **Duplicate `MarketplaceService.ProcessReceipt` assignments** across the files in a single `--check` run, since only the last callback assigned runs.
-* **Out-of-order section headers** (`VARIABLES`, `FUNCTIONS`, `INITIALIZATION`) in files that use them.
-* **Thread-freezing loops**: `while true do` or `repeat ... until false` loops that neither yield nor exit.
-* **Wrong-side members**: `LocalPlayer` and `UserInputService` in `.server.luau` files, and `DataStoreService`, `MemoryStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` in `.client.luau` files.
+- Deprecated APIs and hazards (`RemoteFunction:InvokeClient`), along with their modern replacements.
+- Yielding `DataStore:UpdateAsync()` callbacks: transform callbacks that call `task.wait()`, `wait()`, or `*Async()` methods, which Roblox aborts at runtime.
+- Duplicate `MarketplaceService.ProcessReceipt` assignments across the files in a single `--check` run, since only the last callback assigned runs.
+- Out-of-order section headers (`VARIABLES`, `FUNCTIONS`, `INITIALIZATION`) in files that use them.
+- Thread-freezing loops: `while true do` or `repeat ... until false` loops that neither yield nor exit.
+- Wrong-side members: `LocalPlayer` and `UserInputService` in `.server.luau` files, and `DataStoreService`, `MemoryStoreService`, `MessagingService`, `ServerStorage`, and `ServerScriptService` in `.client.luau` files.
 
-String literals and comments are ignored so prose never triggers false positives. Vendored directories (`Packages/`, `node_modules/`, etc.) are skipped automatically, and `.lua` files are checked only when they call Roblox APIs. Set `ROBLOX_OPTIMUM=off` to pause all checks temporarily.
+String literals and comments are ignored so prose never triggers false positives. Vendored directories (`Packages/`, `node_modules/`, and similar) are skipped, and `.lua` files are checked only when they call Roblox APIs. Set `ROBLOX_OPTIMUM=off` to pause all checks temporarily.
 
 ### Report to CI and code scanning
 
@@ -148,7 +148,7 @@ wait(1)
 local started = tick() -- roblox-optimum: allow(tick)
 ```
 
-To allow a rule for a whole file, put `-- roblox-optimum: allow-file(rule)` in the file's header, before the first line of code. A directive must name a rule: `allow()` and `allow(*)` are reported, and so is an unknown rule name and a directive that allows nothing, so a stale one does not linger. The checker states how many findings directives allowed. Agents following these standards never add a directive on their own; they fix the code or report the finding to you.
+To allow a rule for a whole file, put `-- roblox-optimum: allow-file(rule)` in the file's header, before the first line of code. A directive must name a rule: `allow()` and `allow(*)` are reported, and so is an unknown rule name and a directive that allows nothing, so a stale one does not linger. The checker states how many findings directives allowed. Agents following these standards never add a directive on their own. They fix the code or report the finding to you.
 
 ### Keep the checker current between releases (`sync`)
 
@@ -160,7 +160,7 @@ npx roblox-optimum sync
 
 `sync` fetches the live engine version, unambiguous service-level deprecations from the Roblox API dump, and the latest Luau release tag into a local cache, `~/.cache/roblox-optimum/currency-overlay.json` on every platform, or the folder named by `ROBLOX_OPTIMUM_CACHE_DIR`. Set `ROBLOX_OPTIMUM_OFFLINE=1` to disable network refresh in air-gapped or CI environments.
 
-> **Scope of the static checker:** `--check` matches deterministic syntax and API patterns in source text. For architectural, security, and logic review, run the `code-review` skill or the `roblox-auditor` subagent.
+> Scope of the static checker: `--check` matches deterministic syntax and API patterns in source text. For architectural, security, and logic review, run the `code-review` skill or the `roblox-auditor` subagent.
 
 ## Check Luau in Roblox Studio
 
@@ -171,24 +171,20 @@ The MCP server (`2026-07-28` and `2025-11-25`) checks Luau scripts inside Roblox
 | Tool | `check_luau` | Checks Luau source (with optional `path` or `runContext`: `"server"`, `"client"`, `"shared"`) and returns line-by-line findings plus `structuredContent`. |
 | Tool | `explain_finding` | Explains the rule behind a finding and links to its reference page. |
 | Tool | `get_standards` | Returns the Roblox Luau invariant standards card. |
-| Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint. |
+| Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint, plus optional `files` and `scopes`, which can only raise the tier. |
 | Resources | `roblox-optimum://references/*` | Serves the 44 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 See [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp) for setup instructions.
 
 ## What the standards cover
 
-* **Consistent layout**: `VARIABLES`, `FUNCTIONS`, and `INITIALIZATION` in that order, with brief doc blocks above functions and no inline body comments.
-* **Server authority**: every `RemoteEvent` and `RemoteFunction` handler validates `typeof()`, `NaN`, `math.huge`, ranges, rate limits, ownership, and state on the server.
-* **Lifecycle & cleanup**: every connection, task, tween, and instance has an owner (`Trove`, `Maid`, `Janitor`, or cleanup table) and a teardown path.
-* **Data safety**: `pcall` around every yielding service call, `UpdateAsync` with backoff, saves on `PlayerRemoving`, and a flush on `game:BindToClose`.
-* **Current engine APIs**: `task.*`, `os.clock`, `:Connect`, constraints (`LinearVelocity`, `AlignPosition`, `AlignOrientation`, `VectorForce`), `Animator:LoadAnimation`, `Model:PivotTo`, `workspace:Raycast`, and `TeleportService:TeleportAsync`.
+- Consistent layout: `VARIABLES`, `FUNCTIONS`, and `INITIALIZATION` in that order, with brief doc blocks above functions and no inline body comments.
+- Server authority: every `RemoteEvent` and `RemoteFunction` handler validates `typeof()`, `NaN`, `math.huge`, ranges, rate limits, ownership, and state on the server.
+- Lifecycle and cleanup: every connection, task, tween, and instance has an owner (`Trove`, `Maid`, `Janitor`, or cleanup table) and a teardown path.
+- Data safety: `pcall` around every yielding service call, `UpdateAsync` with backoff, saves on `PlayerRemoving`, and a flush on `game:BindToClose`.
+- Current engine APIs: `task.*`, `os.clock`, `:Connect`, constraints (`LinearVelocity`, `AlignPosition`, `AlignOrientation`, `VectorForce`), `Animator:LoadAnimation`, `Model:PivotTo`, `workspace:Raycast`, and `TeleportService:TeleportAsync`.
 
 Read the full invariant card in [AGENTS.md](AGENTS.md).
-
-## Official sources
-
-`roblox-optimum` is published exclusively in the GitHub repository [`andrian-syh/roblox-optimum`](https://github.com/andrian-syh/roblox-optimum) and as the npm package [`roblox-optimum`](https://www.npmjs.com/package/roblox-optimum) with npm provenance attestation. It never requires downloading an external ZIP or executable. See [SECURITY.md](SECURITY.md) to verify release provenance or report a security issue.
 
 ## Documentation
 
@@ -204,6 +200,10 @@ Read the full invariant card in [AGENTS.md](AGENTS.md).
 
 Open an issue in the [issue tracker](https://github.com/andrian-syh/roblox-optimum/issues) to report a bug or request a feature. Before opening a pull request, run `npm test` to execute the version check, structural audit, and self-test suites.
 
+## Security and official sources
+
+`roblox-optimum` is published exclusively in the GitHub repository [`andrian-syh/roblox-optimum`](https://github.com/andrian-syh/roblox-optimum) and as the npm package [`roblox-optimum`](https://www.npmjs.com/package/roblox-optimum) with npm provenance attestation. It never requires downloading an external ZIP or executable. See [the security policy](SECURITY.md) to verify release provenance or report a security issue. Do not report vulnerabilities in public issues.
+
 ## License
 
-Released under the [MIT License](LICENSE).
+MIT (SPDX: `MIT`), copyright 2026 Muhammad Andriansyah. See [LICENSE](LICENSE).

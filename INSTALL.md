@@ -824,7 +824,7 @@ The agent reads a script with `script_read`, checks it with `check_luau`, and wr
 
 ### Gate Open Cloud calls
 
-Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with the scopes granted under **Assistant Settings** > **MCP Permissions**, and Studio shows no dialog before a granted write. roblox-optimum adds that check:
+Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with the scopes granted for the open game under **Assistant** > **Settings** > **MCP Permissions**, and Studio shows no dialog before a granted write. roblox-optimum adds that check:
 
 * **Claude Code and Antigravity:** a `PreToolUse` hook lets reads through, asks before writes, and denies calls an agent must never make, such as flushing memory stores or changing secrets.
 * **Other hosts:** the agent calls `classify_open_cloud_call` before any call that is not a `GET`.

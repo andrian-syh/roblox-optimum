@@ -84,7 +84,7 @@ For a full IDE experience the official answer is Script Sync plus the **Luau LSP
 
 ## Rojo
 
-The long-standing standard, and the only one of these whose model is *filesystem-first*: the project on disk defines the place, and `rojo serve` pushes it into Studio through the Rojo plugin. Each major version has its own plugin — a version 7 CLI needs the version 7 plugin.
+The long-standing standard, and the only one of these whose model is *filesystem-first*: the project on disk defines the place, and `rojo serve` pushes it into Studio through the Rojo plugin. Each major version has its own plugin — a version 7 CLI needs the version 7 plugin. **Use Rojo 7.7.1 or later:** Studio now saves asset references as `*Content` properties (`MeshContent`, `TextureContent`, `ImageContent`), and older Rojo does not handle them ([api-currency.md](api-currency.md#engine)).
 
 Install the CLI with `rokit add rojo-rbx/rojo` then `rokit install`; install the plugin with `rojo plugin install`. The VS Code extension does **not** bundle the CLI and does not put it on `PATH`.
 

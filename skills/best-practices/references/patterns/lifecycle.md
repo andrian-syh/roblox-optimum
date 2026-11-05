@@ -48,7 +48,7 @@ Characters respawn; players persist. Confusing the two lifetimes is a standing l
 
 - Connect `player.CharacterAdded` **and** handle an already-existing `player.Character` (same both-cases rule as `PlayerAdded`).
 - Inside `CharacterAdded`, descendants may not have arrived yet — `character:WaitForChild("Humanoid")` (or `HumanoidRootPart`) rather than direct indexing; `Humanoid.Died` for death logic.
-- **Per-life state** (connections, temporary buffs, hitbox registrations, active tweens on the character) is keyed by the *character* and cleared in `CharacterRemoving` or the character model's `Destroying` — respawn does not clean your module tables for you. **Per-player state** persists across respawns and clears in `PlayerRemoving`.
+- **Per-life state** (connections, temporary buffs, hitbox registrations, active tweens on the character) is keyed by the *character* and cleared in `CharacterRemoving` or the character model's `Destroying` — respawn does not clean your module tables for you. The character is destroyed right after `CharacterRemoving` handlers run and the `Player` shortly after `PlayerRemoving` (`PlayerCharacterDestroyBehavior`), so copy what you need before any yield and never reparent either. **Per-player state** persists across respawns and clears in `PlayerRemoving`.
 - Connections made *on the character's own instances* die with the character; connections held elsewhere that merely *reference* the character do not — those are the ones that need the explicit teardown.
 
 ### Humanoid vs the Character Controller Library

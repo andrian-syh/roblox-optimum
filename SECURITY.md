@@ -17,8 +17,8 @@ Security fixes are released for the current minor version only.
 
 | Version | Supported |
 |---|---|
-| `1.16.x` | Yes |
-| `< 1.16.0` | No. Upgrade to the latest release first. |
+| `1.17.x` | Yes |
+| `< 1.17.0` | No. Upgrade to the latest release first. |
 
 ## Report a vulnerability
 
@@ -26,7 +26,12 @@ Do not open a public GitHub issue for a security vulnerability.
 
 1. Open the repository's [Security tab](https://github.com/andrian-syh/roblox-optimum/security).
 2. Select **Report a vulnerability** to open a private advisory.
-3. Include the `roblox-optimum` version, your agent host and operating system, and the smallest input or steps that reproduce the issue.
+3. Include:
+   - The `roblox-optimum` version.
+   - Your agent host and operating system.
+   - The smallest input or steps that reproduce the issue, and its impact.
+
+Only you and the maintainer see the advisory.
 
 What happens next:
 
@@ -81,14 +86,14 @@ Out of scope:
 
 ### Open Cloud gate
 
-Roblox Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with the scopes the creator grants under **Assistant Settings** > **MCP Permissions**. Those scopes are the security boundary. roblox-optimum adds a confirmation step in front of them, not a replacement for them.
+Roblox Studio's `open_cloud_invoke` tool calls Roblox Open Cloud with a Studio-managed token that holds only the scopes the user enables under **Assistant** > **Settings** > **MCP Permissions**. Grants are saved per game and per person, and apply to external MCP clients only ([Use Open Cloud with the Studio MCP server](https://create.roblox.com/docs/studio/mcp-open-cloud)). Those scopes are the security boundary. roblox-optimum adds a confirmation step in front of them, not a replacement for them. Studio routes data stores and memory stores through `execute_luau`, which this gate does not inspect.
 
 | Property | Behavior |
 |---|---|
 | Where it runs | A `PreToolUse` hook in Claude Code and Antigravity, and the Antigravity Studio proxy. Other hosts get the offline `classify_open_cloud_call` tool, which advises but cannot block. |
-| How it decides | From the call's method and endpoint path only. It sends no request and reads no response. |
-| Decisions | Reads pass. Writes ask the user. Flushing memory stores and changing secrets, asset permissions, groups, or ad campaigns are denied. An endpoint it does not recognise is treated as irreversible. |
-| Files read | `.roblox-optimum.json` at the project root, for `openCloud.devUniverses`. A missing or invalid file lists no dev universes. |
+| How it decides | From the call's method, its endpoint path after normalisation (dot segments, `%`-escapes, query, fragment, and trailing slashes resolved), whether it carries `files`, and its declared `scopes`, which can only raise the tier. It sends no request and reads no response. |
+| Decisions | Reads pass, including `POST` calls that only read. Reversible writes ask the user to record a rollback point first; a `GET` that dequeues memory store items counts as a write. Deletes, asset uploads, any call with `files`, messaging publishes, player bans, Luau execution, place version publishes, product and price changes, player notifications, live-server restarts and shutdowns, config publishes, and experiment changes ask as irreversible. Flushing memory stores, changing secrets or asset permissions, changing group memberships or join requests, ad campaign writes, and service-efficiency payments are denied; most of these scopes are grantable, so the deny is roblox-optimum policy. A full URL, another host, an endpoint it does not recognise, or a call with no readable method and endpoint asks as irreversible. |
+| Files read | `.roblox-optimum.json` at the project root, for `openCloud.devUniverses`. The prompt names the universe in the path and calls one not listed there production. A missing or invalid file lists no dev universes. |
 | Opt out | `ROBLOX_OPTIMUM=off` disables the gate along with every other check. |
 
 The gate matches patterns, so a new or renamed Open Cloud endpoint can be classified wrongly. Grant only the scopes a task needs, and treat the gate as a second check.

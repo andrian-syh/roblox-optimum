@@ -10,24 +10,49 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { classify, decide } from "../scripts/lib/open-cloud.mjs";
+import { classify, decide, universeOf } from "../scripts/lib/open-cloud.mjs";
 import { CLI_SCRIPT } from "../scripts/lib/package.mjs";
 
 const TIERS = [
   ["GET", "/cloud/v2/universes/1/data-stores", "R"],
-  ["POST", "/cloud/v2/universes/1/analytics:query", "R"],
+  ["POST", "/analytics-query-api/v1/universes/1/metrics", "R"],
+  ["POST", "/analytics-query-api/v1/universes/1/dimension-values", "R"],
+  ["POST", "/analytics-benchmark/v1/universes/1/benchmarks", "R"],
+  ["POST", "/creator-configs-public-api/v1/experimentation/universes/1/experiments:calculateMde", "R"],
+  ["POST", "/server-management/v1/universes/1/restarts", "X"],
+  ["POST", "/matchmaking-api/v1/game-instances/shutdown-all", "X"],
+  ["POST", "/creator-configs-public-api/v1/configs/universes/1/repositories/r/publish", "X"],
+  ["POST", "/creator-configs-public-api/v1/configs/universes/1/repositories/JourneysConfig/publish", "W"],
+  ["POST", "/creator-configs-public-api/v1/experimentation/universes/1/experiments/e:start", "X"],
+  ["GET", "/cloud/v2/universes/1/memory-store/queues/q/items:read", "W"],
+  ["POST", "/cloud/v2/groups/7/memberships/m:assignRole", "deny"],
+  ["POST", "/service-efficiency-api/v1/payments/users", "deny"],
   ["POST", "/cloud/v2/universes/1/data-stores/d/entries?id=user:searchLog", "W"],
   ["POST", "/cloud/v2/universes/1/data-stores/d/entries/x:query/y", "W"],
   ["POST", "/datastores/v1/universes/1/standard-datastores/datastore/entries/entry", "W"],
   ["POST", "/cloud/v2/universes/1/memory-stores/sorted-maps/m/items/flush-x", "W"],
   ["POST", "/cloud/v2/users/5/notifications", "X"],
   ["POST", "/messaging-service/v1/universes/1/topics/t", "X"],
-  ["POST", "/cloud/v2/universes/1/places/2/instances/root/operations/x", "R"],
-  ["POST", "/assets/v1/assets", "W"],
+  ["POST", "/cloud/v2/universes/1/places/2/instances/root/operations/x", "W"],
+  ["POST", "/assets/v1/assets", "X"],
+  ["PATCH", "/assets/v1/assets/1", "W"],
+  ["POST", "/toolbox-service/v1/saves:bulkDelete", "X"],
+  ["POST", "/toolbox-service/v1/saves", "X"],
+  ["POST", "/toolbox-service/v2/assets:search", "R"],
+  ["POST", "/toolbox-service/../assets/v1/assets", "X"],
+  ["POST", "/ads-management/v1/campaigns", "deny"],
+  ["PATCH", "/ads-management/v1/campaigns/1", "deny"],
+  ["POST", "/ads-management/v1/campaigns:batchGetStatus", "R"],
+  ["POST", "/cloud/v2/universes/1/memory-store%3Aflush", "deny"],
+  ["POST", "/cloud/v2/universes/1/memory-store:flush/", "deny"],
+  ["POST", "/cloud/v2/universes/1/memory-store:flush#x", "deny"],
+  ["POST", "https://apis.roblox.com/cloud/v2/universes/1:publishMessage", "X"],
+  ["GET", "//evil.example/x", "X"],
+  ["GET", "/a%zz", "X"],
   ["PATCH", "/cloud/v2/universes/1/data-stores/S/entries/k", "W"],
   ["POST", "/cloud/v2/universes/1:publishMessage", "X"],
   ["POST", "/cloud/v2/universes/1/user-restrictions/9", "X"],
-  ["PATCH", "/cloud/v2/universes/1/developer-products/3", "X"],
+  ["PATCH", "/developer-products/v2/universes/1/developer-products/3", "X"],
   ["DELETE", "/cloud/v2/universes/1/data-stores/S/entries/k", "X"],
   ["POST", "/cloud/v2/universes/1/some-new-thing", "X"],
   ["POST", "/cloud/v2/universes/1/memory-store:flush", "deny"],
@@ -38,6 +63,15 @@ test("each call lands in its tier, and an unknown write fails closed", () => {
   for (const [method, path, tier] of TIERS) {
     assert.equal(classify(method, path).tier, tier, `${method} ${path}`);
   }
+  const files = [{ name: "fileContent", path: "a.fbx" }];
+  assert.equal(classify("PATCH", "/assets/v1/assets/1", { files }).tier, "X");
+  assert.equal(classify("GET", "/assets/v1/assets/1", { files }).tier, "X");
+  assert.equal(classify("GET", "/cloud/v2/universes/1", { scopes: ["memory-store.queue:dequeue"] }).tier, "W");
+  assert.equal(classify("POST", "/x:search", { scopes: ["universe:write"] }).tier, "X");
+  assert.equal(classify("POST", "/cloud/v2/universes/1:publishMessage", { scopes: ["universe:read"] }).tier, "X");
+  assert.match(classify("POST", "/legacy-badges/v1/badges/1").reason, /never grants/);
+  assert.match(classify("PATCH", "/cloud/v2/universes/1/data-stores/S/entries/k").reason, /execute_luau/);
+  assert.equal(universeOf("/CLOUD/V2/UNIVERSES/123/x"), "123");
 });
 
 test("a universe counts as dev only when the project lists it", () => {

@@ -134,7 +134,7 @@ Attach the rules to the capability. Blank cells mean no dedicated tool is known 
 | Re-texture or split a mesh | `generate_texture`, `segment_mesh` | — | **`generate_texture` replaces the source mesh in place**; name it as irreversible before calling | `segment_mesh` leaves the source and inserts a new Model of up to 5 named parts beside it |
 | Convert local images to asset URIs | `store_image`, `upload_image` | — | Uploads leave the local machine | Only when a tool demands an `IMAGEID_<id>` argument |
 | Simulate input | `character_navigation`, `user_keyboard_input`, `user_mouse_input` (Client only) | — | Drives the real session | — |
-| Call a Roblox web API | `open_cloud_invoke` | — | **Reaches live servers, player data, prices, bans, and publishing; Studio shows no dialog before a granted write** | Classify every call R, W, or X first ([open-cloud.md](open-cloud.md)). Use page sizes and specific paths; never list from a large root |
+| Call a Roblox web API | `open_cloud_invoke` | — | **Reaches live servers, prices, bans, and publishing; Studio shows no dialog before a granted write. Asset uploads are permanent** | Classify every call R, W, or X first ([open-cloud.md](open-cloud.md)). Use page sizes and specific paths; never list from a large root. Data stores and memory stores are not reached here: use `DataStoreService` and `MemoryStoreService` from `execute_luau`, which change live data under the same W and X rules |
 | Fetch documentation | `http_get`, `skill`, `list_skills` | — | — | Fetch `https://create.roblox.com/docs/en-us/reference/engine/classes/<Class>.md` and grep the member for **semantics**. **Absence from a docs page never settles nonexistence**: the site trails the engine, so existence is settled by the API dump or an in-Studio probe ([api-currency.md](api-currency.md#how-to-verify-the-toolbox)). Roblox skills are covered [below](#roblox-skills-over-mcp) |
 | Create or change a Roblox skill | `create_skill`, `edit_skill` | — | Publishes to the user's account at once and applies in every place they open | Only when the user asks |
 | Manage sessions | `list_roblox_studios`, plus a **`studio_id` argument carried by the individual tools** | — | **Wrong instance means the wrong place** | One listing per session; pass the id rather than re-listing |
@@ -204,7 +204,8 @@ These return without an error while the place is unchanged or wrong. Each has a 
 | `Target is not reachable` during Play | A platform fault with Play-mode tools; it has come and gone between builds | Stop the playtest work and report it. Edit-mode calls may still work |
 | `Edit` rejected | Play is running | Stop play, or target `Server` or `Client` |
 | `execute_luau` cannot `require`, or `_G` is nil | The execution thread is capability-restricted in this build | Read `.Source` and compile with `loadstring` instead, or use a probe Script in play |
-| A scope "has not been granted", or 403 "Scope not authorized." from `open_cloud_invoke` | The creator's MCP Permissions withhold that scope | Stop. Ask the user to grant the one scope named. Never retry or route around it ([open-cloud.md](open-cloud.md#errors-and-when-to-stop)) |
+| A scope "has not been granted", or 403 "Scope not authorized." from `open_cloud_invoke` | The user's MCP Permissions for this game withhold that scope | Stop. Ask the user to grant the one scope named. Never retry or route around it ([open-cloud.md](open-cloud.md#errors-and-when-to-stop)) |
+| 401 from `open_cloud_invoke`, or 403 with the scope enabled | A 401 may be a stale token; a repeat, or a 403 with the scope on, means the endpoint does not accept the MCP token | Retry a 401 once. Otherwise stop and suggest the Creator Dashboard or the user's own API key |
 | The same error twice in a row | The call or the environment is wrong, not unlucky | Stop and report. Never send the same failing call a third time |
 
 ## Running Luau through the tool
@@ -231,7 +232,7 @@ Full workflow and the injection pattern: [verification.md](verification.md#studi
 
 Roblox Assistant skills are Markdown instructions stored on the user's Roblox account. The official server exposes them.
 
-- `list_skills` shows what exists. Skills named `rbx-` are written by Roblox. Read one with `skill` when its topic matches the task.
+- `list_skills` shows what exists. Skills named `rbx-` are written by Roblox. Read one with `skill` when its topic matches the task. For Open Cloud they are `rbx-open-cloud-usage`, `rbx-permissions`, and `rbx-import-asset` ([open-cloud.md](open-cloud.md#what-the-tool-is)). A duplicated or copied skill stops receiving Roblox's updates.
 - A Roblox skill is a second opinion. The user's project conventions and this package win where they disagree.
 - `create_skill` and `edit_skill` publish to the user's account immediately and apply in every place the user opens. Call them only when the user asks.
 

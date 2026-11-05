@@ -857,6 +857,10 @@ Players.PlayerAdded:Connect(greet)
       ["player:GetFriendsOnline(10)", "GetFriendsOnlineAsync"],
       ["workspace:FindPartOnRayWithIgnoreList(ray, {})", "Raycast"],
       ["local id = game.VIPServerId", "PrivateServerId"],
+      ["local code = TeleportService:ReserveServerAsync(123)", "ReservedServerId"],
+      ["options.ShouldReserveServer = true", "ReservedServerId"],
+      ["workspace.UseInputSink = true", "GuiObject.InputSink"],
+      ["local s = workspace.PrimalPhysicsSolver", "NextGenerationPhysicsSolver"],
     ].every(([line, hint]) => inspect(good.replace("print(player.Name)", line)).some((p) => p.includes(hint))) &&
       ["player:LoadCharacterAsync()", "humanoid:ApplyDescriptionAsync(desc)", "player:IsInGroupAsync(1)", "workspace:Raycast(o, d, params)", "local id = game.PrivateServerId"].every(
         (line) => inspect(good.replace("print(player.Name)", line)).length === 0,

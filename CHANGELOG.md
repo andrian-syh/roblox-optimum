@@ -4,6 +4,43 @@ All notable changes to this project are documented in this file. Changes that af
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.17.0] - 2026-11-05
+
+Roblox documented `open_cloud_invoke` and MCP Permissions on 2026-11-04 ([Use Open Cloud with the Studio MCP server](https://create.roblox.com/docs/studio/mcp-open-cloud)). The Open Cloud gate was checked against every operation in Roblox's `openapi.json`, and the docs were rewritten from the official pages.
+
+### Added
+
+- Added checker findings for `ReserveServerAsync()` and `TeleportOptions.ShouldReserveServer`, now deprecated in the API dump, and for the removed `Workspace.UseInputSink` and `PrimalPhysicsSolver`.
+- Added `DataModel.ServerLowMemoryWarning`, the `*Content` property save, `PlayerCharacterDestroyBehavior` as default, the `Color3` contrast methods, experimental Luau 0.745 items, and Promotional Text and the appeals page to `api-currency.md`, with `ServerLowMemoryWarning` in the performance page.
+
+### Changed
+
+- Changed the Open Cloud gate to name server restarts, matchmaking shutdowns, config publishes, and experiment start, complete, and schedule as irreversible, instead of "is not a known call".
+- Changed the Open Cloud gate to raise a call's tier from its declared `scopes`, never lower it. `classify_open_cloud_call` now accepts `files` and `scopes`.
+- Changed the gate's reasons to say when a path needs a scope Studio never grants, and that Studio routes data stores through `execute_luau`.
+- Changed `open-cloud.md` to cite the official docs instead of calling them undocumented: prerequisites, the nine sections with their scopes, the high-impact list, scopes that are never grantable, permanent uploads, the full troubleshooting table, the `rbx-open-cloud-usage`, `rbx-permissions`, and `rbx-import-asset` skills, `openapi.json` as the endpoint source, and the rate-limit headers. The Safe and Balanced presets are now marked as observed, not documented.
+- Changed the Studio MCP guide, `api-currency.md`, SECURITY.md, MAINTAINING.md, and INSTALL.md to match, including a spec sweep against `openapi.json` as the way to recheck the gate.
+- Changed `api-currency.md` to engine and API dump 746 and Luau 0.745: Input Action Manager GA, orthographic camera Studio-only Beta, `AuthorityMode` readable and streaming properties `PluginOrOpenCloud`, the 64-bit integer RFC withdrawal marked as proposed, and older settled rows folded into the Settled line.
+- Changed the data, lifecycle, and performance pages for `PlayerCharacterDestroyBehavior` becoming the default: save from data you hold, and read Player children before any yield.
+- Changed the Rojo guidance to require Rojo 7.7.1 or later, since Studio now saves `*Content` properties.
+
+### Fixed
+
+- Fixed the Open Cloud gate letting `POST /toolbox-service/v1/saves` and `saves:bulkDelete` through as reads. The toolbox and `/operations/` read rules were removed.
+- Fixed endpoint tricks that changed a tier. The gate now resolves dot segments, decodes `%`-escapes, and drops the query, fragment, and trailing slashes before matching, and treats a full URL, another host, or a bad escape as irreversible.
+- Fixed ad campaign writes, which the docs said were denied but only asked. The gate now denies `/ads-management/.../campaigns` writes.
+- Fixed the group deny, which also caught service-efficiency payments. It now covers only `/cloud/v2/groups/{id}` memberships and join requests, and payments have their own deny.
+- Fixed asset uploads, which were tiered as reversible. `POST /assets/v1/assets` and any call with `files` are now irreversible, since Open Cloud cannot delete an upload.
+- Fixed `GET .../memory-store/queues/{id}/items:read` passing as a read. It dequeues items, so it is now a write.
+- Fixed Journeys publish (`repositories/JourneysConfig/publish`) being tiered as a live config publish. It only changes the Creator Hub stage map, so it is now a reversible write.
+- Fixed read-only POSTs that asked needlessly: analytics `metrics`, `dimension-values`, and `benchmarks`, and `experiments:calculateMde`.
+- Fixed `open-cloud.md`, which said grants belong to the whole account. They are saved per game and per person, for external MCP clients only.
+- Fixed `open-cloud.md`, which said the permissions gate only `open_cloud_invoke` and that data store access through `execute_luau` is ungated. Data stores and memory stores go through `execute_luau` under "Save & load data" and "Enable Studio Access to API Services", and "Connect to the internet" gates `HttpService`.
+- Fixed the "Fix one player's data" recipe, which used Open Cloud data store calls. It now uses `DataStoreService` from `execute_luau`.
+- Fixed `api-currency.md` listing `Player:GetGlobalUserId()` as callable. It is now listed as not callable.
+
 ## [1.16.0] - 2026-11-04
 
 Studio's Assistant can now call Roblox Open Cloud through the MCP tool `open_cloud_invoke`, limited to the scopes the creator grants on the new MCP Permissions page. Neither is documented yet, so every fact here comes from the tool's schema and from probes in a private dev experience. This release also catches up with what Claude Code and Antigravity can do, based on each host's documentation and on probes in Antigravity 2.0.
@@ -13,10 +50,10 @@ Studio's Assistant can now call Roblox Open Cloud through the MCP tool `open_clo
 - Added `open-cloud.md`, a reference for `open_cloud_invoke`. It covers the permission levels and nine groups, what the permissions do and do not gate, R/W/X classification by method and path, a cloud preflight, recipes for data, live ops, publishing, prices, bans, analytics, and uploads, rollback points, permission profiles by project phase, errors, and rate limits.
 - Added `open_cloud_invoke` to the Studio MCP guide's tool list, capability map, preflight, and error table, and a line in the MCP server instructions that points to the new reference before any write.
 - Added prompt routing to studio-ops for `open_cloud_invoke`, Open Cloud, and MCP Permissions.
-- Added an Open Cloud gate (`roblox-optimum --open-cloud`): a Claude Code PreToolUse hook on `open_cloud_invoke`, and an Antigravity PreToolUse hook on `call_mcp_tool`. Reads pass, writes ask with the call and its target universe, and flushing memory stores, changing secrets, asset permissions, groups, or ad campaigns is denied. Unknown writes count as irreversible. A project can list its dev universes under `openCloud.devUniverses` in `.roblox-optimum.json`; any other universe is named as production.
+- Added an Open Cloud gate (`roblox-optimum --open-cloud`): a Claude Code PreToolUse hook on `open_cloud_invoke`, and an Antigravity PreToolUse hook on `call_mcp_tool`. Reads pass, writes ask with the call and its target universe, and flushing memory stores, changing secrets, asset permissions, groups, or ad campaigns is denied. Unknown writes count as irreversible. A project can list its dev universes under `openCloud.devUniverses` in `.roblox-optimum.json`, and any other universe is named as production.
 - Added the same refusal to the Antigravity Studio proxy: a break-glass `open_cloud_invoke` call returns an error before it reaches Studio.
 - Added `classify_open_cloud_call` to the MCP server. It returns the same tier and decision offline, from the method and endpoint alone, so hosts without the hook get the same check.
-- Added a Claude Code PreToolUse hook on the Studio MCP `multi_edit` tool. A script edited in Studio never reaches disk, so no post-write check sees it; the agent now gets the standards before the edit and a reminder to read the lines back and run `check_luau` after.
+- Added a Claude Code PreToolUse hook on the Studio MCP `multi_edit` tool. A script edited in Studio never reaches disk, so no post-write check sees it. The agent now gets the standards before the edit and a reminder to read the lines back and run `check_luau` after.
 - Added Antigravity prompt routing on `PreInvocation` (`lastUserInput` when `invocationNum` is `0`), and a `Stop` hook that keeps the agent working once per broken Luau file written in the session.
 - Added Open Cloud trigger queries to the studio-ops evals.
 
@@ -73,7 +110,7 @@ The Studio MCP guide now covers how the tools actually behave, so agents with sm
 ### Fixed
 
 - Fixed the claim that Luau run through Studio MCP has no undo. A probe in Studio 745 showed that each `execute_luau` call is one undo step. The guide still treats undo as a safety net, not a plan.
-- Fixed the client probe advice for a playtest already running. A LocalScript put in `StarterPlayerScripts` during play never runs; it goes in the player's `PlayerGui`.
+- Fixed the client probe advice for a playtest already running. A LocalScript put in `StarterPlayerScripts` during play never runs. It goes in the player's `PlayerGui`.
 - Fixed the Open Cloud Luau Execution limit. It allows ten incomplete tasks per place, not two concurrent requests per universe.
 
 ## [1.14.1] - 2026-10-31
@@ -119,18 +156,18 @@ Upgrade note: roblox-optimum now requires Node.js 22 or later. Node.js 18 and 20
 - Changed the minimum Node.js version from 18 to 22.
 - Changed the prompt router so a request about a repository's own files, such as the changelog, README, `package.json`, a `.mjs` script, CI, a commit, or a release tag, no longer loads a Luau skill. The router reads only file and tool names for this, so it works the same in any language.
 - Changed the prompt router to send a reported loss, such as "players lose coins", to the `diagnose` skill.
+- Changed `roblox-optimum --selftest` to run the test suite from a repository checkout. In an npm install it says where the tests are, since they no longer ship in the package.
+- Changed the package to ship no test code, which makes it about 1,200 lines smaller. The CLI no longer loads its tests on every run.
 - Changed the prompt router to send a request that quotes a Luau or engine error, such as `attempt to index nil` or `Infinite yield possible`, to the `diagnose` skill. These messages are English in every locale, so this works in any language the request is written in.
+
+### Removed
+
+- Removed the `--selftest` option from `roblox-mcp` and from the Studio MCP proxy. Their tests run with the repository's test suite.
 
 ### Fixed
 
 - Fixed the prompt router reading "lag" inside longer words, such as "lagi", as a performance symptom.
 - Fixed this package's own name, `roblox-optimum`, counting as a sign that a request is about a Roblox game.
-- Changed `roblox-optimum --selftest` to run the test suite from a repository checkout. In an npm install it says where the tests are, since they no longer ship in the package.
-- Changed the package to ship no test code, which makes it about 1,200 lines smaller. The CLI no longer loads its tests on every run.
-
-### Removed
-
-- Removed the `--selftest` option from `roblox-mcp` and from the Studio MCP proxy. Their tests run with the repository's test suite.
 
 ## [1.13.3] - 2026-10-18
 
@@ -138,7 +175,7 @@ Upgrade note: roblox-optimum now requires Node.js 22 or later. Node.js 18 and 20
 
 - Fixed the background currency refresh waiting seven days between runs instead of the documented 24 hours.
 - Fixed `sync` building a checker pattern from an API-dump class name that was not checked to be an identifier. A malformed or tampered feed could have added a pattern that slows every `--check` run.
-- Fixed `sync` writing the engine version and Luau release text from the feeds into `live-currency.md` without checking it. Only digits and dots are kept now; anything else is recorded as `unknown`.
+- Fixed `sync` writing the engine version and Luau release text from the feeds into `live-currency.md` without checking it. Only digits and dots are kept now, and anything else is recorded as `unknown`.
 - Fixed two syncs running at once being able to leave a half-written cache. Cache files are now replaced in one step.
 - Fixed `sync` reading a response of any size. A response over 50 MB is now refused.
 - Fixed the checker and the MCP server trusting the patterns and explanation text stored in the currency cache. They now keep only the method and replacement names from each cached entry, rebuild the pattern and explanation from those names, and drop any entry whose names are malformed. A cache written by an earlier version or edited by hand gets the same validation as a fresh sync.
@@ -148,11 +185,14 @@ Upgrade note: roblox-optimum now requires Node.js 22 or later. Node.js 18 and 20
 
 ## [1.13.2] - 2026-10-18
 
+### Added
+
+- Added a table of contents to `community-libraries.md`.
+
 ### Changed
 
 - Changed the shared references to name the reference file that holds each piece of guidance instead of a sibling skill, so the same text also works in the standalone roblox-best-practices skill.
 - Changed the push and merge gates in `team-workflow.md`, and the publish gate in `release-readiness.md`, to list selene and StyLua alongside `npx roblox-optimum --check`.
-- Added a table of contents to `community-libraries.md`.
 
 ### Fixed
 
@@ -589,6 +629,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...HEAD
+[1.17.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.2...v1.15.0
 [1.14.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.1...v1.14.2

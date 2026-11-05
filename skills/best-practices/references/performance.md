@@ -127,7 +127,8 @@ Contact detection is where a working feature turns into a lagging server, and th
 ## Memory
 
 - **Instances:** `Destroy()` everything you spawn when done. Destroying an Instance disconnects its connections and unparents descendants — it is the cheapest cleanup primitive. Never just `.Parent = nil` something you mean to discard.
-- **Player & Character Lifecycle:** the engine **does not** automatically destroy `Player` and character models when a user disconnects if active connections still reference them. Enable `Workspace.PlayerCharacterDestroyBehavior` for automatic cleanup, or clean them up explicitly with `task.defer(character.Destroy, character)` on `PlayerRemoving`.
+- **Player & Character Lifecycle:** with `Workspace.PlayerCharacterDestroyBehavior` at `Default` or `Enabled`, the engine destroys the `Player` a few seconds after `PlayerRemoving` handlers run and the character right after `CharacterRemoving` ([api-currency.md](api-currency.md#engine)). Under `Disabled`, a temporary opt-out, they stay alive while connections reference them; clean up explicitly with `task.defer(character.Destroy, character)`.
+- **Server memory warning:** `game.ServerLowMemoryWarning` fires when a live server enters high memory and again every 60 s while it stays high. Log it and shed optional work (caches, pooled effects); it is a signal, not a guard.
 - **Server Memory Ceiling:** total server memory is `6.25 GiB + (100 MiB * largest_number_of_connected_players)`. Servers allocate memory when players join but **do not deallocate it when players leave**. Keep total server memory consumption **below 50%** of capacity to prevent server crashes.
 - **Connections:** every `:Connect()` whose owner outlives the connected object leaks. Patterns:
   - Per-player tables of connections, disconnected in `PlayerRemoving`.

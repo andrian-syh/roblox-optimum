@@ -381,6 +381,40 @@ const BUILTIN_DEPRECATED = [
     read: "api-currency.md",
   },
   {
+    pattern: /:ReserveServerAsync\s*\(/,
+    name: "TeleportService:ReserveServerAsync()",
+    replacement: "TeleportService:TeleportAsync() with TeleportOptions.ReservedServerId",
+    why: "The engine API dump marks ReserveServerAsync deprecated at v746, with the rest of the access-code path.",
+    instead:
+      "TeleportService:TeleportAsync() with TeleportOptions.ReservedServerId set to " +
+      "HttpService:GenerateGUID(false) for a new server, or to a stored ID to return to the same one.",
+    read: "patterns/network.md",
+  },
+  {
+    pattern: /\.ShouldReserveServer\b/,
+    name: "TeleportOptions.ShouldReserveServer",
+    replacement: "TeleportOptions.ReservedServerId",
+    why: "The engine API dump marks ShouldReserveServer deprecated at v746 in favor of server ID targeting.",
+    instead: "Set TeleportOptions.ReservedServerId to HttpService:GenerateGUID(false) for a new reserved server.",
+    read: "patterns/network.md",
+  },
+  {
+    pattern: /\.UseInputSink\b/,
+    name: "Workspace.UseInputSink",
+    replacement: "GuiObject.InputSink",
+    why: "Workspace.UseInputSink was removed from the engine at v746, so reading it raises an error.",
+    instead: "GuiObject.InputSink on the UI that should swallow input.",
+    read: "api-currency.md",
+  },
+  {
+    pattern: /\bPrimalPhysicsSolver\b/,
+    name: "Workspace.PrimalPhysicsSolver / Enum.PrimalPhysicsSolver",
+    replacement: "nothing in scripts (NextGenerationPhysicsSolver is a Studio setting)",
+    why: "Workspace.PrimalPhysicsSolver and its enum were removed from the engine at v746, so reading either raises an error.",
+    instead: "Remove the line; the physics solver rollout is a place setting, not script-controlled.",
+    read: "api-currency.md",
+  },
+  {
     pattern: /:LoadCharacter(?:WithHumanoidDescription)?\s*\(/,
     name: "Player:LoadCharacter() / LoadCharacterWithHumanoidDescription()",
     replacement: "LoadCharacterAsync() / LoadCharacterWithHumanoidDescriptionAsync()",

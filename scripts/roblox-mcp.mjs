@@ -161,6 +161,8 @@ export const TOOLS = [
       properties: {
         method: { type: "string", description: "The HTTP method: GET, POST, PUT, PATCH, or DELETE." },
         endpoint: { type: "string", description: "The path under https://apis.roblox.com, as passed to open_cloud_invoke." },
+        files: { type: "array", description: "The files array of open_cloud_invoke, if any. A call with files uploads, so it is at least X." },
+        scopes: { type: "array", items: { type: "string" }, description: "The scopes array of open_cloud_invoke, if any. Write or high-impact scopes raise the tier; they never lower it." },
       },
       required: ["method", "endpoint"],
     },
@@ -283,7 +285,7 @@ export function runTool(name, args) {
       return fail("classify_open_cloud_call needs `method` and `endpoint` strings.");
     }
 
-    const { tier, reason } = classify(given.method, given.endpoint);
+    const { tier, reason } = classify(given.method, given.endpoint, given);
     const verdict = decide(given, process.cwd());
     const structuredContent = { tier, reason, decision: verdict?.decision ?? "allow" };
     return { ...text(verdict?.reason ?? `${given.method.toUpperCase()} ${given.endpoint} ${reason}: tier R, send it.`), structuredContent };

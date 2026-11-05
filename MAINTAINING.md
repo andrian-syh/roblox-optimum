@@ -2,6 +2,28 @@
 
 Maintainer guide for updating rules, refreshing the Roblox API currency baseline, and publishing a release. This file is for human contributors only and is not shipped in the npm package or loaded by agents at runtime.
 
+## Maintainers
+
+The repository owner, [`andrian-syh`](https://github.com/andrian-syh) (the `author` in `package.json`), maintains the project, merges changes, and is the reviewer on the `npm` environment that gates every release.
+
+## Review and merge
+
+- CI runs on every pull request and on every push to `main`. A change merges only when every CI job passes.
+- A pull request that changes a shipped file (skills, agents, hooks, scripts, rules, manifests, and host rule folders) must raise `version` in `package.json` above the base branch, or CI fails.
+## Automation and CI
+
+| Workflow | Trigger | What it runs |
+|---|---|---|
+| `.github/workflows/ci.yml` | Pull request, push to `main` | `npm test` and `node scripts/sync-rules.mjs --check` on Ubuntu and Windows with Node.js 22 and 24, the version-raise check, and the package contents check. |
+| `.github/workflows/publish.yml` | Push of a `v*` tag | `npm test` on Ubuntu and Windows, then the gated `publish` job. See [Release checklist](#release-checklist). |
+| `.github/dependabot.yml` | Weekly | Keeps the commit-pinned GitHub Actions current, with a 7-day cooldown. |
+
+Every workflow starts with read-only repository permissions. Run the same checks locally with `npm test`.
+
+## Security handling
+
+Vulnerability reports arrive as private GitHub advisories. [SECURITY.md](SECURITY.md) holds the reporting route, response times, scope, and threat model. Keep its supported versions table on the current minor version at every minor release.
+
 ## Sources of truth
 
 Edit only the source files below. Derived files are generated automatically, and CI (`npm test`) fails if any derived file is out of sync.
@@ -52,8 +74,8 @@ The tests live in `test/*.test.mjs` and run on Node.js's built-in test runner, s
 
 API currency is maintained on two tiers:
 
-1. **Automated runtime overlay (`npx roblox-optimum sync`)**: Fetches the current engine version, the Roblox API dump, and the latest Luau release tag into a local cache (also triggered in the background at most once every 24 hours on `--session`). To avoid false positives, the filter imports only deprecated service methods whose name is unique across all classes in the dump and whose `PreferredDescriptorName` is an active method on the same service.
-2. **Curated baseline (`skills/best-practices/references/api-currency.md`)**: Tracks engine and Luau features across releases. Agents load it whole, so keep it under 40 KB with a **rolling-window policy**: give a full row only to items in transition (`[Beta]`, `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`) or promoted to `[GA]` within the last ~6 engine versions (~2 months). Fold older settled `[GA]` items into the one-line "Settled" list at the top of their section, or into their domain reference page (`luau-language.md`, `ui-crossplatform.md`, `performance.md`, and so on), and keep a full row only where it stops a known mistake.
+1. Automated runtime overlay (`npx roblox-optimum sync`): fetches the current engine version, the Roblox API dump, and the latest Luau release tag into a local cache (also triggered in the background at most once every 24 hours on `--session`). To avoid false positives, the filter imports only deprecated service methods whose name is unique across all classes in the dump and whose `PreferredDescriptorName` is an active method on the same service.
+2. Curated baseline (`skills/best-practices/references/api-currency.md`): tracks engine and Luau features across releases. Agents load it whole, so keep it under 40 KB with a rolling-window policy. Give a full row only to items in transition (`[Beta]`, `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`) or promoted to `[GA]` within the last ~6 engine versions (~2 months). Fold older settled `[GA]` items into the one-line "Settled" list at the top of their section, or into their domain reference page (`luau-language.md`, `ui-crossplatform.md`, `performance.md`, and so on), and keep a full row only where it stops a known mistake.
 
 ### How to run a manual baseline pass
 
@@ -61,14 +83,14 @@ API currency is maintained on two tiers:
 2. Check the latest Roblox engine version and API diff at `robloxapi.github.io/ref/updates/`.
 3. Read the weekly release notes (`create.roblox.com/docs/en-us/updates`) back to the last covered date for behavioral context, and check `/docs/updates/pending` for announced changes that have not enabled their FFlags yet.
 4. Review every `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`, and `[Beta]` row in `api-currency.md`:
-   * Promote to `[Undocumented]` when the member appears in the API dump.
-   * Promote to `[GA]` when official documentation is published and the feature works in live experiences without a Studio beta toggle.
-   * Move `[GA]` rows older than ~6 engine versions to their domain reference page.
+   - Promote to `[Undocumented]` when the member appears in the API dump.
+   - Promote to `[GA]` when official documentation is published and the feature works in live experiences without a Studio beta toggle.
+   - Move `[GA]` rows older than ~6 engine versions to their domain reference page.
 5. Verify the security tag (`None`, `PluginSecurity`, `RobloxScriptSecurity`) and class hierarchy of each new member in the API dump before documenting it as callable from a standard `Script` or `LocalScript`.
 6. Check `luau.org/news` and the Creator Roadmap for status updates not reflected in the API dump.
 7. Update the snapshot date header and modified rows in `api-currency.md`.
 
-> **Note on Studio probes vs. the API dump:** Calling a member in Studio (`pcall`) can confirm that an API is callable, but cannot prove that an API does not exist—both a nonexistent member and a `RobloxScriptSecurity`-restricted member throw `is not a valid member`. Always use the versioned API dump (Step 2) to verify whether a member exists or was removed.
+A Studio probe (`pcall`) confirms that an API is callable but cannot prove that an API does not exist: a nonexistent member and a `RobloxScriptSecurity`-restricted member both throw `is not a valid member`. Use the versioned API dump (step 2) to verify whether a member exists or was removed.
 
 ## Update host integrations
 
@@ -97,35 +119,38 @@ HOME=/tmp/home USERPROFILE=/tmp/home npx roblox-optimum install --global
 
 ## Maintain the Open Cloud gate
 
-Roblox has not documented `open_cloud_invoke` or the MCP Permissions page yet, so the gate rests on the tool's schema and on probes. Classification lives in one place, `scripts/lib/open-cloud.mjs`, and every caller reads it from there.
+Roblox documents `open_cloud_invoke` and the MCP Permissions page in [Use Open Cloud with the Studio MCP server](https://create.roblox.com/docs/studio/mcp-open-cloud) and [Studio MCP](https://create.roblox.com/docs/studio/mcp). The complete operation list is `openapi.json` in [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs/tree/main/content/en-us/reference/cloud) ([OpenAPI document](https://create.roblox.com/docs/cloud/reference/openapi)); each operation carries `x-roblox-scopes` and `x-roblox-rate-limits`. Only operations on `apis.roblox.com` matter, since the tool reaches no other host. Classification lives in one place, `scripts/lib/open-cloud.mjs`, and every caller reads it from there.
 
 To add or change an endpoint:
 
-1. Read its method, path, and scopes in the Open Cloud reference (`create.roblox.com/docs/cloud`).
-2. Add the pattern to the matching list in `open-cloud.mjs`: `BREAK_GLASS`, `IRREVERSIBLE`, `REVERSIBLE`, or `READS`. Leave an endpoint unlisted rather than guess; unlisted writes are treated as irreversible.
+1. Read its method, path, and `x-roblox-scopes` in `openapi.json`.
+2. Add the pattern to the matching list in `open-cloud.mjs`: `BREAK_GLASS`, `IRREVERSIBLE`, `GET_WRITES`, `REVERSIBLE`, `READS`, or `NOTES` (reason text only, never the tier). Match the normalised path, anchor the pattern, and leave an endpoint unlisted rather than guess; unlisted writes are treated as irreversible.
 3. Add a row to `TIERS` in `test/open-cloud.test.mjs`.
 4. Update the classification table in `skills/best-practices/references/open-cloud.md`, and the decisions in `SECURITY.md` when a break-glass call changes.
 
 When Roblox changes the permission page or the tool:
 
-1. Recheck the Roblox Studio MCP sources in [Update host integrations](#update-host-integrations).
-2. Probe only in a private experience with no players. Switch on one scope at a time under **Custom**, and remove every probe entry, asset, or message afterwards.
-3. Record what you proved, with its date, in the Studio MCP section of `api-currency.md`, and move each fact in `open-cloud.md` between **Verified** and **Unverified**.
+1. Reread the two docs pages above and the Roblox Studio MCP sources in [Update host integrations](#update-host-integrations).
+2. Run a spec sweep: fetch the current `openapi.json`, replace each `{param}` with a number, pass every `apis.roblox.com` operation through `classify()`, and look for an operation with a write or high-impact scope tiered R, an all-`:read` operation tiered X or deny, and new operations that reach the "is not a known call" fallback. Fix the patterns and add a test row for each.
+3. Probe only what the docs leave open, in a private experience with no players. Switch on one scope at a time, and remove every probe entry, asset, or message afterwards. Never upload an asset as a probe: Open Cloud cannot delete it.
+4. Record dated facts in the Studio MCP section of `api-currency.md`, and move each fact in `open-cloud.md` between Documented, Probed, and Unverified.
 
 ## Repository audit rules (`npm test`)
 
 `scripts/audit.mjs` enforces structural and style invariants across the repository:
 
-* **Cross-skill links**: A skill may link outside its own directory only to `skills/best-practices/references/` (the shared reference pool). Links to other directories fail so standalone skill copies never have broken links.
-* **Trigger evaluations**: Every skill requires `evals/trigger-queries.json` with at least 8 should-trigger and 8 near-miss queries (see `evals/README.md`).
-* **Description length**: Every `SKILL.md` `description` must stay at or below 90% of the 1,024-character limit (921 characters max).
-* **Script comments**: Comments in `scripts/**/*.mjs` must be `/** ... */` doc blocks of at most 3 lines and 250 characters, without `@param` or `@return` tags, and never placed inline or inside a function body.
-* **No dates in evergreen pages**: Only `api-currency.md` may contain a 4-digit year among the skill Markdown files.
-* **Internal links**: Every relative link in the skills must resolve to a file.
-* **Reference ownership**: Every reference page must be linked from at least one `SKILL.md`, so a new page such as `open-cloud.md` needs a link from a skill before the audit passes.
-* **Hook targets**: Every script named in `hooks/hooks.json` must exist.
+- Cross-skill links: a skill may link outside its own directory only to `skills/best-practices/references/` (the shared reference pool). Links to other directories fail, so standalone skill copies never have broken links.
+- Trigger evaluations: every skill requires `evals/trigger-queries.json` with at least 8 should-trigger and 8 near-miss queries (see `evals/README.md`).
+- Description length: every `SKILL.md` `description` stays at or below 90% of the 1,024-character limit (921 characters).
+- Script comments: comments in `scripts/**/*.mjs` are `/** ... */` doc blocks of at most 3 lines and 250 characters, without `@param` or `@return` tags, and never inline or inside a function body.
+- No dates in evergreen pages: among the skill Markdown files, only `api-currency.md` may contain a 4-digit year.
+- Internal links: every relative link in the skills resolves to a file.
+- Reference ownership: every reference page is linked from at least one `SKILL.md`, so a new page such as `open-cloud.md` needs a link from a skill before the audit passes.
+- Hook targets: every script named in `hooks/hooks.json` exists.
 
 ## Release checklist
+
+Prerequisites: push access to `main`, reviewer rights on the `npm` GitHub environment, and an npm account with two-factor authentication that can approve staged releases of `roblox-optimum`.
 
 1. Update `"version"` in `package.json` following [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 2. Propagate the version to all manifests and skill cards:
@@ -150,14 +175,15 @@ When Roblox changes the permission page or the tool:
    git push origin main vX.Y.Z
    ```
 
-   Never move or delete a published tag. A wrong tag means a new patch version.
+   Never move or delete a published `v*` tag. A wrong tag means a new patch version.
 
-7. In GitHub **Actions**, approve the `publish` job when prompted by the `npm` environment gate.
-8. Complete two-factor authentication approval on npm to publish the staged release:
+7. Wait for the `Publish` workflow. It runs `npm test` on Ubuntu and Windows, verifies that the tag matches `package.json`, skips a version the registry already holds, and stages the package on npm with a provenance attestation.
+8. In GitHub Actions, approve the `publish` job when the `npm` environment gate prompts.
+9. Approve the staged release on npm with two-factor authentication:
 
    ```bash
    npm stage list roblox-optimum
    npm stage approve <stage-id>
    ```
 
-The `Publish` workflow runs `npm test` across platforms, verifies that the Git tag matches `package.json`, and stages the package on npm with provenance attestation.
+   The workflow alone cannot publish; the release reaches the registry only after this step.
