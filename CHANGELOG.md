@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-11-08
+
+### Fixed
+
+- Fixed `open-cloud.md` describing the roblox-optimum Open Cloud hook, its MCP tool, and `.roblox-optimum.json` as always present. The page now tells the agent to apply the table itself and names the hook only where roblox-optimum is installed, so the reference reads correctly on its own.
+
 ## [1.18.0] - 2026-11-08
 
 A full audit of the standards against current Roblox documentation, the engine 746 API dump, and `openapi.json`. Platform facts that changed since they were written are corrected, references that contradicted each other now agree, and the build fails on dead anchors, a drifted invariant card, or an em dash in a shipped page.
@@ -685,7 +691,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...HEAD
+[1.18.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.15.0...v1.16.0
