@@ -28,6 +28,8 @@ ROBLOX LUAU SKILL - INVARIANT CARD
      collaborators, data structures, or code paths.
    - Desc carries NO volatile content: no numbers, thresholds, tunable names,
      feature names, or anything that needs editing when the body is retuned.
+     When a detail cannot be avoided, state it at the most general level
+     that stays true after the body changes.
    - Tags use Moonwave syntax: @param <name> <type> -- <description>
      and @return <type> -- <description>. Only when they add what the
      signature cannot show.
@@ -86,9 +88,11 @@ Where they are depends on how they were installed. As a plugin they are invoked 
 
 ## The checks run outside you
 
-The checker reports deprecated APIs, out-of-order section headers, a `while true do` that can
-neither yield nor exit, and server-only or client-only members used on the wrong side of a
-`.server.luau` or `.client.luau` filename. Every check is deterministic, with no model involved.
+The checker reports deprecated APIs, known hazards such as `InvokeClient`, a yield inside an
+`UpdateAsync` callback, `ProcessReceipt` assigned in more than one file, out-of-order section
+headers, a `while true do` that can neither yield nor exit, and server-only or client-only members
+used on the wrong side of a `.server.luau` or `.client.luau` filename. Every check is
+deterministic, with no model involved.
 Run it on the files you touched before you report work as done:
 
 ```bash

@@ -299,7 +299,7 @@ codex mcp remove roblox-optimum
 
 ### Install
 
-**Option A — With GitHub Copilot CLI (plugin in `~/.copilot/installed-plugins/`):**
+**Option A: With GitHub Copilot CLI (plugin in `~/.copilot/installed-plugins/`):**
 
 ```bash
 copilot plugin marketplace add andrian-syh/roblox-optimum
@@ -316,7 +316,7 @@ Or enable it in `~/.copilot/settings.json` (machine) or `.github/copilot/setting
 }
 ```
 
-**Option B — Without the plugin (`install --global` copies):**
+**Option B: Without the plugin (`install --global` copies):**
 
 ```bash
 npx roblox-optimum install --global
@@ -329,7 +329,7 @@ npx roblox-optimum install --global
 | MCP server | `~/.copilot/mcp-config.json` |
 | Hook | `~/.copilot/hooks/roblox-optimum.json` (`powershell` on Windows, `bash` elsewhere) |
 
-**Option C — Copilot in VS Code (repository instructions only):**
+**Option C: Copilot in VS Code (repository instructions only):**
 
 ```bash
 npx roblox-optimum install rules --all   # writes .github/copilot-instructions.md
@@ -363,14 +363,14 @@ npx roblox-optimum doctor --global
 
 ### Install
 
-**Option A — Using the installer:**
+**Option A: Using the installer:**
 
 ```bash
 npx roblox-optimum install --global   # skills, subagent, and MCP server
 npx roblox-optimum install            # project steering and .kiro/hooks/roblox-optimum.json
 ```
 
-**Option B — As a Kiro Power:**
+**Option B: As a Kiro Power:**
 In Kiro, open the **Powers** panel > **Add Custom Power** > **Import power from GitHub** > `https://github.com/andrian-syh/roblox-optimum` (or `kiro-cli powers install <path-to-clone>` in Kiro CLI 3). The power carries the skills and MCP server and is managed by Kiro, so skip `install --global` when using it.
 
 ### Verify

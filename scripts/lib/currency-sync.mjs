@@ -250,7 +250,7 @@ export async function syncCurrency(dir = cacheDir()) {
 }
 
 /** Returns whether the local currency overlay is missing or older than `STALE_AFTER_MS`. */
-export function isOverlayStale(dir = cacheDir()) {
+function isOverlayStale(dir = cacheDir()) {
   const file = overlayPath(dir);
   if (!existsSync(file)) return true;
   try {

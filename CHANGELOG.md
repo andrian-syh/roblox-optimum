@@ -6,6 +6,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-08
+
+A full audit of the standards against current Roblox documentation, the engine 746 API dump, and `openapi.json`. Platform facts that changed since they were written are corrected, references that contradicted each other now agree, and the build fails on dead anchors, a drifted invariant card, or an em dash in a shipped page.
+
+### Changed
+
+- Changed `AGENTS.md` and the best-practices skill to carry one identical invariant card. The two had drifted apart: the rules file lacked the "most general level" comment rule, and the skill lacked the empty-section, deprecated-API, and cited-facts items.
+- Changed the studio-ops card to put user authority last, as every other card does, and its setup section to name the same three session facts as the card: `studio_id`, Edit or Play, and who owns the files.
+- Rewrote `external-editors.md` from 40 KB to 20 KB. It keeps what changes a decision (which side wins, destructive defaults, security traps) and leaves install steps and full option lists to each tool's own docs.
+- Replaced every em dash in the skills, references, and `AGENTS.md` with plain punctuation.
+- Changed the `api-currency.md` snapshot to 8 November 2026 and Luau 0.746, which announces `while local` as supported upstream and continues the class prototype behind debug flags. Neither is ready for Roblox code.
+- Changed `genres.md` to name paid random item rules for simulators, SLIM avatars and the 16+ hangout gate for social games, and `evaluation-matrix.md` to grade attributes and `SetAsync` the way `false-positives.md` does.
+
+### Added
+
+- Added journey events (`AnalyticsService:LogJourneyEvent`) to `growth-apis.md`: when a branching path beats a funnel, and the Creator Hub configuration limits a call must match.
+- Added search ads to `live-ops.md` and `api-currency.md`, regional content availability to `publishing.md`, and Roblox's rewarded video playbooks to `monetization-policy.md`.
+- Added a text contrast check (`Color3:GetContrastRatio`, WCAG AA 4.5:1) to the accessibility basics in `ui-crossplatform.md`.
+
+### Removed
+
+- Removed `patterns.md`, an index that repeated the skill's own list of the four pattern pages. Links now point at the page that holds the content.
+- Removed repeated rules from `performance.md` and `false-positives.md`.
+
+### Fixed
+
+- Fixed `team-workflow.md`, which gave the Open Cloud Luau Execution limit as two concurrent requests per universe. `openapi.json` sets ten incomplete tasks per place and five task creations per minute per API key owner.
+- Fixed `api-currency.md` marking the `PlayerCharacterDestroyBehavior` default change as GA. Roblox scheduled it for 11 November 2026.
+- Fixed the diagnose skill pointing data store reads at Open Cloud. Studio routes them through `execute_luau`.
+- Fixed `patterns/data.md` advising a renamed store (`PlayerData_v2`) for schema changes, which abandons every existing save. It now advises a schema version inside each saved object.
+- Fixed `luau-language.md` telling agents to type with `--!strict`, against the card's opt-in rule, and overstating which `@rbx` requires Roblox supports.
+- Fixed `evals/README.md`, whose `claude -p --output-format json` command could never see which skill ran.
+- Fixed `server-authority.md` and `workflow.md`, which said reading `Workspace.AuthorityMode` always throws from the command bar, plugins, and `execute_luau`. The API dump makes it readable from engine 746; only older Studios throw. `server-authority.md` also lost its repeated trigger list and migration sections.
+- Fixed `device-performance.md` and `api-currency.md`, which called `Workspace.StreamingAdaptiveRadius` readable and writable from code. Since engine 746 only a plugin or Open Cloud can read or set it.
+- Fixed `ui-crossplatform.md` still marking the Input Action Manager as Beta. It is GA, as `api-currency.md` records.
+- Fixed `ui-crossplatform.md` saying `UIShadow` cannot shadow text. `UIShadow.Mode = Text` shadows the glyphs, and `Inset`, `ShowBehindParent`, and `Mode` are now documented, so `api-currency.md` lists them as GA and the "undocumented member" example in `false-positives.md` uses `UIBlur` instead.
+- Fixed `device-performance.md` calling frustum streaming undocumented. `Player.FrustumStreaming` and its four modes have reference pages.
+- Fixed `templates.md`, whose `PlayerData.SaveAll` saved players one after another and could overrun the 30-second `BindToClose` window that `release-readiness.md` warns about. It now saves in parallel and waits for all of them. The store name lost its `_v1` suffix.
+- Fixed `patterns/world.md` calling `InstanceHandle:Wait` unconfirmed. Its reference page now exists: it takes a timeout, returns `nil` on timeout or an unreachable target, and never returns without one when the target is destroyed before it replicates.
+- Fixed two Luau examples (`patterns/lifecycle.md`, `device-performance.md`) that put two statements on one line, against card item 9.
+- Fixed `patterns/data.md` telling agents to save remaining players synchronously in `BindToClose`, and scoped its web-call batching claim to the four APIs Roblox documents as transparently batched.
+- Fixed `edge-cases.md` and `cases/data-economy.md`, which still advised renaming the store for a schema change.
+- Fixed `false-positives.md` grading a hidden-state attribute as a Blocker. Every client can read it, but none can write it back, so it is Correctness at most.
+- Removed the [Verify] marks on the `BanAsync` device block (24 hours, lifted only by `UnbanAsync`), the `Color3` contrast signatures, and Extended Services for Compute (more than doubles per-player CPU), now that Roblox documents each.
+- Fixed `cases/monetization.md`, `security.md`, and `evaluation-matrix.md`, which said to keep loot tables server-side and never replicate them. Paid random item odds must be shown before purchase, so one odds table serves the roll and the disclosure; only undisclosed data stays on the server.
+- Fixed `open-cloud.md` calling the MCP Permissions access levels observed but undocumented. Roblox now documents Safe, Balanced (the default for every game), Full access, and Custom; the page now also tells agents to ask for one scope rather than Full access.
+- Fixed `live-ops.md` saying Ads Manager has no keyword targeting and needs at least 10 ad credits. Search ads take up to 10 keywords per ad set, and the docs set no such campaign minimum.
+- Fixed `growth-apis.md` saying notifications cannot be sent from Luau. Roblox's Open Cloud package sends them from a server script. Its referral rule also contradicted itself about when the invitee is recorded.
+- Fixed `workflow.md`, whose session-setup table ranked the invocation argument above an inline token while its own precedence paragraph, the skill, and the review checklist rank the inline token first.
+- Fixed `release-readiness.md` sizing server memory by maximum players; Roblox's formula uses the peak number of connected players.
+- Fixed `diagnosis.md` calling network ownership per instance. It is granted per assembly.
+- Fixed `cases/client-infra.md` naming no `AnalyticsService` method and ignoring that a player attribute reaches every client.
+- Fixed `security.md` and `edge-cases.md`, which said a local playtest can never read a secret. Roblox documents **Local Secrets** for exactly that.
+- Fixed `community-libraries.md`, which did not say that ProfileService is no longer supported and that its author points new projects to ProfileStore.
+- Fixed the checker summary in `AGENTS.md`, which left out hazards, yields inside `UpdateAsync`, and duplicate `ProcessReceipt` assignments.
+
 ## [1.17.0] - 2026-11-05
 
 Roblox documented `open_cloud_invoke` and MCP Permissions on 2026-11-04 ([Use Open Cloud with the Studio MCP server](https://create.roblox.com/docs/studio/mcp-open-cloud)). The Open Cloud gate was checked against every operation in Roblox's `openapi.json`, and the docs were rewritten from the official pages.
@@ -629,7 +685,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.14.2...v1.15.0

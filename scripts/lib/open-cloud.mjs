@@ -66,7 +66,7 @@ const READS =
  * escapes decoded, trailing slashes cut. Undefined when it is not a relative path on the one
  * host `open_cloud_invoke` reaches, so the caller fails closed.
  */
-export function normalize(endpoint) {
+function normalize(endpoint) {
   const raw = String(endpoint ?? "");
   if (!raw.startsWith("/") || raw.startsWith("//")) return undefined;
   try {

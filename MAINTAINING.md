@@ -141,10 +141,13 @@ When Roblox changes the permission page or the tool:
 
 - Cross-skill links: a skill may link outside its own directory only to `skills/best-practices/references/` (the shared reference pool). Links to other directories fail, so standalone skill copies never have broken links.
 - Trigger evaluations: every skill requires `evals/trigger-queries.json` with at least 8 should-trigger and 8 near-miss queries (see `evals/README.md`).
-- Description length: every `SKILL.md` `description` stays at or below 90% of the 1,024-character limit (921 characters).
+- Description length: every `SKILL.md` `description` stays at or below 922 characters, about 90% of the 1,024-character limit, and names every other skill.
 - Script comments: comments in `scripts/**/*.mjs` are `/** ... */` doc blocks of at most 3 lines and 250 characters, without `@param` or `@return` tags, and never inline or inside a function body.
 - No dates in evergreen pages: among the skill Markdown files, only `api-currency.md` may contain a 4-digit year.
-- Internal links: every relative link in the skills resolves to a file.
+- Internal links: every relative link in the skills, `AGENTS.md`, `README.md`, `INSTALL.md`, `MAINTAINING.md`, `SECURITY.md`, and `evals/README.md` resolves to a file, and every `#anchor` to a heading in it.
+- One invariant card: the card block in `AGENTS.md` and in `skills/best-practices/SKILL.md` must be identical. Edit both together.
+- No em dashes in shipped pages: `skills/**/*.md` and `AGENTS.md`.
+- `AGENTS.md` names no path of this repository, since it is copied into other projects.
 - Reference ownership: every reference page is linked from at least one `SKILL.md`, so a new page such as `open-cloud.md` needs a link from a skill before the audit passes.
 - Hook targets: every script named in `hooks/hooks.json` exists.
 

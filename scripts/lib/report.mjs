@@ -16,7 +16,7 @@ export const FORMATS = ["text", "json", "sarif"];
  * One finding split into the line it names, the rule behind it, and its message. A finding about
  * a whole file, such as a duplicate `ProcessReceipt`, has no line.
  */
-export function findingParts(text) {
+function findingParts(text) {
   const line = /^Line (\d+):/.exec(text);
   const key = keyFor(text);
   const rule = key !== null ? ruleSlug(key) : /roblox-optimum: allow/.test(text) ? DIRECTIVE_RULE : GENERAL_RULE;

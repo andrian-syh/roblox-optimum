@@ -35,7 +35,7 @@ function serviceCall(name) {
  * Where the block opened just before `from` closes, with the keyword that closes it, or null
  * when it never does. The `then` after an `elseif` continues a block rather than opening one.
  */
-export function blockClose(code, from) {
+function blockClose(code, from) {
   const words = new RegExp(BLOCK_WORDS.source, "g");
   words.lastIndex = from;
 
@@ -62,7 +62,7 @@ export function blockClose(code, from) {
 }
 
 /** A loop body with every function defined inside it removed, since what a closure does is not the loop's. */
-export function withoutClosures(body) {
+function withoutClosures(body) {
   const opener = /\bfunction\b/g;
   let out = "";
   let last = 0;
@@ -81,7 +81,7 @@ export function withoutClosures(body) {
 }
 
 /** Whether a loop body can yield or leave, or calls something that might, which settles nothing. */
-export function mayYieldOrLeave(body) {
+function mayYieldOrLeave(body) {
   if (YIELDS.test(body) || EXITS.test(body)) return true;
 
   const calls = body.matchAll(/([A-Za-z_]\w*(?:\s*[.:]\s*[A-Za-z_]\w*)*)\s*\(/g);
@@ -97,7 +97,7 @@ export function mayYieldOrLeave(body) {
  * Reports every loop on a constant condition that can neither yield nor exit, which freezes the
  * thread. A loop that can leave or yield is left alone, and so is one an ambiguous read leaves open.
  */
-export function frozenLoops(lines) {
+function frozenLoops(lines) {
   const code = lines.join("\n");
   const found = [];
   const starts = new RegExp(LOOP_START.source, "g");
@@ -130,7 +130,7 @@ export function frozenLoops(lines) {
  * Reports any DataStore:UpdateAsync transform callback that yields directly in its own body,
  * which Roblox forbids and aborts at runtime.
  */
-export function yieldingUpdates(code) {
+function yieldingUpdates(code) {
   const found = [];
   const calls = /:UpdateAsync\s*\([^{};]*?\bfunction\s*\([^)]*\)/g;
   let line = 1;

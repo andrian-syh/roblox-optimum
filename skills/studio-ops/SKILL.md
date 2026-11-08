@@ -3,7 +3,7 @@ name: studio-ops
 description: "Operates a Roblox project's tooling safely: Studio MCP connections, filesystem sync with Rojo, Argon, Script Sync, or Azul, and proving a change works in the running engine. Use before the first Studio MCP tool call of a session (list_roblox_studios, execute_luau, multi_edit, start_stop_play, and the rest), and whenever the user asks why their edits are being overwritten, how to set up or fix a sync toolchain, what a Studio MCP tool will do before it runs, how to playtest or verify a fix, or how to test replication and multi-client behaviour. Governs how the agent drives its tools, not how Luau is written. Hand-offs: authoring Luau goes to the best-practices skill, judging existing code to the code-review skill, working out why a reported symptom happens to the diagnose skill, which calls on this one to run the probe, launch and marketing to the publishing skill."
 license: MIT
 metadata:
-  version: "1.17.0"
+  version: "1.18.0"
 ---
 
 # Roblox Studio Operations
@@ -17,7 +17,7 @@ actually do, and how a change is proven to work.
 > **This skill ships as part of a set and does not stand alone.** Every reference it cites lives in
 > `../best-practices/references/`, the pool shared by all five roblox-optimum skills. Installing
 > this directory on its own leaves those links pointing at nothing. If a reference will not open,
-> the install is incomplete — say so rather than working from memory.
+> the install is incomplete: say so rather than working from memory.
 
 
 ## Session Invariants (must survive compaction)
@@ -39,11 +39,11 @@ ROBLOX STUDIO OPS - INVARIANT CARD
    A single-Play session hides every networking bug.
 7  Leave no residue: test scripts, tags, and instances created to verify
    are removed when done.
-8  User authority outranks this skill.
-9  Keep three session facts in view: studio_id, Edit or Play, and who
+8  Keep three session facts in view: studio_id, Edit or Play, and who
    owns the files. Restate them after compaction, before the next write.
-10 A write is done only when a separate read shows it. Same error twice:
+9  A write is done only when a separate read shows it. Same error twice:
    stop and report, never a third identical call.
+10 User authority outranks this skill.
 ```
 
 Everything below expands these; nothing below overrides them.
@@ -64,14 +64,17 @@ Read the one that matches. Each is self-contained.
 
 ## Before the first tool call
 
-Three facts, resolved once per session and then cached:
+Resolve the three session facts of card item 8 once, then cache them:
 
-1. **Environment** — Studio-native, or filesystem-synced, and by which tool. Unresolved means
-   unresolved; ask rather than assume, because the wrong guess is the destructive one.
-2. **Direction of truth** — which side the sync tool treats as authoritative. This is per tool,
-   not a general rule, and it decides whether writing a file publishes or destroys.
-3. **MCP variant** — when MCP tools are present, identify the variant once and map what it can
-   actually do before planning any write.
+1. **studio_id**: from `list_roblox_studios`. Every Studio MCP call takes it, and two open
+   Studios make a guess dangerous.
+2. **Edit or Play**: the DataModel a call runs in decides what a write does and whether it
+   survives the playtest.
+3. **Who owns the files**: Studio-native, or filesystem-synced and by which tool, and which side
+   that tool treats as authoritative. Ask rather than assume; the wrong guess is the destructive one.
+
+Before planning a write, map what the connected MCP server can do
+([studio-mcp.md](../best-practices/references/studio-mcp.md)).
 
 When no MCP tools are present, say so and work through the filesystem instead of pretending
 a connection exists.
@@ -97,6 +100,7 @@ it to a test harness is a misread.
 - Judging Luau that already exists → the **code-review** skill.
 - Working out why a reported symptom happens → the **diagnose** skill, which drives its probes
   through this one.
+- Launch, store listing, and marketing → the **publishing** skill.
 
 This skill stays with the tooling: it can run a test, read a place, and report what happened.
 

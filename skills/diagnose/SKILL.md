@@ -3,13 +3,13 @@ name: diagnose
 description: "Diagnoses a reported Roblox symptom down to its cause before anything is changed. Use whenever the user says something in their game is broken, wrong, missing, duplicated, intermittent, or works in Studio but not live - leaderstats resetting, players falling through the map, a shop granting free items, a server dying after a while, an event firing twice - and no file has been named yet, even when Roblox is never mentioned. Classifies the symptom, asks which side owns the state and whether a client could have caused it, narrows the surface, reproduces, and confirms the cause before handing the fix over. Hand-offs: judging code that was handed over goes to the code-review skill, writing the fix to the best-practices skill, sync toolchains and driving Studio tools to the studio-ops skill, falling impressions or player counts with nothing broken to the publishing skill."
 license: MIT
 metadata:
-  version: "1.17.0"
+  version: "1.18.0"
 ---
 
 # Roblox Diagnosis
 
 Finding the cause of a reported symptom. Nothing here writes the fix and nothing here scores a
-codebase — this skill decides *what is actually wrong* and hands that answer on.
+codebase: this skill decides *what is actually wrong* and hands that answer on.
 
 It exists because a bug report names a symptom, never a file. Reaching for the first plausible
 file and editing it produces a change that looks like a fix, passes review, and leaves the
@@ -21,7 +21,7 @@ A confirmed cause with narrow evidence beats a broad theory. Guessing costs more
 > **This skill ships as part of a set and does not stand alone.** Every reference it cites lives in
 > `../best-practices/references/`, the pool shared by all five roblox-optimum skills. Installing
 > this directory on its own leaves those links pointing at nothing. If a reference will not open,
-> the install is incomplete — say so rather than diagnosing from memory.
+> the install is incomplete: say so rather than diagnosing from memory.
 
 
 ## Session Invariants (must survive compaction)
@@ -67,7 +67,7 @@ live, not what the fix will be.
 | Parts, models, or children missing on the client only | [patterns/network.md](../best-practices/references/patterns/network.md) |
 | Works in Studio, fails in a live game, or the reverse | [verification.md](../best-practices/references/verification.md), then [edge-cases.md](../best-practices/references/edge-cases.md) |
 | A limit reached: request throttled, payload rejected, cap hit | [limits-budgets.md](../best-practices/references/limits-budgets.md) |
-| Edits disappearing, or the file and the place disagreeing | the **studio-ops** skill — this is tooling, not a defect |
+| Edits disappearing, or the file and the place disagreeing | the **studio-ops** skill: this is tooling, not a defect |
 
 The full loop, the environment traps that fake a defect, and the stop conditions are in
 [diagnosis.md](../best-practices/references/diagnosis.md). Read it when the row above does not
@@ -98,7 +98,7 @@ settle the shape of the problem, or when the first hypothesis fails.
 Each step costs more than the one above it. Do not skip upward without a reason.
 
 1. Read what the report already contains: console output, error text, a screenshot, a time.
-2. Read the owning code path, both sides of any pair — the fire and the receive, the create and
+2. Read the owning code path, both sides of any pair: the fire and the receive, the create and
    the destroy.
 3. A single-client playtest, watching the one value in question.
 4. Two clients, whenever a remote, replication, or `StreamingEnabled` is anywhere near it.
@@ -143,7 +143,7 @@ Do not include the fix. Naming the failing path is the deliverable.
   the standards the fix has to land inside.
 - Judging code that already exists, or scoring a project → the **code-review** skill.
 - Driving a playtest, a sync toolchain, or an MCP connection → the **studio-ops** skill.
-- Reading live evidence through Open Cloud (data store entries, analytics) → [open-cloud.md](../best-practices/references/open-cloud.md); report user ids and aggregates, never raw player values.
+- Reading live evidence (data store entries through `execute_luau`, analytics through `open_cloud_invoke`) → [open-cloud.md](../best-practices/references/open-cloud.md); report user ids and aggregates, never raw player values.
 
 Before the fixed work is called done, the finishing gate is
 [review-checklist.md](../best-practices/references/review-checklist.md).

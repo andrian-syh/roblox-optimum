@@ -11,7 +11,7 @@ export { ruleSlug };
 const DIRECTIVE = /--\s*roblox-optimum:\s*(allow|allow-file)\s*\(([^)]*)\)/g;
 
 /** Rules reported across files by `checkBatch`, which one file's run cannot judge stale. */
-export const BATCH_RULES = new Set(["marketplaceservice-processreceipt"]);
+const BATCH_RULES = new Set(["marketplaceservice-processreceipt"]);
 
 /** The slug of the rule a finding belongs to, or null when no rule claims it. */
 export function slugOf(finding) {

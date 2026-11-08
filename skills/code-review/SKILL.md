@@ -3,12 +3,12 @@ name: code-review
 description: "Reviews and audits existing Roblox/Luau code. Use whenever the user asks to review, check, or audit a file, diff, pull request, place, or system, asks whether their code is safe, good, or exploitable, or wants its architectural health or maturity scored - even when Roblox or Luau is never named but the code is a game script. Finds leaks, exploits, and data-loss risks, reports one severity per finding (Blocker / Correctness / Advisory) behind a confidence gate, and scores one system 1-5 across security, lifecycle, CPU, network, data safety, and structure. Hand-offs: writing or refactoring code goes to the best-practices skill, chasing a reported symptom with no file named to the diagnose skill, Studio tooling, sync, or playtest questions to the studio-ops skill, store listings and launch plans to the publishing skill."
 license: MIT
 metadata:
-  version: "1.17.0"
+  version: "1.18.0"
 ---
 
 # Roblox Code Review
 
-Judging code that already exists. Nothing here writes code — the moment the task turns
+Judging code that already exists. Nothing here writes code: the moment the task turns
 into producing or changing Luau, the **best-practices** skill owns it and this one steps
 aside.
 
@@ -19,7 +19,7 @@ come back on the next review.
 > **This skill ships as part of a set and does not stand alone.** Every reference it cites lives in
 > `../best-practices/references/`, the pool shared by all five roblox-optimum skills. Installing
 > this directory on its own leaves those links pointing at nothing. If a reference will not open,
-> the install is incomplete — say so rather than reviewing from memory, which is how false
+> the install is incomplete: say so rather than reviewing from memory, which is how false
 > positives get reported as findings.
 
 
@@ -57,11 +57,11 @@ Two shapes, resolved from the request before anything is read.
 
 | Request looks like | Do this |
 |---|---|
-| "review this file / diff / PR", a file is attached, a defect is suspected | **Finding review** — the flow below |
-| "audit my game", "score my architecture", "how mature is this system" | **Project audit** — [evaluation-matrix.md](../best-practices/references/evaluation-matrix.md) |
+| "review this file / diff / PR", a file is attached, a defect is suspected | **Finding review**: the flow below |
+| "audit my game", "score my architecture", "how mature is this system" | **Project audit**: [evaluation-matrix.md](../best-practices/references/evaluation-matrix.md) |
 
 An audit that turns up a specific defect still reports it through the severity model. A
-finding review never silently expands into an audit — say the scope is bigger and ask.
+finding review never silently expands into an audit: say the scope is bigger and ask.
 
 
 ## Finding review flow
@@ -69,11 +69,11 @@ finding review never silently expands into an audit — say the scope is bigger 
 1. **Establish the environment before judging it.** Authority mode (default OFF), community
    libraries in use, `StreamingEnabled`, rig type, strictness header, and whether the project
    is Studio-native or filesystem-synced. Each of these inverts what counts as correct.
-   Unresolved means unresolved — say so rather than assuming a value.
+   Unresolved means unresolved: say so rather than assuming a value.
 2. **Trace, then judge.** Paired logic gets both sides read. A connection is not a leak until
    the teardown path is confirmed absent.
 3. **Run the confidence gate** on every candidate finding.
-4. **Check the carve-outs** — [false-positives.md](../best-practices/references/false-positives.md).
+4. **Check the carve-outs**: [false-positives.md](../best-practices/references/false-positives.md).
    Read it before reporting, not after being challenged.
 5. **Assign one severity** and give the failure scenario in the same breath as the finding.
 6. **Stop at reporting.** Fixing is a separate request and a different skill.
@@ -84,20 +84,20 @@ finding review never silently expands into an audit — say the scope is bigger 
 The standards themselves live in the authoring skill; this skill judges against them rather
 than restating them. Read the one that matches the finding.
 
-- [runtime-rules.md](../best-practices/references/runtime-rules.md) — the seven non-negotiables and, for each, the scope that keeps it from being over-applied
-- [security.md](../best-practices/references/security.md) — remote validation depth, movement sanity checks, anti-exploit, text filtering
-- [server-authority.md](../best-practices/references/server-authority.md) — anything touching movement, physics, input, camera, animation timing, network ownership
-- [patterns/data.md](../best-practices/references/patterns/data.md) — state ownership, persistence, failure policy after the last retry, per-owner locks
-- [patterns/lifecycle.md](../best-practices/references/patterns/lifecycle.md) — connection cleanup, character lifecycle, pooling
-- [patterns/network.md](../best-practices/references/patterns/network.md) — remotes, cross-server, StreamingEnabled
-- [performance.md](../best-practices/references/performance.md) — hot loops, memory, physics queries, rendering, profiling
-- [style-rules.md](../best-practices/references/style-rules.md) — deprecated APIs, naming, module hygiene, the misremembered-API table
-- [section-layout.md](../best-practices/references/section-layout.md) — layout and Documentation Comment rules, for Advisory findings only
-- [monetization-policy.md](../best-practices/references/monetization-policy.md) — ProcessReceipt, purchase verification, regional prices, policy gating
-- [release-readiness.md](../best-practices/references/release-readiness.md) — pre-publish shutdown (`BindToClose`), regional compliance, secrets hygiene, and live-ops readiness
-- [limits-budgets.md](../best-practices/references/limits-budgets.md) — platform ceilings; grep the row, do not read it whole
-- [api-currency.md](../best-practices/references/api-currency.md) — before calling any API missing, wrong, or new, and for the full deprecation inventory this skill reports only part of
-- [workflow.md](../best-practices/references/workflow.md#reviewrefactor-mode) — the severity model and confidence gate in full, which the card above summarises
+- [runtime-rules.md](../best-practices/references/runtime-rules.md): the seven non-negotiables and, for each, the scope that keeps it from being over-applied
+- [security.md](../best-practices/references/security.md): remote validation depth, movement sanity checks, anti-exploit, text filtering
+- [server-authority.md](../best-practices/references/server-authority.md): anything touching movement, physics, input, camera, animation timing, network ownership
+- [patterns/data.md](../best-practices/references/patterns/data.md): state ownership, persistence, failure policy after the last retry, per-owner locks
+- [patterns/lifecycle.md](../best-practices/references/patterns/lifecycle.md): connection cleanup, character lifecycle, pooling
+- [patterns/network.md](../best-practices/references/patterns/network.md): remotes, cross-server, StreamingEnabled
+- [performance.md](../best-practices/references/performance.md): hot loops, memory, physics queries, rendering, profiling
+- [style-rules.md](../best-practices/references/style-rules.md): deprecated APIs, naming, module hygiene, the misremembered-API table
+- [section-layout.md](../best-practices/references/section-layout.md): layout and Documentation Comment rules, for Advisory findings only
+- [monetization-policy.md](../best-practices/references/monetization-policy.md): ProcessReceipt, purchase verification, regional prices, policy gating
+- [release-readiness.md](../best-practices/references/release-readiness.md): pre-publish shutdown (`BindToClose`), regional compliance, secrets hygiene, and live-ops readiness
+- [limits-budgets.md](../best-practices/references/limits-budgets.md): platform ceilings; grep the row, do not read it whole
+- [api-currency.md](../best-practices/references/api-currency.md): before calling any API missing, wrong, or new, and for the full deprecation inventory this skill reports only part of
+- [workflow.md](../best-practices/references/workflow.md#reviewrefactor-mode): the severity model and confidence gate in full, which the card above summarises
 
 **Never flag a member as nonexistent because a documentation page omits it.** The docs site
 lags the engine. Undocumented is not unshipped.
@@ -118,7 +118,7 @@ Order by severity, then by blast radius. A Blocker in a rarely-hit path still ou
 Correctness item in a hot one.
 
 When nothing is found, say so plainly. A clean review is a result, not a failure to try
-harder — and inventing an Advisory to fill the silence is the most common way this skill
+harder, and inventing an Advisory to fill the silence is the most common way this skill
 loses trust.
 
 
@@ -139,4 +139,4 @@ Before the fixed work is called done, the finishing gate is
 ## User Authority
 
 Guidance, not a mandate. The user's instructions override any convention here. Never refactor,
-restructure, or clean up on this skill's initiative — recommend, and let the user decide.
+restructure, or clean up on this skill's initiative: recommend, and let the user decide.

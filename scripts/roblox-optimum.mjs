@@ -20,8 +20,8 @@ import { FORMATS, formatJson, formatSarif } from "./lib/report.mjs";
 
 export { agentAs, forAntigravity, forCopilot, forCursor, forKiro, forOpenCode, forQwen } from "./lib/agent-forms.mjs";
 export { CONTEXT_ERRORS, DEPRECATED, EXPLANATIONS, HAZARDS } from "./lib/catalog.mjs";
-export { checkBatch, checkFile, expandPaths, formatReport, inspect, stripNonCode } from "./lib/checker.mjs";
-export { condition, liveCopies, places } from "./lib/doctor.mjs";
+export { checkBatch, checkFile, inspect } from "./lib/checker.mjs";
+export { condition, places } from "./lib/doctor.mjs";
 export { injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "./lib/hooks.mjs";
 export { COMPONENTS, namespaced, parseComponents, retitle, routeFor } from "./lib/install.mjs";
 export { order, ranAsScript, stamped, stampedFrom } from "./lib/package.mjs";

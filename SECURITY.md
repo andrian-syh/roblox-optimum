@@ -17,8 +17,8 @@ Security fixes are released for the current minor version only.
 
 | Version | Supported |
 |---|---|
-| `1.17.x` | Yes |
-| `< 1.17.0` | No. Upgrade to the latest release first. |
+| `1.18.x` | Yes |
+| `< 1.18.0` | No. Upgrade to the latest release first. |
 
 ## Report a vulnerability
 

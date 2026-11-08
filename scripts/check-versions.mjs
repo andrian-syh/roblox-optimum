@@ -50,7 +50,7 @@ function walk(dir, found = []) {
  * The version every manifest should carry, read from package.json, which is the one file npm
  * itself reads and therefore the only one that cannot be wrong.
  */
-export function declaredVersion(root = ROOT) {
+function declaredVersion(root = ROOT) {
   return JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 }
 
@@ -90,7 +90,7 @@ function skillCards(root = ROOT) {
  * Every skill card whose `metadata.version` differs from the declared one, in the same shape as
  * the manifests, so a skill cannot ship naming a release it is not part of.
  */
-export function driftedSkills(version, root = ROOT) {
+function driftedSkills(version, root = ROOT) {
   const out = [];
 
   for (const file of skillCards(root)) {
@@ -140,7 +140,7 @@ const PLUGIN_FILES = [
 ];
 
 /** The plugin files package.json does not ship, which install would then fail to lay down. */
-export function unshipped(root = ROOT) {
+function unshipped(root = ROOT) {
   const shipped = new Set(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).files ?? []);
   return PLUGIN_FILES.filter((file) => !shipped.has(file));
 }

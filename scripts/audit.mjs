@@ -181,20 +181,53 @@ function auditSkills() {
  * Checks that every relative link inside the skills resolves, so a rename cannot ship as a
  * dead link the model follows into nothing.
  */
+/** The heading anchors of one Markdown file, slugged the way GitHub renders them. */
+function anchorsOf(path, cache = new Map()) {
+  if (cache.has(path)) return cache.get(path);
+  const seen = new Map();
+  const anchors = new Set();
+  let fenced = false;
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    if (/^\s*```/.test(line)) fenced = !fenced;
+    const heading = !fenced && /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
+    if (!heading) continue;
+    const base = heading[1]
+      .replace(/`/g, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/\s/g, "-");
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    anchors.add(count === 0 ? base : `${base}-${count}`);
+  }
+  cache.set(path, anchors);
+  return anchors;
+}
+
 function auditLinks() {
   let checked = 0;
-  for (const path of walk(join(ROOT, "skills"), /\.md$/)) {
+  const cache = new Map();
+  const docs = ["README.md", "INSTALL.md", "MAINTAINING.md", "SECURITY.md", "AGENTS.md", join("evals", "README.md")]
+    .map((file) => join(ROOT, file))
+    .filter((file) => existsSync(file));
+  for (const path of [...walk(join(ROOT, "skills"), /\.md$/), ...docs]) {
     const text = readFileSync(path, "utf8");
     for (const m of text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
-      const target = m[1].split("#")[0];
-      if (!target || /^(https?:|mailto:)/.test(target)) continue;
+      const [target, anchor] = m[1].split("#");
+      if (/^(https?:|mailto:)/.test(m[1])) continue;
+      const file = target ? resolve(dirname(path), target) : path;
       checked++;
-      if (!existsSync(resolve(dirname(path), target))) {
+      if (!existsSync(file)) {
         problems.push(`${relative(ROOT, path)}: dead link to ${target}`);
+        continue;
+      }
+      if (anchor && file.endsWith(".md") && !anchorsOf(file, cache).has(anchor)) {
+        problems.push(`${relative(ROOT, path)}: dead anchor #${anchor} in ${relative(ROOT, file)}`);
       }
     }
   }
-  notes.push(`${checked} internal links resolved`);
+  notes.push(`${checked} internal links and their anchors resolved`);
 }
 
 /** The one directory a skill may reach into from outside its own root. */
@@ -219,7 +252,7 @@ function auditTriggerQueries() {
     try {
       queries = JSON.parse(readFileSync(file, "utf8"));
     } catch (error) {
-      problems.push(`${skill}: evals/trigger-queries.json is not valid JSON — ${error.message}`);
+      problems.push(`${skill}: evals/trigger-queries.json is not valid JSON: ${error.message}`);
       continue;
     }
 
@@ -234,7 +267,7 @@ function auditTriggerQueries() {
 
     if (malformed.length > 0) problems.push(`${skill}: ${malformed.length} trigger query/queries missing a string query or boolean should_trigger`);
     if (positive < 8) problems.push(`${skill}: ${positive} should-trigger queries, fewer than the 8 that make a rate meaningful`);
-    if (negative < 8) problems.push(`${skill}: ${negative} should-not-trigger queries — near misses are what catch an over-broad description`);
+    if (negative < 8) problems.push(`${skill}: ${negative} should-not-trigger queries; near misses are what catch an over-broad description`);
 
     notes.push(`skill ${skill}: ${positive} should-trigger and ${negative} near-miss queries`);
   }
@@ -310,6 +343,37 @@ function auditRulesPaths() {
   }
 
   notes.push("the rules card names no path of this repository");
+}
+
+/**
+ * Checks that the rules file and the authoring skill carry the same invariant card. Hosts load
+ * one or the other, so a card edited in only one place gives two sets of rules.
+ */
+function auditCardSync() {
+  const card = (file) =>
+    /```text\r?\n(ROBLOX LUAU SKILL - INVARIANT CARD[\s\S]*?)\r?\n```/
+      .exec(readFileSync(join(ROOT, file), "utf8"))?.[1]
+      .replace(/\r/g, "");
+  const rules = card("AGENTS.md");
+  const skill = card(join("skills", "best-practices", "SKILL.md"));
+
+  if (!rules || !skill) return problems.push("the invariant card is missing from AGENTS.md or best-practices");
+  if (rules !== skill) return problems.push("the invariant card differs between AGENTS.md and best-practices");
+  notes.push("AGENTS.md and best-practices carry the same invariant card");
+}
+
+/**
+ * Checks that shipped pages carry no em dash. The card bans them in the code an agent writes,
+ * and pages full of them teach the habit the card forbids.
+ */
+function auditDashes() {
+  const pages = [...walk(join(ROOT, "skills"), /\.md$/), join(ROOT, "AGENTS.md")];
+  for (const path of pages) {
+    for (const [k, line] of readFileSync(path, "utf8").split("\n").entries()) {
+      if (line.includes("—")) problems.push(`${relative(ROOT, path)}:${k + 1}: em dash`);
+    }
+  }
+  notes.push(`${pages.length} shipped pages carry no em dash`);
 }
 
 /**
@@ -449,6 +513,8 @@ auditSkillBoundaries();
 auditTriggerQueries();
 auditRouting();
 auditRulesPaths();
+auditCardSync();
+auditDashes();
 auditDates();
 auditOwnership();
 auditHooks();
