@@ -26,6 +26,13 @@ const REPO_CHORE =
   /\b(?:changelog|readme|license|security\.md|package\.json|ci workflow|github actions?|git commit|commit(?:s|ted)?)\b|(?<!\.(?:project|model|meta))\.(?:mjs|cjs|js|ts|ya?ml|md|json)\b|\bv\d+\.\d+\.\d+\b/i;
 
 /**
+ * Work on the agent's own tooling, not on the game: a coding agent named beside the part of it
+ * being set up. Both are product and tool names, the same in any language.
+ */
+const AGENT_TOOLING =
+  /(?:claude code|codex|copilot|cursor|opencode|antigravity|kiro|qwen)[^.?!]{0,60}(?:harness(?:es)?|plugins?|hooks?|skills?|sub-?agents?)/i;
+
+/**
  * Messages the Luau runtime and the engine print, which are English whatever language the user
  * writes in. A request quoting one reports a failure, so it is a symptom in any language.
  */
@@ -79,13 +86,21 @@ const PROMPT_ROUTES = [
 ];
 
 /**
- * The skill a prompt should load, a route with no skill when the model should pick one, or null
- * when it is not Roblox work: another stack or a repository chore, or Roblox unnamed outside a
- * project. This package's own name says nothing about the game.
+ * The skill a prompt loads, a route with no skill when the model picks one, or null
+ * when it is not Roblox work: another stack, a repository chore, agent tooling, or Roblox
+ * unnamed outside a project. This package's own name says nothing about the game.
  */
 export function routePrompt(prompt, inProject) {
   const own = prompt.replace(/\broblox-(?:optimum|best-practices(?:-skill)?)\b/gi, "");
-  if (OTHER_STACK.test(own) || REPO_CHORE.test(own) || (!inProject && !ROBLOX_WORDS.test(own))) return null;
+  if (OTHER_STACK.test(own) || REPO_CHORE.test(own) || AGENT_TOOLING.test(own) || (!inProject && !ROBLOX_WORDS.test(own))) return null;
   const hit = PROMPT_ROUTES.find(([pattern]) => pattern.test(own));
-  return hit === undefined ? { skill: null, why: null } : { skill: hit[1], why: hit[2] };
+  const search = CODE_SEARCH.test(own);
+  return hit === undefined ? { skill: null, why: null, search } : { skill: hit[1], why: hit[2], search };
 }
+
+/**
+ * A request that first has to find code across the project: where something lives, what calls
+ * it, or the path a value takes. English, with the common Indonesian forms.
+ */
+const CODE_SEARCH =
+  /\b(?:trace|where (?:is|are|does|do)|find (?:every|all|where)|list (?:every|all)|which (?:files?|scripts?|modules?)|what calls|who calls|callers? of|map (?:the|out)|telusur\w*|di ?mana|cari(?:kan)? (?:semua|di ?mana)|temukan|lacak\w*)\b/i;

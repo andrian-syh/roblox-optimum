@@ -32,6 +32,8 @@ const REPO_CHORES = [
   "refactor scripts/roblox-optimum.mjs into smaller modules",
   "review SECURITY.md and tighten the wording",
   "pull the latest roblox-optimum and refresh your memory notes",
+  "rancang workflow roblox development untuk Claude Code harness: skill, hooks, dan subagent",
+  "set up the Cursor hooks so the skills load in every session",
 ];
 
 /** Game requests that name a Rojo file or a symptom, which must still route. */
@@ -49,7 +51,22 @@ const GAME_REQUESTS = [
   ["¿por qué bajaron mis impressions en Recommended for You?", "publishing"],
   ["write the AnalyticsService funnel that tracks D1 retention", "best-practices"],
   ["add a promo code redeem system to my shop", "best-practices"],
+  ["use a subagent to audit my combat system", "code-review"],
+  ["move the cursor hover effect to a ModuleScript and fix the script", "best-practices"],
 ];
+
+/** Requests that must find code first, and requests that must not be sent to a search. */
+const SEARCHES = [
+  ["trace how a player's coins are changed and then saved", true],
+  ["where is the shop remote handled?", true],
+  ["telusuri alur penyimpanan data pemain", true],
+  ["add a reset button to the shop", false],
+  ["my leaderstats reset every time i rejoin", false],
+];
+
+test("a request that must find code first is marked as a search", () => {
+  for (const [prompt, search] of SEARCHES) assert.equal(routePrompt(prompt, true)?.search, search, prompt);
+});
 
 const skills = readdirSync(join(PACKAGE_ROOT, "skills"));
 

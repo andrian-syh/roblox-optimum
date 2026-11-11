@@ -118,6 +118,16 @@ test("the hook asks before a write, denies break-glass, and stays silent on a re
   assert.equal(runAg("open_cloud_invoke", { method: "GET", endpoint: "/cloud/v2/universes/1" }).decision, "allow");
   assert.equal(runAg("open_cloud_invoke", { method: "POST", endpoint: "/cloud/v2/universes/1:publishMessage" }).decision, "ask");
   assert.equal(runAg("open_cloud_invoke", { method: "POST", endpoint: "/cloud/v2/universes/1/memory-store:flush" }).decision, "deny");
+  const runAgEager = (name, args) =>
+    JSON.parse(
+      spawnSync(process.execPath, [CLI_SCRIPT, "--open-cloud"], {
+        input: JSON.stringify({ workspacePaths: [tmpdir()], toolCall: { name, args } }),
+        encoding: "utf8",
+      }).stdout,
+    );
+  assert.equal(runAgEager("mcp_Roblox_Studio_open_cloud_invoke", { method: "POST", endpoint: "/cloud/v2/universes/1:publishMessage" }).decision, "ask");
+  assert.equal(runAgEager("mcp_Roblox_Studio_open_cloud_invoke", { method: "GET", endpoint: "/cloud/v2/universes/1" }).decision, "allow");
+  assert.equal(runAgEager("mcp_x_other_tool", { method: "POST", endpoint: "/cloud/v2/universes/1:publishMessage" }).decision, "allow");
   assert.equal(
     JSON.parse(
       spawnSync(process.execPath, [CLI_SCRIPT, "--open-cloud"], {

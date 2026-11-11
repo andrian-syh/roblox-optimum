@@ -2,14 +2,14 @@
 
 **roblox-optimum** has two parts that you can install together or separately:
 
-* **The standards**: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent that hold an AI agent to secure, server-authoritative, leak-free Luau.
+* **The standards**: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), the `roblox-auditor` review subagent, and the `roblox-scout` search subagent, which hold an AI agent to secure, server-authoritative, leak-free Luau.
 * **The checker**: a zero-dependency Node.js CLI and MCP server (`2026-07-28` and `2025-11-25`) that checks Luau for deprecated APIs, out-of-order sections, loops that freeze their thread, and members used on the wrong side.
 
 | Component | What it installs | Scope |
 |---|---|---|
 | `rules` | `AGENTS.md` and each agent's own rule file | project |
 | `skills` | The `best-practices`, `code-review`, `diagnose`, `studio-ops`, and `publishing` skills | project or machine |
-| `agent` | The `roblox-auditor` review subagent (for hosts that support Markdown subagents) | project or machine |
+| `agent` | The `roblox-auditor` review subagent and the `roblox-scout` search subagent (for hosts that support Markdown subagents) | project or machine |
 | `hook` | A Git pre-commit hook, and Kiro's project file hook | project |
 | MCP server | `check_luau`, `explain_finding`, `get_standards`, `classify_open_cloud_call`, and reference resources | machine |
 
@@ -57,7 +57,7 @@ Select your agent below to view its supported components, exact file locations, 
 <details>
 <summary><strong>Claude Code</strong></summary>
 
-The marketplace plugin installs all five skills, the `roblox-auditor` subagent, the MCP server, and hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse`).
+The marketplace plugin installs all five skills, the `roblox-auditor` and `roblox-scout` subagents, the MCP server, and hooks (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, and `PostToolUse`).
 
 ### Install
 
@@ -177,7 +177,7 @@ Antigravity opens each MCP session with a `server/discover` request (MCP `2026-0
 <details>
 <summary><strong>Cursor</strong></summary>
 
-The plugin installs into `~/.cursor/plugins/local/roblox-optimum` and carries the five skills, the read-only `roblox-auditor` subagent, the rules, the MCP server, and a `postToolUse` hook that checks Luau files after `Write`.
+The plugin installs into `~/.cursor/plugins/local/roblox-optimum` and carries the five skills, the read-only `roblox-auditor` and `roblox-scout` subagents, the rules, the MCP server, and a `postToolUse` hook that checks Luau files after `Write`.
 
 ### Install
 
@@ -242,7 +242,7 @@ The Codex plugin carries the five skills, the hooks (`SessionStart`, `UserPrompt
 | MCP server | The plugin, or `[mcp_servers.roblox-optimum]` in `~/.codex/config.toml` without it | machine |
 
 > **Limitations in Codex:**
-> * The installer does **not** install `roblox-auditor` for Codex because Codex requires subagents in TOML format with a `developer_instructions` field. Use the `code-review` skill instead.
+> * The installer does **not** install the subagents (`roblox-auditor`, `roblox-scout`) for Codex because Codex requires subagents in TOML format with a `developer_instructions` field. Use the `code-review` skill instead.
 > * Codex reads skills from `.agents/skills` and `$HOME/.agents/skills` (it does not read `.codex/skills`).
 > * Files under `~/.codex/rules/` are Codex sandbox policies, not project coding rules.
 
@@ -325,7 +325,7 @@ npx roblox-optimum install --global
 | Component | Location written by `install --global` |
 |---|---|
 | Skills | `~/.copilot/skills/` |
-| Subagent | `~/.copilot/agents/roblox-auditor.agent.md` |
+| Subagents | `~/.copilot/agents/roblox-auditor.agent.md` and `roblox-scout.agent.md` |
 | MCP server | `~/.copilot/mcp-config.json` |
 | Hook | `~/.copilot/hooks/roblox-optimum.json` (`powershell` on Windows, `bash` elsewhere) |
 
@@ -354,7 +354,7 @@ npx roblox-optimum doctor --global
 | Component | Location | Scope |
 |---|---|---|
 | Skills | `~/.kiro/skills/`, or `.kiro/skills/` in a project | machine or project |
-| Subagent | `~/.kiro/agents/roblox-auditor.md` | machine |
+| Subagents | `~/.kiro/agents/roblox-auditor.md` and `roblox-scout.md` | machine |
 | MCP server | `~/.kiro/settings/mcp.json` | machine |
 | Steering | `.kiro/steering/roblox-optimum.md` (loaded on every request) | project |
 | Hook | `.kiro/hooks/roblox-optimum.json` (`PostFileSave` and `PostFileCreate`) | project |
@@ -399,7 +399,7 @@ An OpenCode plugin is a JavaScript module of event hooks and cannot carry skills
 | Component | Location | Scope |
 |---|---|---|
 | Skills | `~/.config/opencode/skills/`, or `~/.agents/skills/` when Codex copies exist | machine |
-| Subagent | `~/.config/opencode/agents/roblox-auditor.md` (`mode: subagent`, read-only `permission` map) | machine |
+| Subagents | `~/.config/opencode/agents/roblox-auditor.md` and `roblox-scout.md` (`mode: subagent`, read-only `permission` map) | machine |
 | MCP server | `~/.config/opencode/opencode.json` (or `opencode.jsonc`) | machine |
 | Rules | `AGENTS.md` in the project root | project |
 
@@ -438,12 +438,12 @@ npx roblox-optimum uninstall rules
 <details>
 <summary><strong>Qwen Code</strong></summary>
 
-Qwen Code reads this repository as an Agent Plugins extension (`~/.qwen/extensions/roblox-optimum/`), which carries the **skills** and **MCP server** only. Use the installer to add the `roblox-auditor` subagent and project rules, and add the hook in `settings.json`.
+Qwen Code reads this repository as an Agent Plugins extension (`~/.qwen/extensions/roblox-optimum/`), which carries the **skills** and **MCP server** only. Use the installer to add the `roblox-auditor` and `roblox-scout` subagents and project rules, and add the hook in `settings.json`.
 
 | Component | Location | Scope |
 |---|---|---|
 | Skills | The extension, `~/.qwen/skills/`, or `.qwen/skills/` | machine or project |
-| Subagent | `~/.qwen/agents/roblox-auditor.md`, or `.qwen/agents/` (written with Qwen tool IDs) | machine or project |
+| Subagents | `~/.qwen/agents/roblox-auditor.md` and `roblox-scout.md`, or `.qwen/agents/` (written with Qwen tool IDs) | machine or project |
 | MCP server | The extension, or `mcpServers` in `~/.qwen/settings.json` | machine or project |
 | Hook | `hooks` in `~/.qwen/settings.json` or `.qwen/settings.json` (manual) | machine or project |
 | Rules | `AGENTS.md` or `QWEN.md` in the project root | project |
@@ -517,7 +517,7 @@ The Cline extension and Cline CLI share `~/.cline/`.
 | Hook | `~/.cline/hooks/PostToolUse` (or `PostToolUse.ps1` on Windows) | machine |
 
 > **Notes:**
-> * Cline does not support a separate subagent file, so `roblox-auditor` is not installed for Cline.
+> * Cline does not support a separate subagent file, so `roblox-auditor` and `roblox-scout` are not installed for Cline.
 > * Cline runs a single script per hook event. If you already have a custom `PostToolUse` hook script, the installer leaves it alone and reports it.
 > * If the MCP server does not appear in the VS Code extension automatically, add it under **MCP Servers** > **Configure** in the Cline panel.
 
@@ -561,7 +561,7 @@ Windsurf is now Devin Desktop, and its default agent (Devin Local) imports Winds
 | MCP server | `~/.config/devin/mcp_config.json` (`%APPDATA%\devin\mcp_config.json` on Windows), `~/.codeium/windsurf/mcp_config.json`, or `~/.codeium/mcp_config.json` | machine |
 
 > **Limitations in Windsurf:**
-> * Windsurf does not support a subagent file (`roblox-auditor`) and Cascade hooks only return output to the agent when blocking an action before it runs, so no Windsurf agent hook is installed. Use the [pre-commit hook](#add-the-pre-commit-hook) or [CI](#run-the-checker-in-ci) instead.
+> * Windsurf does not support a subagent file (`roblox-auditor`, `roblox-scout`) and Cascade hooks only return output to the agent when blocking an action before it runs, so no Windsurf agent hook is installed. Use the [pre-commit hook](#add-the-pre-commit-hook) or [CI](#run-the-checker-in-ci) instead.
 > * Keep rules in the project workspace rather than `~/.codeium/windsurf/memories/global_rules.md`.
 
 ### Install
@@ -600,7 +600,7 @@ The Qoder IDE and Qoder CLI share `~/.qoder/`.
 | Component | Location | Scope |
 |---|---|---|
 | Skills | `~/.qoder/skills/`, or `.qoder/skills/` in a project | machine or project |
-| Subagent | `~/.qoder/agents/roblox-auditor.md`, or `.qoder/agents/` | machine or project |
+| Subagents | `~/.qoder/agents/roblox-auditor.md` and `roblox-scout.md`, or `.qoder/agents/` | machine or project |
 | Rules | `.qoder/rules/roblox-optimum.md` | project |
 | MCP server | `mcpServers` in `~/.qoder/settings.json` | machine |
 | Hook | `hooks` in `~/.qoder/settings.json` or `.qoder/settings.json` (manual) | machine or project |
@@ -694,7 +694,7 @@ To install specific components:
 ```bash
 npx roblox-optimum install rules     # AGENTS.md and detected agent rule files
 npx roblox-optimum install skills    # the five skills, into the directories your project has
-npx roblox-optimum install agent     # the roblox-auditor subagent (.claude/agents and .github/agents)
+npx roblox-optimum install agent     # the roblox-auditor and roblox-scout subagents (.claude/agents and .github/agents)
 npx roblox-optimum install hook      # the Git pre-commit hook
 ```
 

@@ -17,7 +17,7 @@ Roblox and Luau standards for AI agents, paired with a deterministic static chec
 
 roblox-optimum holds AI coding agents to production Roblox Luau standards and checks the code they write. It has two parts:
 
-- The standards: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), and the `roblox-auditor` review subagent covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. It works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
+- The standards: rules, five skills (`best-practices`, `code-review`, `diagnose`, `studio-ops`, `publishing`), the `roblox-auditor` review subagent, and the `roblox-scout` search subagent, covering server authority, memory leaks, lifecycle safety, data persistence, and file layout. It works with Claude Code, Antigravity, Cursor, Codex, GitHub Copilot, Kiro, OpenCode, Qwen Code, Cline, Windsurf, Qoder, and any agent that reads `AGENTS.md`.
 - The checker: a zero-dependency Node.js CLI and Dual-Era MCP server (`2026-07-28` and `2025-11-25`) that runs as an agent hook, a Git pre-commit hook, or a CI step.
 
 ## Contents
@@ -89,7 +89,11 @@ The standards reach your agent in three ways:
 | `studio-ops` | Work with Studio MCP, sync tools (Script Sync, Rojo, Argon, Azul), and playtests. |
 | `publishing` | Plan the launch, store listing, discovery, ads, and live ops, and check what Roblox policy allows. |
 
-`roblox-auditor` is a read-only subagent (installed for hosts that support Markdown subagents) that audits an entire repository in an isolated context window and returns a 1 to 5 scorecard across security, lifecycle safety, performance, networking, data safety, and structure.
+`roblox-auditor` is a read-only subagent (installed for hosts that support Markdown subagents) that audits an entire repository in an isolated context window and returns a 1 to 5 scorecard across security, lifecycle safety, performance, networking, data safety, and structure. It can also give a finished change that touches money, saved data, or remotes an independent second read. In Claude Code it runs on the Sonnet model.
+
+`roblox-scout` is a read-only subagent that locates code (remote handlers, data store calls, entry points, callers) and returns paths and lines in place of file contents. In Claude Code it runs on the Haiku model, so a wide search costs little and stays out of the main conversation.
+
+The hooks suggest these subagents when a request fits them, but the host decides whether the agent follows the suggestion. Some hosts tell their agent to start a subagent only when the user asks. To be sure a subagent runs, name it in the request, for example "use roblox-scout to find every remote handler".
 
 ### Supervision level
 

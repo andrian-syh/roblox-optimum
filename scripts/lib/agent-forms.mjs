@@ -9,12 +9,14 @@ export const DERIVED_AGENT = "<!-- Generated from the agent of the same name. Ed
 
 /**
  * The front matter of an agent file, read key by key, and the body under it. Every host
- * documents keys of its own, so the body is what travels and the head is written per host.
+ * documents keys of its own, so the body travels and the head is written per host.
+ * Only Claude Code fills in the plugin root, so the rest get the path under it.
  */
 function splitFront(text) {
   const close = text.startsWith("---") ? text.indexOf("\n---", 3) : -1;
   const head = close === -1 ? "" : text.slice(4, close);
-  const body = close === -1 ? text : text.slice(text.indexOf("\n", close + 1) + 1);
+  const whole = close === -1 ? text : text.slice(text.indexOf("\n", close + 1) + 1);
+  const body = whole.replaceAll("${CLAUDE_PLUGIN_ROOT}/", "");
 
   const read = (key) =>
     head
@@ -68,8 +70,12 @@ export function forCursor(text) {
  * the list is missing, so App and IDE read-only tools are named. It runs only as a subagent,
  * and with commands off, since an audit never executes.
  */
-export function forAntigravity(text) {
-  const { read, body } = splitFront(text);
+export function forAntigravity(text, root) {
+  const { read, body } = splitFront(
+    typeof root === "string" && root.length > 0
+      ? text.replaceAll("${CLAUDE_PLUGIN_ROOT}", root.replace(/\\/g, "/").replace(/\/+$/, ""))
+      : text,
+  );
   const front = [
     "---",
     `name: ${read("name")}`,

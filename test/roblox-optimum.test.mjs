@@ -612,11 +612,19 @@ Players.PlayerAdded:Connect(greet)
   );
   ok(copilot.includes("name: roblox-auditor"), "the Copilot agent keeps its name");
   ok(
+    !copilot.includes("CLAUDE_PLUGIN_ROOT") && copilot.includes("`skills/best-practices/references/`"),
+    "a host that does not fill in the plugin root gets the path under it",
+  );
+  ok(
     copilot.includes("description: Audits a whole Roblox project"),
     "the Copilot agent keeps its whole description",
   );
   ok(copilot.includes('tools: ["read", "search"]'), "the Copilot agent keeps to the read-only tool aliases");
   const antigravity = forAntigravity(readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8"));
+  const antigravityRooted = forAntigravity(
+    readFileSync(join(PACKAGE_ROOT, "agents", "roblox-auditor.md"), "utf8"),
+    "C:\\Users\\you\\.gemini\\config\\plugins\\roblox-optimum",
+  );
   ok(
     antigravity.includes('tools: ["read_file", "view_file", "list_dir", "find_by_name", "grep_search"]') &&
       antigravity.includes("mainAgent: false") &&
@@ -625,6 +633,12 @@ Players.PlayerAdded:Connect(greet)
       antigravity.includes("commandExecutionPolicy: off") &&
       !antigravity.includes("skills:"),
     "the Antigravity agent names its read-only tools natively",
+  );
+  ok(
+    !antigravity.includes("CLAUDE_PLUGIN_ROOT") &&
+      antigravity.includes("`skills/best-practices/references/`") &&
+      antigravityRooted.includes("`C:/Users/you/.gemini/config/plugins/roblox-optimum/skills/best-practices/references/`"),
+    "the Antigravity agent replaces CLAUDE_PLUGIN_ROOT with a forward-slash plugin root when given and strips it otherwise",
   );
   ok(!copilot.includes("skills:"), "the Copilot agent drops a key Copilot does not read");
   ok(copilot.includes("You audit Roblox projects"), "the Copilot agent keeps its body");
@@ -793,6 +807,14 @@ Players.PlayerAdded:Connect(greet)
   let secondStop = "";
   process.stdout.write = (text) => ((secondStop += text), true);
   stopAntigravity(stopConv);
+  appendFileSync(pendingFile(stopConv, "-touched"), `${brokenLuau}\n`);
+  let ideStop = "";
+  process.stdout.write = (text) => ((ideStop += text), true);
+  stopAntigravity({ conversationId: stopConv.conversationId, terminationReason: "model_stop" });
+  appendFileSync(pendingFile(stopConv, "-touched"), `${brokenLuau}\n`);
+  let canceledStop = "";
+  process.stdout.write = (text) => ((canceledStop += text), true);
+  stopAntigravity({ conversationId: stopConv.conversationId, terminationReason: "USER_CANCELED" });
   process.stdout.write = written;
   rmSync(pendingFile(stopConv, "-touched"), { force: true });
   rmSync(pendingFile(stopConv, "-stopped"), { force: true });
@@ -800,8 +822,10 @@ Players.PlayerAdded:Connect(greet)
   ok(
     JSON.parse(stopOut).decision === "continue" &&
       JSON.parse(stopOut).reason.includes("task.wait") &&
-      secondStop === "{}",
-    "the Antigravity Stop hook continues once for a broken file and lets the second stop through",
+      secondStop === "{}" &&
+      JSON.parse(ideStop).decision === "continue" &&
+      canceledStop === "{}",
+    "the Antigravity Stop hook continues once for NO_TOOL_CALL or model_stop and ignores other reasons",
   );
 
   ok(
@@ -816,13 +840,17 @@ Players.PlayerAdded:Connect(greet)
         resolve("/ag", "src/b.luau"),
     "an Antigravity payload resolves a relative path against workspacePaths across App and IDE write tools",
   );
-  const agHooks = PLUGIN_HOOKS.antigravity("node scripts/roblox-optimum.mjs")[PLUGIN];
+  const agHooks = JSON.parse(readFileSync(join(PACKAGE_ROOT, "hooks.json"), "utf8"))[PLUGIN];
   ok(
     agHooks.SessionStart[0].command === "node scripts/roblox-optimum.mjs --session" &&
-      agHooks.PreToolUse[0].matcher === "call_mcp_tool" &&
+      agHooks.PreToolUse[0].matcher === "call_mcp_tool|mcp_.+_open_cloud_invoke" &&
       agHooks.PostToolUse[0].matcher.includes("write_file") &&
       agHooks.Stop[0].command === "node scripts/roblox-optimum.mjs --hook antigravity",
     "the Antigravity plugin hook covers SessionStart, Open Cloud PreToolUse, App and IDE PostToolUse, PreInvocation, and Stop",
+  );
+  ok(
+    PLUGIN_HOOKS.antigravity("node x")[PLUGIN].PreToolUse[0].matcher === agHooks.PreToolUse[0].matcher,
+    "an installed Antigravity plugin gates Open Cloud with the same matcher as the shipped hooks.json",
   );
   ok(
     inspect(good.replace("print(player.Name)", "TeleportService:ReserveServer(123)")).some((p) =>

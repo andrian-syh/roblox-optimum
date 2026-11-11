@@ -3,7 +3,7 @@ name: publishing
 description: "Plans and checks how a Roblox experience reaches players, outside the code: store listing, icon, thumbnails and video, Recommended for You and the other discovery surfaces, the maturity questionnaire and Roblox Kids and Select age tiers, launch readiness, Ads Manager, experience events and notifications, reading retention and revenue analytics, update cadence, and the marketing Roblox forbids. Use whenever the user asks how to launch, promote, market, or grow a game, why impressions or players fell, what a title or thumbnail should be, or whether a growth idea breaks platform policy, even when no code is involved. Hand-offs: writing or changing Luau, including analytics events and odds disclosure, goes to the best-practices skill, judging existing code to the code-review skill, broken game behaviour to the diagnose skill, Studio tooling, sync, and playtests to the studio-ops skill."
 license: MIT
 metadata:
-  version: "1.18.1"
+  version: "1.19.0"
 ---
 
 # Roblox Publishing and Live Ops

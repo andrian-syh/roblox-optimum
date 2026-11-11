@@ -106,7 +106,7 @@ export function injectPending(payload) {
  * with findings. A clean stop clears the record, so the next turn starts fresh.
  */
 export function stopAntigravity(payload) {
-  if (payload?.terminationReason !== "NO_TOOL_CALL") {
+  if (payload?.terminationReason !== "NO_TOOL_CALL" && payload?.terminationReason !== "model_stop") {
     process.stdout.write("{}");
     return 0;
   }
@@ -211,6 +211,16 @@ const SKILL_CHOICES =
   "publishing for launch, store listing, discovery, ads, and live ops";
 
 /**
+ * Which work leaves the main conversation, for a host that lists the agents. Edits and
+ * decisions stay behind, where the context that justifies them is.
+ */
+const DELEGATION =
+  "Where the roblox-scout and roblox-auditor agents are listed: hand a code search that needs " +
+  "more than three reads to roblox-scout, and hand roblox-auditor a whole-project audit, or a " +
+  "second read of a finished change that touches money, saved data, or remotes. Keep every " +
+  "edit and every decision in this conversation.";
+
+/**
  * What a session opening in a Roblox project is told, so the skills load on requests that
  * never name them, and the user learns once that they did.
  */
@@ -218,8 +228,8 @@ const SESSION_START =
   "This is a Roblox project and roblox-optimum is installed. Before answering any Luau or " +
   "game request, load the roblox-optimum skill that fits it, even when the user never names " +
   `it: ${SKILL_CHOICES}. After editing Luau, run check_luau on it when the roblox-optimum MCP ` +
-  "server is connected. The first time roblox-optimum shapes an answer, tell the user in one " +
-  "line that its standards were applied.";
+  `server is connected. ${DELEGATION} The first time roblox-optimum shapes an answer, tell the ` +
+  "user in one line that its standards were applied.";
 
 /** What a summarized session is told, since the rules it had loaded do not survive a summary. */
 const AFTER_SUMMARY =
@@ -316,15 +326,18 @@ function toolArguments(args) {
 export async function runOpenCloudGate() {
   const payload = await readPayload();
   const antigravity = payload?.toolCall !== undefined;
-  if (
-    process.env.ROBLOX_OPTIMUM === "off" ||
-    (antigravity && payload.toolCall?.args?.ToolName !== "open_cloud_invoke")
-  ) {
+  const name = payload?.toolCall?.name ?? "";
+  const eager = /^mcp_.+_open_cloud_invoke$/.test(name);
+  const openCloud =
+    (name === "call_mcp_tool" && payload?.toolCall?.args?.ToolName === "open_cloud_invoke") || eager;
+  if (process.env.ROBLOX_OPTIMUM === "off" || (antigravity && !openCloud)) {
     if (antigravity) process.stdout.write('{"decision":"allow"}');
     return 0;
   }
 
-  const input = toolArguments(antigravity ? payload.toolCall?.args?.Arguments : payload?.tool_input);
+  const input = toolArguments(
+    antigravity ? (eager ? payload.toolCall?.args?.Arguments ?? payload.toolCall?.args : payload.toolCall?.args?.Arguments) : payload?.tool_input,
+  );
   const verdict = decide(input, payloadRoot(payload));
   if (verdict === undefined) {
     if (antigravity) process.stdout.write('{"decision":"allow"}');
@@ -347,6 +360,12 @@ export async function runOpenCloudGate() {
   return 0;
 }
 
+/** What a request that must first find code is told, at the moment the search would start. */
+const SCOUT_FIRST =
+  "This request starts with a search across the project. Where the roblox-scout agent is " +
+  "listed, hand the search to it first, then open only the lines its table names, unless the " +
+  "files are already named or the source lives only in Studio.";
+
 /** The instruction that points a routed prompt at the skill it needs. */
 function routeMessage(route) {
   return route.skill === null
@@ -367,6 +386,7 @@ export async function runPromptRoute() {
   const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
-  addContext("UserPromptSubmit", `${routeMessage(route)} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
+  const scout = route.search ? ` ${SCOUT_FIRST}` : "";
+  addContext("UserPromptSubmit", `${routeMessage(route)}${scout} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
   return 0;
 }

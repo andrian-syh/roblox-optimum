@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-11
+
+Subagents that each run on a model sized to their job, and hooks that send searches and second reads to them. Edits and decisions stay in the main conversation.
+
+### Added
+
+- Added the `roblox-scout` subagent. It locates remote handlers, data store calls, purchases, lifecycle hooks, and callers, and returns paths and lines in place of file contents. It judges nothing. In Claude Code it runs on the Haiku model.
+- Added a second-read mode to `roblox-auditor`. It re-reads a finished change that touches money, saved data, or remotes in a fresh context, treats the change summary as a claim to check, and returns findings without scores.
+- Added delegation guidance to the session-start context: a code search that needs more than three reads goes to `roblox-scout`, and a whole-project audit or a second read goes to `roblox-auditor`.
+- Added a prompt-routing hint that names `roblox-scout` when a request starts with a search across the project, such as "where is", "trace", or "what calls".
+
+### Changed
+
+- Changed `roblox-auditor` to run on the Sonnet model in Claude Code.
+- Changed the Antigravity Open Cloud gate to also catch eagerly loaded MCP tools named `mcp_<server>_open_cloud_invoke`, in both the shipped `hooks.json` and the installed plugin.
+
+### Fixed
+
+- Fixed `roblox-auditor` never reading the false-positive catalog. The agent did not know where the shared references live. It now reads them from the plugin root in Claude Code, from the absolute install path in the Antigravity plugin, and from the relative path in other hosts.
+- Fixed the prompt router sending requests about an agent's own harness, plugin, hooks, skills, or subagents to the Luau skills.
+- Fixed the end-of-turn check never running in the Antigravity IDE, which reports a normal stop as `model_stop`.
+
 ## [1.18.1] - 2026-11-08
 
 ### Fixed
@@ -691,7 +713,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.16.0...v1.17.0

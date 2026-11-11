@@ -99,7 +99,7 @@ export const PLUGIN_HOOKS = {
       SessionStart: [{ type: "command", command: `${command} --session`, timeout: 10 }],
       PreToolUse: [
         {
-          matcher: "call_mcp_tool",
+          matcher: "call_mcp_tool|mcp_.+_open_cloud_invoke",
           hooks: [{ type: "command", command: `${command} --open-cloud`, timeout: 10 }],
         },
       ],

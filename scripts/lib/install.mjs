@@ -268,7 +268,7 @@ function installPlugin(root, route, force, report) {
 
   for (const name of route.agents === undefined ? [] : readdirSync(join(dir, "agents"))) {
     const file = join(dir, "agents", name);
-    writeFileSync(file, AGENT_FORMS[route.agents](readFileSync(file, "utf8").replace(/\r\n/g, "\n")));
+    writeFileSync(file, AGENT_FORMS[route.agents](readFileSync(file, "utf8").replace(/\r\n/g, "\n"), dir));
   }
 
   const command =
