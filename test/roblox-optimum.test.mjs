@@ -40,7 +40,7 @@ import {
   writeAtomic,
 } from "../scripts/lib/currency-sync.mjs";
 import { condition, places, registrations, removeMcp } from "../scripts/lib/doctor.mjs";
-import { CLINE_WRITES, injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
+import { antigravityStep, CLINE_WRITES, injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
 import {
   COPY_HOOKS,
   EARLIER_BODIES,
@@ -790,10 +790,26 @@ Players.PlayerAdded:Connect(greet)
   });
   process.stdout.write = written;
   ok(
-    injected.startsWith('{"injectSteps":[{"ephemeralMessage":"finding"}]}{}') &&
+    injected.startsWith('{"injectSteps":[{"systemMessage":{"systemMessage":"finding"}}]}{}') &&
       injected.includes("roblox-optimum:diagnose") &&
       injected.endsWith("{}"),
     "Antigravity PreInvocation injects stored findings once and routes lastUserInput only on invocationNum 0",
+  );
+  let searched = "";
+  process.stdout.write = (text) => ((searched += text), true);
+  injectPending({
+    conversationId: `search-${process.pid}`,
+    invocationNum: 0,
+    lastUserInput: "where is the DataStore save handled?",
+    workspacePaths: [PACKAGE_ROOT],
+  });
+  process.stdout.write = written;
+  ok(searched.includes("roblox-scout"), "Antigravity PreInvocation names the scout when a request starts with a search");
+  ok(
+    antigravityStep({ transcriptPath: "C:/u/.gemini/antigravity/brain/x/t.jsonl" }, "a").systemMessage?.systemMessage === "a" &&
+      antigravityStep({ transcriptPath: "C:/u/.gemini/antigravity-cli/brain/x/t.jsonl" }, "a").systemMessage?.systemMessage === "a" &&
+      antigravityStep({ transcriptPath: "C:\\u\\.gemini\\antigravity-ide\\x\\t.jsonl" }, "a").ephemeralMessage === "a",
+    "Antigravity 2.0 and the CLI get a system message the model reads, and the IDE keeps the only shape it documents",
   );
 
   const stopDir = mkdtempSync(join(tmpdir(), "roblox-optimum-stop-"));

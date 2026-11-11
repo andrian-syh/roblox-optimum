@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-11-11
+
+### Fixed
+
+- Fixed Antigravity 2.0 and the Antigravity CLI never showing roblox-optimum's hook text to the model. The hooks sent `ephemeralMessage` steps, which Antigravity 2.0 hides from the model, so the skill routing, the delegation guidance, and the checker's findings never arrived. They now send `systemMessage` steps. The Antigravity IDE keeps `ephemeralMessage`, the only shape it documents.
+- Fixed the Antigravity prompt hook leaving out the `roblox-scout` hint that Claude Code receives. Both hosts now build the routed line from one function.
+
 ## [1.19.0] - 2026-11-11
 
 Subagents that each run on a model sized to their job, and hooks that send searches and second reads to them. Edits and decisions stay in the main conversation.
@@ -713,7 +720,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...HEAD
+[1.19.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.17.0...v1.18.0

@@ -84,7 +84,7 @@ function promptLine(payload) {
   if (payload?.invocationNum !== 0 || typeof payload?.lastUserInput !== "string") return "";
 
   const route = routePrompt(payload.lastUserInput, isRobloxProject(payloadRoot(payload)));
-  return route === null ? "" : `${routeMessage(route)} Mention roblox-optimum to the user the first time it shapes an answer.`;
+  return route === null ? "" : routeMessage(route);
 }
 
 /** Injects and clears the findings stored for this conversation, as PreInvocation reads them. */
@@ -96,7 +96,7 @@ export function injectPending(payload) {
     rmSync(file, { force: true });
   } catch {}
   const routed = promptLine(payload);
-  const steps = [routed, text].filter(Boolean).map((ephemeralMessage) => ({ ephemeralMessage }));
+  const steps = [routed, text].filter(Boolean).map((line) => antigravityStep(payload, line));
   process.stdout.write(JSON.stringify(steps.length > 0 ? { injectSteps: steps } : {}));
   return 0;
 }
@@ -246,10 +246,19 @@ async function readPayload() {
   }
 }
 
+/**
+ * One Antigravity step that the model reads. Antigravity 2.0 hides the old ephemeral step from
+ * the model, while the IDE documents no other shape, so the IDE alone keeps it.
+ */
+export function antigravityStep(payload, text) {
+  const path = `${payload?.transcriptPath ?? ""} ${payload?.artifactDirectoryPath ?? ""}`;
+  return /antigravity-ide[\\/]/.test(path) ? { ephemeralMessage: text } : { systemMessage: { systemMessage: text } };
+}
+
 /** Prints context in the shape the calling host adds to the conversation. */
 function addContext(event, text, payload) {
   const out = Array.isArray(payload?.workspacePaths)
-    ? { injectSteps: [{ ephemeralMessage: text }] }
+    ? { injectSteps: [antigravityStep(payload, text)] }
     : { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
   process.stdout.write(JSON.stringify(out));
 }
@@ -366,11 +375,17 @@ const SCOUT_FIRST =
   "listed, hand the search to it first, then open only the lines its table names, unless the " +
   "files are already named or the source lives only in Studio.";
 
-/** The instruction that points a routed prompt at the skill it needs. */
+/**
+ * The instruction that points a routed prompt at the skill it needs, and at the scout when it
+ * starts with a search. Every host's prompt hook sends this same line.
+ */
 function routeMessage(route) {
-  return route.skill === null
-    ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
-    : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
+  const skill =
+    route.skill === null
+      ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
+      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
+  const scout = route.search ? ` ${SCOUT_FIRST}` : "";
+  return `${skill}${scout} Mention roblox-optimum to the user the first time it shapes an answer.`;
 }
 
 /**
@@ -386,7 +401,6 @@ export async function runPromptRoute() {
   const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
-  const scout = route.search ? ` ${SCOUT_FIRST}` : "";
-  addContext("UserPromptSubmit", `${routeMessage(route)}${scout} Mention roblox-optimum to the user the first time it shapes an answer.`, payload);
+  addContext("UserPromptSubmit", routeMessage(route), payload);
   return 0;
 }
