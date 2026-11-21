@@ -1,0 +1,23 @@
+{
+  "artifactDirectoryPath": "__HOME__/.gemini/antigravity-cli/brain/00000000-0000-4000-8000-000000000000",
+  "conversationId": "00000000-0000-4000-8000-000000000000",
+  "cwd": "__PROJECT__",
+  "error": "",
+  "hookEventName": "PostToolUse",
+  "lastUserInput": "Create the file src/Coins.server.luau containing exactly: print(1)",
+  "modelName": "gemini-4-hydrogen-low",
+  "stepIdx": 6,
+  "toolCall": {
+    "args": {
+      "Content": "print(1)",
+      "Overwrite": true,
+      "Path": "__PROJECT__/src/Coins.server.luau"
+    },
+    "id": "call_fixture",
+    "name": "write_file"
+  },
+  "transcriptPath": "__HOME__/.gemini/antigravity-cli/brain/00000000-0000-4000-8000-000000000000/.system_generated/logs/transcript_full.jsonl",
+  "workspacePaths": [
+    "__PROJECT__"
+  ]
+}

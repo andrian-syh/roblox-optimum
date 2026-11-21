@@ -1,0 +1,26 @@
+{
+  "artifactDirectoryPath": "__HOME__/.gemini/antigravity-cli/brain/00000000-0000-4000-8000-000000000000",
+  "conversationId": "00000000-0000-4000-8000-000000000000",
+  "cwd": "__PROJECT__",
+  "hookEventName": "PreToolUse",
+  "lastUserInput": "Call call_mcp_tool with ServerName Roblox_Studio, ToolName open_cloud_invoke, Arguments {method: GET, endpoint: /cloud/v2/universes/1, studio_id: 0}. Report the result or error.",
+  "modelName": "gemini-4-hydrogen-low",
+  "stepIdx": 4,
+  "toolCall": {
+    "args": {
+      "Arguments": {
+        "endpoint": "/cloud/v2/universes/1",
+        "method": "GET",
+        "studio_id": 0
+      },
+      "ServerName": "Roblox_Studio",
+      "ToolName": "open_cloud_invoke"
+    },
+    "id": "call_fixture",
+    "name": "call_mcp_tool"
+  },
+  "transcriptPath": "__HOME__/.gemini/antigravity-cli/brain/00000000-0000-4000-8000-000000000000/.system_generated/logs/transcript_full.jsonl",
+  "workspacePaths": [
+    "__PROJECT__"
+  ]
+}

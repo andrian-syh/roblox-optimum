@@ -23,7 +23,8 @@ export { agentAs, forAntigravity, forCopilot, forCursor, forKiro, forOpenCode, f
 export { CONTEXT_ERRORS, DEPRECATED, EXPLANATIONS, HAZARDS } from "./lib/catalog.mjs";
 export { checkBatch, checkFile, inspect } from "./lib/checker.mjs";
 export { condition, places } from "./lib/doctor.mjs";
-export { injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "./lib/hooks.mjs";
+export { targetsFromPayload } from "./lib/hooks.mjs";
+export { injectPending, pendingFile, stopAntigravity } from "./lib/hosts/antigravity.mjs";
 export { COMPONENTS, namespaced, parseComponents, retitle, routeFor } from "./lib/install.mjs";
 export { order, ranAsScript, stamped, stampedFrom } from "./lib/package.mjs";
 export { isRobloxProject } from "./lib/project.mjs";

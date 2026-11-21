@@ -28,7 +28,16 @@ const FIELDS = {
     Object.keys(v).every((k) => ["skillTool", "subagents", "mcp"].includes(k)) &&
     Object.values(v).every((f) => typeof f === "boolean"),
   hookContext: (v) => typeof v === "function",
-  postWrite: (v) => isObject(v) && typeof v.emit === "function" && optional(v.accepts, (f) => typeof f === "function") && optional(v.quiet, isText),
+  legacyPayload: (v) => typeof v === "function",
+  postWrite: (v) =>
+    isObject(v) &&
+    (typeof v.run === "function" ||
+      (typeof v.emit === "function" && optional(v.accepts, (f) => typeof f === "function") && optional(v.quiet, isText))),
+  openCloud: (v) =>
+    isObject(v) &&
+    typeof v.read === "function" &&
+    typeof v.reply === "function" &&
+    optional(v.matches, (f) => typeof f === "function"),
   pluginHomes: isTextList,
   projectPluginHomes: isTextList,
   pluginRoute: (v) => isObject(v) && isText(v.dir) && isText(v.manifest) && optional(v.mcp, isText) && optional(v.hooksFile, isText) && optional(v.agents, isText) && optional(v.relativeCommand, (f) => f === true),

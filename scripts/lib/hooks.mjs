@@ -3,15 +3,12 @@
  * write, and on each prompt.
  */
 
-import { appendFileSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 
 import { checkFile, formatReport } from "./checker.mjs";
 import { triggerBackgroundSyncIfStale } from "./currency-sync.mjs";
-import { profileById } from "./hosts.mjs";
-import { antigravityStep } from "./hosts/antigravity.mjs";
 import { afterSummaryText, AFTER_STUDIO_EDIT, preWriteText, routeText, sessionStartText } from "./guidance.mjs";
+import { profileById, PROFILES } from "./hosts.mjs";
 import { decide } from "./open-cloud.mjs";
 import { CLI_SCRIPT, readStdin } from "./package.mjs";
 import { isRobloxProject } from "./project.mjs";
@@ -68,74 +65,6 @@ export function targetsFromPayload(payload) {
 }
 
 /**
- * Where Antigravity findings wait for the next model call. Its PostToolUse output is discarded,
- * so the check stores what it found and PreInvocation hands it to the agent.
- */
-export function pendingFile(payload, kind = "") {
-  const id = String(payload?.conversationId ?? "none").replace(/[^\w-]/g, "_");
-  return join(tmpdir(), `roblox-optimum-${id}${kind}.txt`);
-}
-
-/** The prompt a request routes to, when it arrives on the first PreInvocation of a turn. */
-function promptLine(payload) {
-  if (payload?.invocationNum !== 0 || typeof payload?.lastUserInput !== "string") return "";
-
-  const route = routePrompt(payload.lastUserInput, isRobloxProject(payloadRoot(payload)));
-  return route === null ? "" : routeText(route, profileById("antigravity").capabilities);
-}
-
-/** Injects and clears the findings stored for this conversation, as PreInvocation reads them. */
-export function injectPending(payload) {
-  const file = pendingFile(payload);
-  let text = "";
-  try {
-    text = readFileSync(file, "utf8");
-    rmSync(file, { force: true });
-  } catch {}
-  const routed = promptLine(payload);
-  const steps = [routed, text].filter(Boolean).map((line) => antigravityStep(payload, line));
-  process.stdout.write(JSON.stringify(steps.length > 0 ? { injectSteps: steps } : {}));
-  return 0;
-}
-
-/**
- * Checks the files this conversation wrote before the agent stops, and continues once per file
- * with findings. A clean stop clears the record, so the next turn starts fresh.
- */
-export function stopAntigravity(payload) {
-  if (payload?.terminationReason !== "NO_TOOL_CALL" && payload?.terminationReason !== "model_stop") {
-    process.stdout.write("{}");
-    return 0;
-  }
-
-  let lines = [];
-  try {
-    lines = readFileSync(pendingFile(payload, "-touched"), "utf8").split("\n").filter(Boolean);
-  } catch {}
-
-  let stopped = new Set();
-  try {
-    stopped = new Set(readFileSync(pendingFile(payload, "-stopped"), "utf8").split("\n").filter(Boolean));
-  } catch {}
-
-  const reports = [...new Set(lines)]
-    .filter((file) => !stopped.has(file))
-    .map(checkFile)
-    .filter((r) => r.status === "problems");
-
-  if (reports.length === 0) {
-    rmSync(pendingFile(payload, "-touched"), { force: true });
-    rmSync(pendingFile(payload, "-stopped"), { force: true });
-    process.stdout.write("{}");
-    return 0;
-  }
-
-  appendFileSync(pendingFile(payload, "-stopped"), `${reports.map((r) => r.path).join("\n")}\n`);
-  process.stdout.write(JSON.stringify({ decision: "continue", reason: formatReport(reports) }));
-  return 0;
-}
-
-/**
  * Checks the file the agent just wrote and prints what it must fix. Anything unreadable,
  * unrecognized, or outside Roblox passes without comment.
  */
@@ -149,10 +78,9 @@ export async function runPostToolUse(host) {
     return 0;
   }
 
-  if (host === "antigravity" && typeof payload.terminationReason === "string") return stopAntigravity(payload);
-  if (host === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
-
   const postWrite = profileById(host)?.postWrite;
+  if (postWrite?.run !== undefined) return postWrite.run(payload, targetsFromPayload);
+
   if (postWrite?.accepts !== undefined && !postWrite.accepts(payload)) {
     if (postWrite.quiet !== undefined) process.stdout.write(postWrite.quiet);
     return 0;
@@ -160,14 +88,6 @@ export async function runPostToolUse(host) {
 
   const results = targetsFromPayload(payload).map(checkFile);
   const reports = results.filter((r) => r.status === "problems");
-
-  if (host === "antigravity") {
-    const checked = results.filter((r) => r.status === "clean" || r.status === "problems").map((r) => r.path);
-    if (checked.length > 0) appendFileSync(pendingFile(payload, "-touched"), `${checked.join("\n")}\n`);
-    if (reports.length > 0) appendFileSync(pendingFile(payload), formatReport(reports));
-    process.stdout.write("{}");
-    return 0;
-  }
 
   if (reports.length === 0) {
     if (postWrite?.quiet !== undefined) process.stdout.write(postWrite.quiet);
@@ -198,10 +118,10 @@ async function readPayload() {
 
 /**
  * Prints context in the shape the named host adds to the conversation. A command installed before
- * hooks named their host is told apart by Antigravity's payload, the one other shape there was.
+ * hooks named their host falls back to any profile that recognizes the payload shape.
  */
 function addContext(event, text, payload, host) {
-  const profile = profileById(host ?? (Array.isArray(payload?.workspacePaths) ? "antigravity" : ""));
+  const profile = host === undefined ? PROFILES.find((p) => p.legacyPayload?.(payload)) : profileById(host);
   const out = profile?.hookContext?.(event, text, payload) ?? { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
   process.stdout.write(JSON.stringify(out));
 }
@@ -264,37 +184,38 @@ function toolArguments(args) {
  */
 export async function runOpenCloudGate(host) {
   const payload = await readPayload();
-  const antigravity = host === undefined ? payload?.toolCall !== undefined : host === "antigravity";
-  const name = payload?.toolCall?.name ?? "";
-  const eager = /^mcp_.+_open_cloud_invoke$/.test(name);
   const openCloud =
-    (name === "call_mcp_tool" && payload?.toolCall?.args?.ToolName === "open_cloud_invoke") || eager;
-  if (process.env.ROBLOX_OPTIMUM === "off" || (antigravity && !openCloud)) {
-    if (antigravity) process.stdout.write('{"decision":"allow"}');
+    host === undefined
+      ? PROFILES.find((p) => p.openCloud?.matches?.(payload))?.openCloud
+      : profileById(host)?.openCloud;
+
+  if (process.env.ROBLOX_OPTIMUM === "off") {
+    if (openCloud !== undefined) process.stdout.write(openCloud.reply(undefined));
     return 0;
   }
 
-  const input = toolArguments(
-    antigravity ? (eager ? payload.toolCall?.args?.Arguments ?? payload.toolCall?.args : payload.toolCall?.args?.Arguments) : payload?.tool_input,
-  );
-  const verdict = decide(input, payloadRoot(payload));
+  const read = openCloud === undefined ? { input: payload?.tool_input } : openCloud.read(payload);
+  if (read === null) {
+    process.stdout.write(openCloud.reply(undefined));
+    return 0;
+  }
+
+  const verdict = decide(toolArguments(read.input), payloadRoot(payload));
   if (verdict === undefined) {
-    if (antigravity) process.stdout.write('{"decision":"allow"}');
+    if (openCloud !== undefined) process.stdout.write(openCloud.reply(undefined));
     return 0;
   }
 
   process.stdout.write(
-    JSON.stringify(
-      antigravity
-        ? { decision: verdict.decision, reason: verdict.reason }
-        : {
-            hookSpecificOutput: {
-              hookEventName: "PreToolUse",
-              permissionDecision: verdict.decision,
-              permissionDecisionReason: verdict.reason,
-            },
+    openCloud !== undefined
+      ? openCloud.reply(verdict)
+      : JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: verdict.decision,
+            permissionDecisionReason: verdict.reason,
           },
-    ),
+        }),
   );
   return 0;
 }

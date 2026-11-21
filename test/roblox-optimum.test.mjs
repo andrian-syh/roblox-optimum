@@ -40,8 +40,8 @@ import {
   writeAtomic,
 } from "../scripts/lib/currency-sync.mjs";
 import { condition, places, registrations, removeMcp } from "../scripts/lib/doctor.mjs";
-import { injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
-import { antigravityStep } from "../scripts/lib/hosts/antigravity.mjs";
+import { targetsFromPayload } from "../scripts/lib/hooks.mjs";
+import { antigravityStep, injectPending, pendingFile, stopAntigravity } from "../scripts/lib/hosts/antigravity.mjs";
 import { CLINE_WRITES } from "../scripts/lib/hosts/cline.mjs";
 import {
   COPY_HOOKS,
