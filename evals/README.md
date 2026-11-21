@@ -37,8 +37,24 @@ only in English can fail to route a prompt that is not.
 
 ## Running a set
 
-Model behaviour is nondeterministic, so a single run proves nothing. Run each query about 3 times
-and compute a trigger rate; a query passes when its rate falls on the correct side of 0.5.
+`test/router.test.mjs` checks these queries against the hook's prompt router only. A host
+without a prompt hook picks a skill from its description alone, so measure that with the runner:
+
+```bash
+cd path/to/a/roblox/game
+node path/to/roblox-optimum/evals/run.mjs --skill diagnose          # one skill
+node path/to/roblox-optimum/evals/run.mjs --runs 3 --model sonnet   # every skill
+```
+
+It loads this checkout with `--plugin-dir`, switches roblox-optimum's hooks off with
+`ROBLOX_OPTIMUM=off`, gives the session only the `Skill` tool (plus your MCP servers with
+`--with-mcp`), and stops each session at its first
+tool call, so a query costs one model turn. Other installed plugins stay loaded, as they would for
+a user. It exits 1 when any query fails.
+
+Model behaviour is nondeterministic, so a single run is an indication, not proof. Run each query
+about 3 times and compute a trigger rate; a query passes when its rate falls on the correct side
+of 0.5. The single run below is what the runner does for each query:
 
 ```bash
 claude -p "<query>" --output-format stream-json --verbose \
@@ -48,8 +64,7 @@ claude -p "<query>" --output-format stream-json --verbose \
 ```
 
 Exit 0 means the skill was invoked. `--output-format json` returns only the final result, so it
-cannot show which skill ran. With 20 queries at 3 runs, that is 60 invocations per skill, so
-script it before running the full set.
+cannot show which skill ran. With 20 queries at 3 runs, that is 60 invocations per skill.
 
 ## Reading the result
 
