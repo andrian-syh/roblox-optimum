@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --pre-write",
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --pre-write --hook codex",
             "timeout": 10
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\"",
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --hook codex",
             "timeout": 10
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --session",
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --session --hook codex",
             "timeout": 10
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --compact",
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --compact --hook codex",
             "timeout": 10
           }
         ]
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --prompt",
+            "command": "node \"${PLUGIN_ROOT}/scripts/roblox-optimum.mjs\" --prompt --hook codex",
             "timeout": 10
           }
         ]

@@ -85,6 +85,12 @@ export function isDirectory(path) {
 /** How this plugin names what it carries, which a standalone copy has no way to say. */
 export const PLUGIN = "roblox-optimum";
 
+/** How a host starts the checker from a hook, without a global install to depend on. */
+export const HOOK_COMMAND = `npx -y -p ${PLUGIN}@latest ${PLUGIN}`;
+
+/** The npx arguments that start the MCP server, for a host that registers it by command. */
+export const MCP_NPX_ARGS = Object.freeze(["-y", "-p", `${PLUGIN}@latest`, "roblox-mcp"]);
+
 /** What a standalone copy is called instead, matching the agent that already ships. */
 export const PREFIX = "roblox-";
 

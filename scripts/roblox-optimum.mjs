@@ -13,7 +13,8 @@ import { overlayPath, SKIP_REASON } from "./lib/catalog.mjs";
 import { checkBatch, formatReport } from "./lib/checker.mjs";
 import { syncCurrency } from "./lib/currency-sync.mjs";
 import { runDoctor, runUninstall } from "./lib/doctor.mjs";
-import { HOOK_SHAPES, runOpenCloudGate, runPostToolUse, runPreWrite, runPromptRoute, runSessionStart } from "./lib/hooks.mjs";
+import { runOpenCloudGate, runPostToolUse, runPreWrite, runPromptRoute, runSessionStart } from "./lib/hooks.mjs";
+import { HOST_IDS } from "./lib/hosts.mjs";
 import { runInstall } from "./lib/install.mjs";
 import { HOME_PAGE, PACKAGE_ROOT, ranAsScript } from "./lib/package.mjs";
 import { FORMATS, formatJson, formatSarif } from "./lib/report.mjs";
@@ -27,7 +28,8 @@ export { COMPONENTS, namespaced, parseComponents, retitle, routeFor } from "./li
 export { order, ranAsScript, stamped, stampedFrom } from "./lib/package.mjs";
 export { isRobloxProject } from "./lib/project.mjs";
 export { routePrompt } from "./lib/router.mjs";
-export { GENERATED, RULE_TARGETS } from "./lib/rules.mjs";
+export { RULE_TARGETS } from "./lib/hosts.mjs";
+export { GENERATED } from "./lib/rules.mjs";
 
 const USAGE = `roblox-optimum - deterministic Roblox and Luau standards checks
 
@@ -80,6 +82,9 @@ Usage:
                                      is written, prints the standards in brief.
   roblox-optimum --open-cloud        Read a pre-tool payload for open_cloud_invoke on stdin.
                                      Asks before a write, denies a break-glass call.
+  --hook <host>                      Beside --session, --compact, --prompt, --pre-write, or
+                                     --open-cloud, names the host the hook runs in, so the reply
+                                     takes that host's shape.
   roblox-optimum --help              Show this text.
 
 Exit codes: 0 nothing to report, 1 findings, 2 findings for an agent or a usage error.
@@ -193,25 +198,27 @@ function runSelftest() {
 const invokedDirectly = ranAsScript(import.meta.url);
 
 if (invokedDirectly) {
-  const [mode, ...rest] = process.argv.slice(2);
-  if (mode === "--selftest") process.exit(runSelftest());
-  else if (mode === "--compact") process.exit(await runSessionStart(true));
-  else if (mode === "--session") process.exit(await runSessionStart(false));
-  else if (mode === "--prompt") process.exit(await runPromptRoute());
-  else if (mode === "--pre-write") process.exit(await runPreWrite());
-  else if (mode === "--open-cloud") process.exit(await runOpenCloudGate());
+  const args = process.argv.slice(2);
+  const at = args.indexOf("--hook");
+  const host = at === -1 ? undefined : args[at + 1];
+  const [mode, ...rest] = at === -1 ? args : [...args.slice(0, at), ...args.slice(at + 2)];
+
+  if (at !== -1 && !HOST_IDS.includes(host)) {
+    process.stderr.write(`roblox-optimum: --hook takes one of ${HOST_IDS.join(", ")}, not ${host ?? "nothing"}\n`);
+    process.exit(2);
+  } else if (mode === "--selftest") process.exit(runSelftest());
+  else if (mode === "--compact") process.exit(await runSessionStart(true, host));
+  else if (mode === "--session") process.exit(await runSessionStart(false, host));
+  else if (mode === "--prompt") process.exit(await runPromptRoute(host));
+  else if (mode === "--pre-write") process.exit(await runPreWrite(host));
+  else if (mode === "--open-cloud") process.exit(await runOpenCloudGate(host));
   else if (mode === "--check") process.exit(runCheck(rest));
   else if (mode === "sync") process.exit(await runSync(rest));
   else if (mode === "install") process.exit(guarded(mode, () => runInstall(rest)));
   else if (mode === "doctor") process.exit(guarded(mode, () => runDoctor(rest)));
   else if (mode === "uninstall") process.exit(guarded(mode, () => runUninstall(rest)));
   else if (mode === "--help" || mode === "-h") process.stdout.write(USAGE);
-  else if (mode === "--hook" && !HOOK_SHAPES.includes(rest[0])) {
-    process.stderr.write(`roblox-optimum: --hook takes one of ${HOOK_SHAPES.join(", ")}, not ${rest[0] ?? "nothing"}
-`);
-    process.exit(2);
-  } else if (mode === "--hook") process.exit(await runPostToolUse(rest[0]));
-  else if (mode === undefined) process.exit(await runPostToolUse());
+  else if (mode === undefined) process.exit(await runPostToolUse(host));
   else {
     process.stderr.write(`roblox-optimum: unknown option ${mode}\n\n${USAGE}`);
     process.exit(2);

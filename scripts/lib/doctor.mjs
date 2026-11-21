@@ -17,7 +17,10 @@ import {
   MCP_CONFIGS,
   PLUGIN_HOMES,
   PLUGIN_ROUTES,
+  profileById,
+  PROFILES,
   PROJECT_PLUGIN_HOMES,
+  RULE_TARGETS,
   SKILL_TARGETS,
 } from "./hosts.mjs";
 import {
@@ -35,7 +38,7 @@ import {
   stampOf,
 } from "./install.mjs";
 import { order, PACKAGE_ROOT, PLUGIN, readJson, stampedFrom, VERSION } from "./package.mjs";
-import { GENERATED, RULE_TARGETS, ruleEdits } from "./rules.mjs";
+import { GENERATED, ruleEdits } from "./rules.mjs";
 
 /**
  * The agent files this package ships, whose copies carry the name they were given on the way in.
@@ -218,7 +221,7 @@ export function runDoctor(args) {
 
   const doubled = hostsReadingTwice(plugins);
   const hosts = new Set(plugins.map((copy) => copy.host));
-  const shadowed = hosts.has("Cursor") && hosts.has("Claude Code");
+  const shadowed = PROFILES.some((p) => p.coveredBy !== undefined && hosts.has(p.name) && hosts.has(profileById(p.coveredBy).name));
 
   const stale = scopes.map(([, global]) => [
     global,

@@ -34,6 +34,7 @@ Edit only the source files below. Derived files are generated automatically, and
 | `hooks/hooks.json` | `hooks/codex-hooks.json` | `node scripts/sync-rules.mjs` |
 | `mcp.json` | `mcp_config.json` | `node scripts/sync-rules.mjs` |
 | `agents/*.md` | `.github/agents/*.agent.md` | `node scripts/sync-rules.mjs` |
+| `scripts/lib/hosts/*.mjs` | `scripts/lib/hosts/index.mjs` | `node scripts/sync-rules.mjs` |
 | `package.json` (`version`) | All 7 plugin manifests and 5 `skills/*/SKILL.md` cards | `node scripts/check-versions.mjs --fix` |
 
 ### Core script modules
@@ -43,12 +44,15 @@ Edit only the source files below. Derived files are generated automatically, and
 | Module | Responsibility |
 |---|---|
 | `scripts/lib/package.mjs` | Package root, version, the CLI script path, and small file and process helpers (`readJson`, `readStdin`, `ranAsScript`, `stamped`). |
-| `scripts/lib/hosts.mjs` | Every agent host's locations: skills, agents, plugins, hooks, and MCP config files. Supporting a new host or following one that moved starts here. |
+| `scripts/lib/hosts/<id>.mjs` | One profile per agent host: where it keeps skills, rules, agents, plugins, hooks, and MCP config files, its agent front matter, and the shape its hooks reply in. Supporting a new host is a new file here, then `node scripts/sync-rules.mjs`, which regenerates `hosts/index.mjs`. Following a host that moved is an edit to its profile. |
+| `scripts/lib/host-contract.mjs` | The profile contract (`validateProfile`, `PROFILE_ID`). A profile that breaks it stops the CLI at load with the file and field named. |
+| `scripts/lib/hosts.mjs` | The host registry: builds the per-concern tables the installer and doctor read (`SKILL_TARGETS`, `GLOBAL_TARGETS`, `MCP_CONFIGS`, and the rest) from the profiles. |
 | `scripts/lib/project.mjs` | Whether a directory is a Roblox project. |
 | `scripts/lib/router.mjs` | Prompt-to-skill routing (`routePrompt`). |
-| `scripts/lib/rules.mjs` | Per-agent rule files generated from `AGENTS.md` (`RULE_TARGETS`, `GENERATED`). |
-| `scripts/lib/agent-forms.mjs` | The subagent rewritten into each host's front matter (`AGENT_FORMS`, `forCopilot`, `forKiro`, and the rest). |
-| `scripts/lib/hooks.mjs` | The agent hooks: post-write check, session start, pre-write (files and Studio `multi_edit`), prompt routing, the Open Cloud gate (`runOpenCloudGate`), and the Antigravity `PreInvocation` and `Stop` handlers. |
+| `scripts/lib/rules.mjs` | How a rules file generated from `AGENTS.md` is marked and recognized (`GENERATED`, `bodyDigest`, `ruleEdits`, `LUAU_GLOB`). Where each host reads one is its profile's `rules`, collected as `RULE_TARGETS` in `hosts.mjs`. |
+| `scripts/lib/agent-front.mjs` | Reads the agent's front matter and writes another host's (`splitFront`, `withFront`, `DERIVED_AGENT`), with no imports, so profiles can use it. |
+| `scripts/lib/agent-forms.mjs` | The file name an agent takes per host (`agentAs`), and each profile's `agentForm` under its old names (`AGENT_FORMS`, `forCopilot`, `forKiro`, and the rest). |
+| `scripts/lib/hooks.mjs` | The agent hooks: post-write check, session start, pre-write (files and Studio `multi_edit`), prompt routing, the Open Cloud gate (`runOpenCloudGate`), and the Antigravity `PreInvocation` and `Stop` handlers. `--hook <id>` names the host; its profile's `hookContext` and `postWrite` shape the reply. |
 | `scripts/lib/open-cloud.mjs` | Open Cloud call classification (`classify`, `decide`, `universeOf`, `devUniverses`), shared by the hook, the Antigravity proxy, and the `classify_open_cloud_call` MCP tool. |
 | `scripts/lib/install.mjs` | `install`, project and global, including plugins, MCP registration, and the pre-commit hook. |
 | `scripts/lib/doctor.mjs` | `doctor` and `uninstall`. |

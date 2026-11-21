@@ -40,7 +40,9 @@ import {
   writeAtomic,
 } from "../scripts/lib/currency-sync.mjs";
 import { condition, places, registrations, removeMcp } from "../scripts/lib/doctor.mjs";
-import { antigravityStep, CLINE_WRITES, injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
+import { injectPending, pendingFile, stopAntigravity, targetsFromPayload } from "../scripts/lib/hooks.mjs";
+import { antigravityStep } from "../scripts/lib/hosts/antigravity.mjs";
+import { CLINE_WRITES } from "../scripts/lib/hosts/cline.mjs";
 import {
   COPY_HOOKS,
   EARLIER_BODIES,
@@ -49,6 +51,7 @@ import {
   MCP_CONFIGS,
   PLUGIN_HOOKS,
   PLUGIN_ROUTES,
+  RULE_TARGETS,
   SKILL_TARGETS,
 } from "../scripts/lib/hosts.mjs";
 import {
@@ -73,7 +76,7 @@ import {
 import { order, PACKAGE_ROOT, PLUGIN, ranAsScript, stamped, stampedFrom, VERSION } from "../scripts/lib/package.mjs";
 import { isRobloxProject, PROJECT_MARKER } from "../scripts/lib/project.mjs";
 import { routePrompt } from "../scripts/lib/router.mjs";
-import { bodyDigest, GENERATED, RULE_TARGETS, ruleEdits } from "../scripts/lib/rules.mjs";
+import { bodyDigest, GENERATED, ruleEdits } from "../scripts/lib/rules.mjs";
 
 /** A directory that cannot exist, so the selftest can prove an unopenable path is skipped. */
 const ROOT_ABSENT = "/roblox-optimum-no-such-directory";
@@ -741,7 +744,7 @@ Players.PlayerAdded:Connect(greet)
   );
 
   const mcpHome = mkdtempSync(join(tmpdir(), "roblox-optimum-mcp-"));
-  const devin = MCP_CONFIGS.find((c) => c.paths.length > 1);
+  const devin = MCP_CONFIGS.find((c) => c.host === "Windsurf");
   for (const p of devin.paths.slice(0, 2)) {
     mkdirSync(dirname(join(mcpHome, p)), { recursive: true });
     writeFileSync(join(mcpHome, p), JSON.stringify({ [devin.key]: { [PLUGIN]: devin.entry } }));
@@ -858,7 +861,7 @@ Players.PlayerAdded:Connect(greet)
   );
   const agHooks = JSON.parse(readFileSync(join(PACKAGE_ROOT, "hooks.json"), "utf8"))[PLUGIN];
   ok(
-    agHooks.SessionStart[0].command === "node scripts/roblox-optimum.mjs --session" &&
+    agHooks.SessionStart[0].command === "node scripts/roblox-optimum.mjs --session --hook antigravity" &&
       agHooks.PreToolUse[0].matcher === "call_mcp_tool|mcp_.+_open_cloud_invoke" &&
       agHooks.PostToolUse[0].matcher.includes("write_file") &&
       agHooks.Stop[0].command === "node scripts/roblox-optimum.mjs --hook antigravity",

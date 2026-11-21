@@ -9,6 +9,8 @@ import { isAbsolute, join, resolve } from "node:path";
 
 import { checkFile, formatReport } from "./checker.mjs";
 import { triggerBackgroundSyncIfStale } from "./currency-sync.mjs";
+import { profileById } from "./hosts.mjs";
+import { antigravityStep } from "./hosts/antigravity.mjs";
 import { decide } from "./open-cloud.mjs";
 import { CLI_SCRIPT, readStdin } from "./package.mjs";
 import { isRobloxProject } from "./project.mjs";
@@ -63,12 +65,6 @@ export function targetsFromPayload(payload) {
 
   return [...command.matchAll(PATCH_TARGET)].map((m) => resolve(base, m[1]));
 }
-
-/** The output shapes `--hook` speaks, one per host that cannot read a plain exit 2. */
-export const HOOK_SHAPES = ["antigravity", "cline", "copilot", "cursor", "kiro", "qoder"];
-
-/** The Cline tools that write a file. Its PostToolUse also fires after a read. */
-export const CLINE_WRITES = /^(write_to_file|replace_in_file|apply_patch|new_rule)$/;
 
 /**
  * Where Antigravity findings wait for the next model call. Its PostToolUse output is discarded,
@@ -142,7 +138,7 @@ export function stopAntigravity(payload) {
  * Checks the file the agent just wrote and prints what it must fix. Anything unreadable,
  * unrecognized, or outside Roblox passes without comment.
  */
-export async function runPostToolUse(shape) {
+export async function runPostToolUse(host) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
 
   let payload;
@@ -152,17 +148,19 @@ export async function runPostToolUse(shape) {
     return 0;
   }
 
-  if (shape === "antigravity" && typeof payload.terminationReason === "string") return stopAntigravity(payload);
-  if (shape === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
-  if (shape === "cline" && !CLINE_WRITES.test(payload?.postToolUse?.tool ?? "")) {
-    process.stdout.write('{"cancel":false}');
+  if (host === "antigravity" && typeof payload.terminationReason === "string") return stopAntigravity(payload);
+  if (host === "antigravity" && payload.toolCall === undefined) return injectPending(payload);
+
+  const postWrite = profileById(host)?.postWrite;
+  if (postWrite?.accepts !== undefined && !postWrite.accepts(payload)) {
+    if (postWrite.quiet !== undefined) process.stdout.write(postWrite.quiet);
     return 0;
   }
 
   const results = targetsFromPayload(payload).map(checkFile);
   const reports = results.filter((r) => r.status === "problems");
 
-  if (shape === "antigravity") {
+  if (host === "antigravity") {
     const checked = results.filter((r) => r.status === "clean" || r.status === "problems").map((r) => r.path);
     if (checked.length > 0) appendFileSync(pendingFile(payload, "-touched"), `${checked.join("\n")}\n`);
     if (reports.length > 0) appendFileSync(pendingFile(payload), formatReport(reports));
@@ -171,32 +169,12 @@ export async function runPostToolUse(shape) {
   }
 
   if (reports.length === 0) {
-    if (shape === "cline") process.stdout.write('{"cancel":false}');
+    if (postWrite?.quiet !== undefined) process.stdout.write(postWrite.quiet);
     return 0;
   }
 
-  if (shape === "cline") {
-    process.stdout.write(JSON.stringify({ cancel: false, contextModification: formatReport(reports) }));
-    return 0;
-  }
-
-  if (shape === "copilot") {
-    process.stdout.write(JSON.stringify({ additionalContext: formatReport(reports) }));
-    return 0;
-  }
-
-  if (shape === "cursor") {
-    process.stdout.write(JSON.stringify({ additional_context: formatReport(reports) }));
-    return 0;
-  }
-
-  if (shape === "qoder") {
-    addContext("PostToolUse", formatReport(reports));
-    return 0;
-  }
-
-  if (shape === "kiro") {
-    process.stdout.write(formatReport(reports));
+  if (postWrite !== undefined) {
+    process.stdout.write(postWrite.emit(formatReport(reports)));
     return 0;
   }
 
@@ -247,19 +225,12 @@ async function readPayload() {
 }
 
 /**
- * One Antigravity step that the model reads. Antigravity 2.0 hides the old ephemeral step from
- * the model, while the IDE documents no other shape, so the IDE alone keeps it.
+ * Prints context in the shape the named host adds to the conversation. A command installed before
+ * hooks named their host is told apart by Antigravity's payload, the one other shape there was.
  */
-export function antigravityStep(payload, text) {
-  const path = `${payload?.transcriptPath ?? ""} ${payload?.artifactDirectoryPath ?? ""}`;
-  return /antigravity-ide[\\/]/.test(path) ? { ephemeralMessage: text } : { systemMessage: { systemMessage: text } };
-}
-
-/** Prints context in the shape the calling host adds to the conversation. */
-function addContext(event, text, payload) {
-  const out = Array.isArray(payload?.workspacePaths)
-    ? { injectSteps: [antigravityStep(payload, text)] }
-    : { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
+function addContext(event, text, payload, host) {
+  const profile = profileById(host ?? (Array.isArray(payload?.workspacePaths) ? "antigravity" : ""));
+  const out = profile?.hookContext?.(event, text, payload) ?? { hookSpecificOutput: { hookEventName: event, additionalContext: text } };
   process.stdout.write(JSON.stringify(out));
 }
 
@@ -267,7 +238,7 @@ function addContext(event, text, payload) {
  * Points a session at the skills when it opens, or back at them once a summary has dropped
  * them. Stays silent outside a Roblox project so unrelated sessions are not disturbed.
  */
-export async function runSessionStart(summarized) {
+export async function runSessionStart(summarized, host) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
 
   const payload = await readPayload();
@@ -278,6 +249,7 @@ export async function runSessionStart(summarized) {
     "SessionStart",
     summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START,
     payload,
+    host,
   );
   return 0;
 }
@@ -303,7 +275,7 @@ const PRE_WRITE =
  * Restates the standards just before a Luau file is written, where rules read at the start of
  * a long session sit furthest out of view. Any other write passes without comment.
  */
-export async function runPreWrite() {
+export async function runPreWrite(host) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
 
   const payload = await readPayload();
@@ -314,7 +286,7 @@ export async function runPreWrite() {
   const luau =
     studio ||
     targetsFromPayload(payload).some((p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)));
-  if (luau) addContext("PreToolUse", studio ? `${PRE_WRITE} ${AFTER_STUDIO_EDIT}` : PRE_WRITE, payload);
+  if (luau) addContext("PreToolUse", studio ? `${PRE_WRITE} ${AFTER_STUDIO_EDIT}` : PRE_WRITE, payload, host);
   return 0;
 }
 
@@ -332,9 +304,9 @@ function toolArguments(args) {
  * Puts an Open Cloud write in front of the user before it is sent, and stops the calls the
  * agent must never make. A read passes with no output, so the host's own rules decide it.
  */
-export async function runOpenCloudGate() {
+export async function runOpenCloudGate(host) {
   const payload = await readPayload();
-  const antigravity = payload?.toolCall !== undefined;
+  const antigravity = host === undefined ? payload?.toolCall !== undefined : host === "antigravity";
   const name = payload?.toolCall?.name ?? "";
   const eager = /^mcp_.+_open_cloud_invoke$/.test(name);
   const openCloud =
@@ -392,7 +364,7 @@ function routeMessage(route) {
  * Names the skill a Roblox request needs before the model reads it, or lists them all when the
  * request's words do not settle one, so a small model need not recall the skills unprompted.
  */
-export async function runPromptRoute() {
+export async function runPromptRoute(host) {
   if (process.env.ROBLOX_OPTIMUM === "off") return 0;
 
   const payload = await readPayload();
@@ -401,6 +373,6 @@ export async function runPromptRoute() {
   const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
-  addContext("UserPromptSubmit", routeMessage(route), payload);
+  addContext("UserPromptSubmit", routeMessage(route), payload, host);
   return 0;
 }

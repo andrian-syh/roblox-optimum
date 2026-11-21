@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Changed the API currency baseline to fold twenty settled rows into its one-line Settled lists, bringing it back under the 40 KB that agents load whole. Every warning those rows carried, such as `CollisionGroupSetCollidable` and the absent `UIFlexLayout`, is kept.
+- Changed every hook command roblox-optimum ships or installs to name its host with `--hook <id>`, such as `--session --hook claude-code`. Replies are unchanged, and a hook installed by an earlier release keeps working without reinstalling.
 
 ## [1.19.1] - 2026-11-11
 

@@ -32,6 +32,9 @@ import {
   PLUGIN_HOOKS,
   PLUGIN_MANIFESTS,
   PLUGIN_ROUTES,
+  profileById,
+  profileByName,
+  RULE_TARGETS,
   SKILL_TARGETS,
 } from "./hosts.mjs";
 import {
@@ -46,7 +49,7 @@ import {
   stampedFrom,
   VERSION,
 } from "./package.mjs";
-import { bodyDigest, GENERATED, RULE_TARGETS, ruleEdits } from "./rules.mjs";
+import { bodyDigest, GENERATED, ruleEdits } from "./rules.mjs";
 
 /**
  * The parts of the standards that can be installed on their own, because a project that only
@@ -208,11 +211,12 @@ function installedPlugin(host, home) {
 
 /**
  * How one host is installed for: a plugin, nothing where a plugin already reaches it, or copies
- * where no plugin route exists. Cursor reads Claude Code's plugin as well as its own.
+ * where no plugin route exists. A profile's `coveredBy` names another host whose plugin it reads.
  */
 export function routeFor(host, home) {
-  if (host === "Cursor" && installedPlugin("Claude Code", home) !== undefined) {
-    return { kind: "covered", by: "the Claude Code plugin" };
+  const coveredBy = profileById(profileByName(host)?.coveredBy ?? "");
+  if (coveredBy !== undefined && installedPlugin(coveredBy.name, home) !== undefined) {
+    return { kind: "covered", by: `the ${coveredBy.name} plugin` };
   }
 
   const route = PLUGIN_ROUTES[host];
@@ -272,7 +276,7 @@ function installPlugin(root, route, force, report) {
   }
 
   const command =
-    route.hooks === "antigravity"
+    route.relativeCommand === true
       ? "node scripts/roblox-optimum.mjs"
       : `node "${join(dir, "scripts", "roblox-optimum.mjs")}"`;
   const hooksFile = join(dir, route.hooksFile ?? "hooks.json");
@@ -541,7 +545,7 @@ export function runInstall(args) {
 
   if (parts.has("skills")) {
     const seen = SKILL_TARGETS.filter((t) => t.markers.some((m) => existsSync(join(cwd, m))));
-    const chosen = all ? SKILL_TARGETS : seen.length > 0 ? seen : [SKILL_TARGETS[1]];
+    const chosen = all ? SKILL_TARGETS : seen.length > 0 ? seen : SKILL_TARGETS.filter((t) => t.fallback);
 
     for (const target of chosen) {
       copyTree(join(PACKAGE_ROOT, "skills"), join(cwd, target.dir), force, report);

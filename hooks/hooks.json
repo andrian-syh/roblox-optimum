@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--pre-write"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--pre-write", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--open-cloud"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--open-cloud", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
@@ -31,7 +31,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
@@ -44,7 +44,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--session"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--session", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
@@ -55,7 +55,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--compact"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--compact", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
@@ -67,7 +67,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--prompt"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/roblox-optimum.mjs", "--prompt", "--hook", "claude-code"],
             "timeout": 10
           }
         ]
