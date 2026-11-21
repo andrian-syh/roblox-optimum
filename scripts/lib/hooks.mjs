@@ -11,6 +11,7 @@ import { checkFile, formatReport } from "./checker.mjs";
 import { triggerBackgroundSyncIfStale } from "./currency-sync.mjs";
 import { profileById } from "./hosts.mjs";
 import { antigravityStep } from "./hosts/antigravity.mjs";
+import { afterSummaryText, AFTER_STUDIO_EDIT, preWriteText, routeText, sessionStartText } from "./guidance.mjs";
 import { decide } from "./open-cloud.mjs";
 import { CLI_SCRIPT, readStdin } from "./package.mjs";
 import { isRobloxProject } from "./project.mjs";
@@ -80,7 +81,7 @@ function promptLine(payload) {
   if (payload?.invocationNum !== 0 || typeof payload?.lastUserInput !== "string") return "";
 
   const route = routePrompt(payload.lastUserInput, isRobloxProject(payloadRoot(payload)));
-  return route === null ? "" : routeMessage(route);
+  return route === null ? "" : routeText(route, profileById("antigravity").capabilities);
 }
 
 /** Injects and clears the findings stored for this conversation, as PreInvocation reads them. */
@@ -182,39 +183,10 @@ export async function runPostToolUse(host) {
   return 2;
 }
 
-/** Which skill fits which request, for a model left to pick one itself. */
-const SKILL_CHOICES =
-  "best-practices to write or change code, code-review to judge existing code, diagnose for " +
-  "a reported symptom with no file named, studio-ops for sync tools, Studio MCP, or playtests, " +
-  "publishing for launch, store listing, discovery, ads, and live ops";
-
-/**
- * Which work leaves the main conversation, for a host that lists the agents. Edits and
- * decisions stay behind, where the context that justifies them is.
- */
-const DELEGATION =
-  "Where the roblox-scout and roblox-auditor agents are listed: hand a code search that needs " +
-  "more than three reads to roblox-scout, and hand roblox-auditor a whole-project audit, or a " +
-  "second read of a finished change that touches money, saved data, or remotes. Keep every " +
-  "edit and every decision in this conversation.";
-
-/**
- * What a session opening in a Roblox project is told, so the skills load on requests that
- * never name them, and the user learns once that they did.
- */
-const SESSION_START =
-  "This is a Roblox project and roblox-optimum is installed. Before answering any Luau or " +
-  "game request, load the roblox-optimum skill that fits it, even when the user never names " +
-  `it: ${SKILL_CHOICES}. After editing Luau, run check_luau on it when the roblox-optimum MCP ` +
-  `server is connected. ${DELEGATION} The first time roblox-optimum shapes an answer, tell the ` +
-  "user in one line that its standards were applied.";
-
-/** What a summarized session is told, since the rules it had loaded do not survive a summary. */
-const AFTER_SUMMARY =
-  "This session was summarized. If Luau work continues, re-read the " +
-  "roblox-optimum best-practices SKILL.md before writing any code - the section " +
-  "layout, comment rules, and runtime non-negotiables do not survive a summary, " +
-  "and reconstructing them from memory produces confidently wrong files.";
+/** What the named host's profile declares it has, or nothing for a host the hook did not name. */
+function capabilitiesOf(host) {
+  return profileById(host)?.capabilities;
+}
 
 async function readPayload() {
   try {
@@ -247,7 +219,7 @@ export async function runSessionStart(summarized, host) {
   triggerBackgroundSyncIfStale(CLI_SCRIPT);
   addContext(
     "SessionStart",
-    summarized || payload.source === "compact" ? AFTER_SUMMARY : SESSION_START,
+    summarized || payload.source === "compact" ? afterSummaryText(capabilitiesOf(host)) : sessionStartText(capabilitiesOf(host)),
     payload,
     host,
   );
@@ -256,20 +228,6 @@ export async function runSessionStart(summarized, host) {
 
 /** A Studio MCP tool that writes a script's source, which never touches a file on disk. */
 const STUDIO_SCRIPT_EDIT = /^mcp__.+__multi_edit$/;
-
-/** What a Studio edit needs afterwards, since no post-write hook can read the script back. */
-const AFTER_STUDIO_EDIT =
-  "This edit lands in Studio, not on disk, so no hook checks it: read the changed lines back " +
-  "and pass the script's source to check_luau before handing it back.";
-
-/** The invariant card in brief, for the moment a Luau file is about to be written. */
-const PRE_WRITE =
-  "roblox-optimum: this writes Luau. New code follows the invariant card: VARIABLES, " +
-  "FUNCTIONS, INITIALIZATION sections in that order; a doc block above each function and no " +
-  "comments inside bodies; the server validates every remote argument; every connection has " +
-  "an owner and a teardown; no wait, spawn, delay, tick, or other deprecated API. The " +
-  "project's existing style wins, and nothing is refactored unasked. If the roblox-optimum " +
-  "best-practices skill is not loaded yet, load it first.";
 
 /**
  * Restates the standards just before a Luau file is written, where rules read at the start of
@@ -286,7 +244,7 @@ export async function runPreWrite(host) {
   const luau =
     studio ||
     targetsFromPayload(payload).some((p) => /\.luau$/i.test(p) || (/\.lua$/i.test(p) && isRobloxProject(cwd)));
-  if (luau) addContext("PreToolUse", studio ? `${PRE_WRITE} ${AFTER_STUDIO_EDIT}` : PRE_WRITE, payload, host);
+  if (luau) addContext("PreToolUse", studio ? `${preWriteText(capabilitiesOf(host))} ${AFTER_STUDIO_EDIT}` : preWriteText(capabilitiesOf(host)), payload, host);
   return 0;
 }
 
@@ -341,25 +299,6 @@ export async function runOpenCloudGate(host) {
   return 0;
 }
 
-/** What a request that must first find code is told, at the moment the search would start. */
-const SCOUT_FIRST =
-  "This request starts with a search across the project. Where the roblox-scout agent is " +
-  "listed, hand the search to it first, then open only the lines its table names, unless the " +
-  "files are already named or the source lives only in Studio.";
-
-/**
- * The instruction that points a routed prompt at the skill it needs, and at the scout when it
- * starts with a search. Every host's prompt hook sends this same line.
- */
-function routeMessage(route) {
-  const skill =
-    route.skill === null
-      ? `roblox-optimum: if this request involves Luau or the game, load the roblox-optimum skill that fits before answering, even though it was not named: ${SKILL_CHOICES}.`
-      : `roblox-optimum: this request reads as ${route.why}. Load the roblox-optimum:${route.skill} skill (the Skill tool in Claude Code; named roblox-${route.skill} where it was copied in rather than installed as a plugin) before reading any file or answering, even though it was not named.`;
-  const scout = route.search ? ` ${SCOUT_FIRST}` : "";
-  return `${skill}${scout} Mention roblox-optimum to the user the first time it shapes an answer.`;
-}
-
 /**
  * Names the skill a Roblox request needs before the model reads it, or lists them all when the
  * request's words do not settle one, so a small model need not recall the skills unprompted.
@@ -373,6 +312,6 @@ export async function runPromptRoute(host) {
   const route = routePrompt(payload.prompt, isRobloxProject(payloadRoot(payload)));
   if (route === null) return 0;
 
-  addContext("UserPromptSubmit", routeMessage(route), payload, host);
+  addContext("UserPromptSubmit", routeText(route, capabilitiesOf(host)), payload, host);
   return 0;
 }

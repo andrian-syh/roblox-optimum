@@ -60,15 +60,66 @@ test("a named host gets the same reply a payload-guessed host got before", () =>
   assert.ok(JSON.parse(steps.stdout).injectSteps.length === 1);
   assert.deepEqual(steps, runCli(["--session"], antigravity));
 
-  const claude = (project) => ({ cwd: project, source: "startup" });
-  const context = runCli(["--session", "--hook", "claude-code"], claude);
+  const codex = (project) => ({ cwd: project, source: "startup" });
+  const context = runCli(["--session", "--hook", "codex"], codex);
   assert.equal(JSON.parse(context.stdout).hookSpecificOutput.hookEventName, "SessionStart");
-  assert.deepEqual(context, runCli(["--session"], claude));
+  assert.deepEqual(context, runCli(["--session"], codex));
 
   const write = (project) => ({ cwd: project, tool_name: "Write", tool_input: { file_path: join(project, "bad.server.luau") } });
   const named = runCli(["--hook", "claude-code"], write);
   assert.equal(named.status, 2);
   assert.deepEqual(named, runCli([], write));
+});
+
+/** Loads a recorded payload of a host, pointed at a throwaway project. */
+function fixture(host, event, project, patch = {}) {
+  const text = readFileSync(join(PACKAGE_ROOT, "test", "hosts", host, `${event}.json`), "utf8");
+  const root = project.split("\\").join("/");
+  return { ...JSON.parse(text.replaceAll("__PROJECT__", root).replaceAll("__HOME__", root)), ...patch };
+}
+
+test("a host with tailored behaviour has payloads recorded from a live session of it", () => {
+  for (const profile of PROFILES.filter((p) => p.capabilities !== undefined)) {
+    const recorded = readdirSync(join(PACKAGE_ROOT, "test", "hosts", profile.id));
+    for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"]) {
+      assert.ok(recorded.includes(`${event}.json`), `${profile.id} has no recorded ${event} payload`);
+    }
+  }
+});
+
+test("Claude Code is told only what its plugin carries, with no hedge about missing parts", () => {
+  const context = (args, event, patch) => {
+    const result = runCli(args, (project) => fixture("claude-code", event, project, patch));
+    return JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+  };
+  const hedges = /Where the roblox-scout|when the roblox-optimum MCP server is connected|where it was copied in/;
+
+  const session = context(["--session", "--hook", "claude-code"], "SessionStart");
+  assert.match(session, /with the Skill tool/);
+  assert.match(session, /run check_luau on it\./);
+  assert.doesNotMatch(session, hedges);
+
+  const search = context(["--prompt", "--hook", "claude-code"], "UserPromptSubmit", { prompt: "where is the shop remote handled?" });
+  assert.match(search, /Hand the search to the roblox-scout agent first/);
+  assert.doesNotMatch(search, hedges);
+
+  const routed = context(["--prompt", "--hook", "claude-code"], "UserPromptSubmit", { prompt: "my edits keep getting overwritten when rojo syncs" });
+  assert.match(routed, /Load roblox-optimum:studio-ops with the Skill tool/);
+
+  const write = context(["--pre-write", "--hook", "claude-code"], "PreToolUse");
+  assert.match(write, /load it with the Skill tool first/);
+
+  const unnamed = runCli(["--session"], (project) => fixture("claude-code", "SessionStart", project));
+  assert.match(JSON.parse(unnamed.stdout).hookSpecificOutput.additionalContext, hedges);
+});
+
+test("the post-write check reads a recorded Claude Code write", () => {
+  const result = runCli(["--hook", "claude-code"], (project) => {
+    writeFileSync(join(project, "bad.server.luau"), "local x = wait(1)\n");
+    return fixture("claude-code", "PostToolUse", project, { tool_input: { file_path: join(project, "bad.server.luau") } });
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /wait\(\) is deprecated/);
 });
 
 test("an unknown host is refused, and every host a shipped hook names has a profile", () => {

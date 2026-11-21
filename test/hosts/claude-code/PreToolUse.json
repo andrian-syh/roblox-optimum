@@ -1,0 +1,18 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "transcript_path": "__HOME__/.claude/projects/fixture/00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "__PROJECT__",
+  "scratchpad_dir": "__HOME__/scratchpad",
+  "prompt_id": "00000000-0000-4000-8000-000000000001",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "__PROJECT__/src/Coins.server.luau",
+    "content": "print(1)"
+  },
+  "tool_use_id": "toolu_fixture"
+}

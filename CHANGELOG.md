@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [1.19.2] - 2026-11-21
+## [1.20.0] - 2026-11-21
+
+Claude Code is the first host with a profile of its own: its hooks state what the plugin carries instead of hedging for every host.
 
 ### Fixed
 
@@ -15,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Changed what Claude Code's hooks tell the model to match what the plugin always installs there. Skills are named `roblox-optimum:<skill>` and loaded with the Skill tool, `check_luau` runs after every Luau edit, and searches and second reads go to `roblox-scout` and `roblox-auditor`, with no "where the agents are listed" or "when the MCP server is connected" hedges. Other hosts keep the hedged text until they have a profile of their own.
+- Added the Studio MCP tools `save_place` (saves with a version note, never publishes) and `submit_feedback`, and video recording in `screen_capture`, to the Studio MCP guidance, with when to use each. Added `game.ServerRegion`, the Studio Performance Simulator, and Copy as JSON to the currency baseline and the low-end device guidance.
+- Changed the API currency baseline to engine 748 and Luau 0.748: the removed `PlayerDataService` record API is marked do-not-write, new scriptable members from 747 and 748 are listed as undocumented, `buffer` vector reads await a Studio check, and the 64-bit integer code is confirmed removed.
 - Changed the API currency baseline to fold twenty settled rows into its one-line Settled lists, bringing it back under the 40 KB that agents load whole. Every warning those rows carried, such as `CollisionGroupSetCollidable` and the absent `UIFlexLayout`, is kept.
 - Changed every hook command roblox-optimum ships or installs to name its host with `--hook <id>`, such as `--session --hook claude-code`. Replies are unchanged, and a hook installed by an earlier release keeps working without reinstalling.
 
@@ -732,8 +737,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.2...HEAD
-[1.19.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...v1.19.2
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...v1.20.0
 [1.19.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...v1.18.1

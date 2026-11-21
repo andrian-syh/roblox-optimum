@@ -44,7 +44,8 @@ Edit only the source files below. Derived files are generated automatically, and
 | Module | Responsibility |
 |---|---|
 | `scripts/lib/package.mjs` | Package root, version, the CLI script path, and small file and process helpers (`readJson`, `readStdin`, `ranAsScript`, `stamped`). |
-| `scripts/lib/hosts/<id>.mjs` | One profile per agent host: where it keeps skills, rules, agents, plugins, hooks, and MCP config files, its agent front matter, and the shape its hooks reply in. Supporting a new host is a new file here, then `node scripts/sync-rules.mjs`, which regenerates `hosts/index.mjs`. Following a host that moved is an edit to its profile. |
+| `scripts/lib/hosts/<id>.mjs` | One profile per agent host: where it keeps skills, rules, agents, plugins, hooks, and MCP config files, its agent front matter, and the shape its hooks reply in. Supporting a new host is a new file here, then `node scripts/sync-rules.mjs`, which regenerates `hosts/index.mjs`. Following a host that moved is an edit to its profile. A profile that declares `capabilities` gets tailored hook text and must ship payloads recorded from a live session in `test/hosts/<id>/`. |
+| `scripts/lib/guidance.mjs` | The text the hooks add to a conversation, composed from a profile's `capabilities` (`skillTool`, `subagents`, `mcp`). A capability a host does not declare is hedged. |
 | `scripts/lib/host-contract.mjs` | The profile contract (`validateProfile`, `PROFILE_ID`). A profile that breaks it stops the CLI at load with the file and field named. |
 | `scripts/lib/hosts.mjs` | The host registry: builds the per-concern tables the installer and doctor read (`SKILL_TARGETS`, `GLOBAL_TARGETS`, `MCP_CONFIGS`, and the rest) from the profiles. |
 | `scripts/lib/project.mjs` | Whether a directory is a Roblox project. |
@@ -85,7 +86,7 @@ API currency is maintained on two tiers:
 
 1. Check the latest Luau release at `github.com/luau-lang/luau/releases`.
 2. Check the latest Roblox engine version and API diff at `robloxapi.github.io/ref/updates/`.
-3. Read the weekly release notes (`create.roblox.com/docs/en-us/updates`) back to the last covered date for behavioral context, and check `/docs/updates/pending` for announced changes that have not enabled their FFlags yet.
+3. Read the release notes the way `create.roblox.com/docs/releases` describes them: the weekly page `/docs/updates/<yyyy-mm-dd>` (fetch it as `.md`) back to the last covered date, the version page `/docs/release-notes/release-notes-<N>`, and `/docs/updates/pending`. The version and pending pages have no `.md` form, so read the JSON in their `__NEXT_DATA__` script as the toolbox in `api-currency.md` explains. A change's status (Live, Experimental, Studio, Pending) is shown only on weekly and pending pages, and "introduced in version N" is not "available in N".
 4. Review every `[Undocumented]`, `[Verify]`, `[UNVERIFIED]`, and `[Beta]` row in `api-currency.md`:
    - Promote to `[Undocumented]` when the member appears in the API dump.
    - Promote to `[GA]` when official documentation is published and the feature works in live experiences without a Studio beta toggle.

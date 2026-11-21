@@ -23,6 +23,10 @@ const FIELDS = {
   agentForm: (v) => typeof v === "function",
   projectAgents: (v) => isObject(v) && isText(v.dir),
   coveredBy: (v) => typeof v === "string" && PROFILE_ID.test(v),
+  capabilities: (v) =>
+    isObject(v) &&
+    Object.keys(v).every((k) => ["skillTool", "subagents", "mcp"].includes(k)) &&
+    Object.values(v).every((f) => typeof f === "boolean"),
   hookContext: (v) => typeof v === "function",
   postWrite: (v) => isObject(v) && typeof v.emit === "function" && optional(v.accepts, (f) => typeof f === "function") && optional(v.quiet, isText),
   pluginHomes: isTextList,

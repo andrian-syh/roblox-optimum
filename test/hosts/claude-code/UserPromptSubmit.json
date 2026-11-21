@@ -1,0 +1,10 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "transcript_path": "__HOME__/.claude/projects/fixture/00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "__PROJECT__",
+  "scratchpad_dir": "__HOME__/scratchpad",
+  "prompt_id": "00000000-0000-4000-8000-000000000001",
+  "permission_mode": "acceptEdits",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "Create the file src/Coins.server.luau containing exactly: print(1)"
+}

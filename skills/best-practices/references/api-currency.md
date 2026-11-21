@@ -2,7 +2,7 @@
 
 The verify-first rule (invariant card item 11) says: confirm a newer API exists in the target environment before relying on it, and never flag an API as nonexistent from memory. This file is the dated baseline that rule reads against, so settled APIs are not re-checked and the newest ones still are.
 
-**Snapshot: 8 November 2026.** Engine and API dump **746** (Studio `0.746.0.7461269` in the mirror's `version.txt`; first 746 build 3 November 2026, live in `setup.rbxcdn.com/DeployHistory.txt`; dump from the `MaximumADHD/Roblox-Client-Tracker` mirror); release notes 746 and weekly notes through **2 November 2026**; Luau **0.746** (7 November 2026); the deprecation index; Studio probes on build 745. Platform, MCP, and Open Cloud rows carry their own dates.
+**Snapshot: 21 November 2026.** Engine and API dump **748** (Studio `0.748.0.7481526` in the mirror's `version.txt`; dump from the `MaximumADHD/Roblox-Client-Tracker` mirror); release notes 746 and weekly notes through **2 November 2026**; Luau **0.748** (20 November 2026); the deprecation index; Studio probes on build 745. Platform, MCP, and Open Cloud rows carry their own dates.
 
 **Maturity tags**
 
@@ -95,7 +95,8 @@ Name the step behind every engine-fact claim, or say it is unverified and what w
 | User-defined `type function`, `keyof`, `issubtypeof` | **[Verify]**, new solver | `issubtypeof` in Luau 0.724 (June 2026) |
 | Faster table access, metamethod dispatch, `table.find`; register reuse against the 200-local limit | **[Verify]** | Release notes 739 and Luau 0.741 to 0.743. A reason to freeze class metatables, never to restructure working code ([performance.md](performance.md)) |
 | `class` syntax | **RFC merged only** | RFC #191 (April 2026); the prototype continues in Luau 0.746 (RFC PR #242) behind `DebugLuauUserDefinedClasses` debug flags. Keep metatable OOP |
-| 64-bit integer type | **Cancelled** | Withdrawal proposed in RFC PR #269 (29 October 2026, PR open); release 746 or 747 is the last with flagged support. Do not write code against `integer` |
+| 64-bit integer type | **Cancelled** | RFC PR #269 withdrew it, and Luau 0.747 (13 November 2026) clipped the in-progress integer code. Do not write code against `integer` |
+| `buffer.readvector*f32` / `buffer.writevector*f32` | **[Verify]** | Luau 0.747 (RFC PR #198). Roblox Studio unconfirmed; keep reading three `f32` values until a probe confirms |
 | Exact table types | **Abandoned** | RFC #11 closed unmerged 28 October 2026. Do not present as coming |
 
 **Not for Roblox** despite appearing in Luau release notes: embedder C APIs (`lua_memorydump`, `lua_callhook`, ...), double-precision vector builds, and the `@self` require alias. One require alias does apply: experiences opted into `PlayerScriptsUseInputActionSystem` can `require("@rbx/PlayerModule")` (release notes 735). `loadstring` leaving the upstream type definitions (Luau 0.742) does not affect `ServerScriptService.LoadStringEnabled`.
@@ -126,6 +127,10 @@ Name the step behind every engine-fact claim, or say it is unverified and what w
 | `TeleportOptions.ReservedServerId`, `.VipServerId` | **[GA]** | v740, announced 28 October 2026 ([DevForum](https://devforum.roblox.com/t/-/4963250)). A GUID string: `HttpService:GenerateGUID(false)` for a new reserved server, or a stored `game.PrivateServerId`. Set at most one. Handle `TeleportInitFailed` |
 | `Player.PauseTeleports` | **[Undocumented]** | v738, an event, still `RobloxSecurity` at v745 |
 | `Workspace.UseInputSink`, `PrimalPhysicsSolver` (+ enum) | Removed | v746. **Do not write them**; `InputSinkEnabled` (RobloxScript) and `NextGenerationPhysicsSolver` (PluginOrOpenCloud) are not script levers |
+| `DataModel.ServerRegion` | **[GA]** 19 November 2026 | [DevForum](https://devforum.roblox.com/t/4996710). Server only: an uppercase IATA code (`IAD`, `SYD`) for the data center, empty on clients, so check `~= ""`. Replaces IP geolocation through `HttpService` |
+| Studio Performance Simulator; Copy as JSON | **[GA]** Studio | Device Simulator, Performance: simulates a device's graphics quality level and memory, not CPU or GPU speed. Copy as JSON pastes properties, `$` attributes, and `.` tags onto a selection, without descendants |
+| `PlayerDataService` records (`Player:GetData`, `PlayerDataRecord`, `GetRecordAsync`) | Removed | v748. **Do not write them**; keep player data in `DataStoreService` or a session library |
+| `SocialService:PromptRateExperienceAsync`, `TeleportOptions.ForcePublicServer`, `Humanoid:GetCanCollideOnDeath`, `GeometryService:NegateAsync`/`SeparateAsync`, `AudioStreamReader`/`AudioStreamWriter` | **[Undocumented]** | v747 to v748, `None` security. Semantics undocumented; probe before relying on them |
 | `AnimatedImage`, `Enum.AnimatedImagePlaybackState` | Removed | Added v738, removed v742. **Do not write them** |
 | `TestService` suite runner (`RegisterSuite`, `RegisterTest`, `RunTestsAsync`, `TestSuite`, `TestCase`, `TestResult`) | **[Undocumented]**, still moving | v741 to v745. `RegisterTest(testName, callback, options?)` since v745. `TestCase:Require`/`Check(actual, expected, message?)` since v743 (old form: `RequireLegacy`). `TestExecutionContext:Skip(reason)` since v745. Read the dump before writing a call |
 | `MemoryStoreService:GetDistributedCounter` (`MemoryStoreDistributedCounter`) | **[Undocumented]** | v733. Cross-server totals without sorted-map arithmetic ([patterns/network.md](patterns/network.md#cross-server-communication)) |
