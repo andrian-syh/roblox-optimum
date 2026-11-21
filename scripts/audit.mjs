@@ -10,6 +10,7 @@ import { join, dirname, relative, resolve, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const CURRENCY_MAX_BYTES = 40 * 1024;
 const problems = [];
 const notes = [];
 
@@ -400,6 +401,20 @@ function auditDates() {
 }
 
 /**
+ * Checks that the currency baseline stays small enough for an agent to load whole. Past the
+ * ceiling, its oldest settled rows belong in the one-line Settled lists.
+ */
+function auditCurrencySize() {
+  const file = join(ROOT, "skills", "best-practices", "references", "api-currency.md");
+  const bytes = statSync(file).size;
+  if (bytes > CURRENCY_MAX_BYTES) {
+    problems.push(`${relative(ROOT, file)}: ${bytes} bytes, past the ${CURRENCY_MAX_BYTES} byte ceiling; fold settled rows`);
+    return;
+  }
+  notes.push(`api-currency.md holds ${bytes} of ${CURRENCY_MAX_BYTES} bytes`);
+}
+
+/**
  * Checks that every reference page is reachable from a skill. One nothing links to is either
  * dead weight or a page the model will never be told to open.
  */
@@ -516,6 +531,7 @@ auditRulesPaths();
 auditCardSync();
 auditDashes();
 auditDates();
+auditCurrencySize();
 auditOwnership();
 auditHooks();
 auditComments();

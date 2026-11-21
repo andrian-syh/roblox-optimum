@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.19.2] - 2026-11-21
+
+### Fixed
+
+- Fixed the API currency baseline still calling the `PlayerCharacterDestroyBehavior` change scheduled. Roblox staff confirmed on 11 November 2026 that it is rolling out to every game, so agents now treat `Default` as `Enabled`, with `Disabled` as the temporary opt-out.
+
+### Changed
+
+- Changed the API currency baseline to fold twenty settled rows into its one-line Settled lists, bringing it back under the 40 KB that agents load whole. Every warning those rows carried, such as `CollisionGroupSetCollidable` and the absent `UIFlexLayout`, is kept.
+
 ## [1.19.1] - 2026-11-11
 
 ### Fixed
@@ -720,7 +730,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.2...HEAD
+[1.19.2]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.0...v1.18.1
