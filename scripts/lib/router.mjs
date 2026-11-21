@@ -74,7 +74,7 @@ const PROMPT_ROUTES = [
   ],
   [new RegExp(`^(?!.*\\.luau?\\b).*(?:${ENGINE_ERROR.source})`, "is"), "diagnose", "a quoted engine error"],
   [
-    /^(?!.*\.luau?\b).*(?:\b(?:broken|bug|error|crash|reset|twice|duplicat|vanish|disappear|freez|randomly|sometimes|occasionally|breaks|dies|wrong|rusak|kadang|hilang|dobel|macet|kenapa)\w*|\blag(?:s|gy|ging|ged)?\b|\b(?:lose|loses|losing|lost|wiped?)\b|\bfall(?:s|ing)? through|\bfps\b|\b(?:not|doesn'?t|isn'?t|won'?t) work|\b(?:tidak|gak|nggak|ga) (?:jalan|berfungsi|bekerja|muncul)\b|\bbalik ke\b)/is,
+    /^(?!.*\.luau?\b).*(?:\b(?:broken|bug|error|crash|reset|twice|duplicat|vanish|disappear|freez|randomly|sometimes|occasionally|breaks|dies|wrong|rusak|kadang|hilang|dobel|macet)\w*|\blag(?:s|gy|ging|ged)?\b|\b(?:lose|loses|losing|lost|wiped?)\b|\bfall(?:s|ing)? through|\bfps\b|\b(?:not|doesn'?t|isn'?t|won'?t) work|\b(?:tidak|gak|nggak|ga) (?:jalan|berfungsi|bekerja|muncul)\b|\bbalik ke\b)/is,
     "diagnose",
     "a reported symptom",
   ],

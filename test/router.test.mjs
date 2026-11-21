@@ -55,6 +55,15 @@ const GAME_REQUESTS = [
   ["move the cursor hover effect to a ModuleScript and fix the script", "best-practices"],
 ];
 
+/** Questions about the agent itself, which reach no skill, beside real symptoms that open with "why". */
+const WHY_QUESTIONS = [
+  ["kenapa anda tidak bisa membaca gambar sedangkan gemini bisa?", null],
+  ["kenapa kamu memilih pendekatan itu?", null],
+  ["why did you pick that approach?", null],
+  ["kenapa leaderstats saya reset setiap rejoin?", "diagnose"],
+  ["kenapa pintunya tidak muncul untuk pemain lain?", "diagnose"],
+];
+
 /** Requests that must find code first, and requests that must not be sent to a search. */
 const SEARCHES = [
   ["trace how a player's coins are changed and then saved", true],
@@ -88,6 +97,10 @@ for (const skill of skills) {
 
 test("a repository chore has no skill forced on it", () => {
   for (const prompt of REPO_CHORES) assert.equal(routePrompt(prompt, true)?.skill ?? null, null, prompt);
+});
+
+test("a question about the agent reaches no skill, and a symptom asked as why still routes", () => {
+  for (const [prompt, skill] of WHY_QUESTIONS) assert.equal(routePrompt(prompt, true)?.skill ?? null, skill, prompt);
 });
 
 test("a game request that names a Rojo file, a symptom, or this package still routes", () => {

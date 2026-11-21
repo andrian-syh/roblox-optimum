@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Fixed the API currency baseline still calling the `PlayerCharacterDestroyBehavior` change scheduled. Roblox staff confirmed on 11 November 2026 that it is rolling out to every game, so agents now treat `Default` as `Enabled`, with `Disabled` as the temporary opt-out.
+- Fixed the prompt router sending an Indonesian question about the agent itself, such as "kenapa anda tidak bisa ...", to the diagnose skill. "Kenapa" means "why" and no longer counts as a symptom, as "why" never did in English; a real symptom still routes by what it reports.
 
 ### Changed
 
