@@ -30,7 +30,7 @@ Broadphase and query baselines: [performance.md](performance.md#physics-queries-
 | `CastShadow` | Sun shadows (distinct from `Light.Shadows`). Semi-transparent parts (`Transparency < 1`) cast opaque shadows unless `CastShadow = false` |
 | `Massless` / `AssemblyMass` | `Massless = true` is ignored on `AssemblyRootPart`. `GetMass()` ignores `Massless`; `AssemblyMass` sums non-`Massless` parts plus root (`inf` if anchored) |
 | `Part.Shape` | `Ball`: sphere diameter `math.min(Size.X, Size.Y, Size.Z)`. `Cylinder`: height on **X axis** (`Size.X`), unlike `CylinderMesh` (Y axis) |
-| `Size` | `[0.001, 2048]` per axis; physics clamps `<0.05` up to `0.05` (`ExtentsSize`). `Cylinder`/`TriangleMeshPart` use approximate collision |
+| `Size` | 0.001 to 2,048 studs per axis; physics clamps `<0.05` up to `0.05` (`ExtentsSize`). `Cylinder`/`TriangleMeshPart` use approximate collision |
 | `CFrame` vs `PivotTo` vs `Position` | `BasePart:PivotTo(cf)` uses `PivotOffset`; `CFrame` sets center. Avoid `Position` on welded parts (breaks `WeldConstraint` offsets) |
 
 ## Welds, constraints, and assemblies

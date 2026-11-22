@@ -7,6 +7,7 @@ Annotated end-to-end templates for Script, LocalScript, and ModuleScript: [templ
 ## Contents
 
 - [Section header hierarchy](#section-header-hierarchy)
+- [Spacing](#spacing)
 - [1. -- // VARIABLES // --](#1-----variables----)
 - [2. -- // FUNCTIONS // --](#2-----functions----)
 - [3. -- // INITIALIZATION // --](#3-----initialization----)
