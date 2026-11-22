@@ -813,7 +813,7 @@ The MCP server lets an agent check Luau scripts that live inside Roblox Studio a
 | Tool | `explain_finding` | Explains the rule behind a finding and points to its reference page. |
 | Tool | `get_standards` | Returns the invariant standards card. |
 | Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint. |
-| Resources | `roblox-optimum://references/*` | Serves the 44 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
+| Resources | `roblox-optimum://references/*` | Serves the 45 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 ### Use with Roblox Studio
 

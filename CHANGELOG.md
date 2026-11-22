@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-23
+
+Agents get a design system and a proof loop for UI, and a reference for the parts, meshes, and lights a game is built from.
+
+### Added
+
+- Added `ui-design.md`, read when building or restyling a screen. It covers a token system held in a `StyleSheet`, the patterns that make UI look generated and what to do instead, contrast, touch-size, and text-size numbers from WCAG and the Xbox Accessibility Guidelines, and a build and verify loop: one batched build call, a read-back that returns only problems, a Device Simulator sweep, and a screenshot last. The read-back snippet was run in Studio 748.
+- Added `instances.md` for non-script Instances: collision and query flags, meshes and `Content` assets, welds and pivots, lights, effects, audio, mesh segmentation names, and a build and read-back recipe proven in Studio 748.
+- Added three checker rules: `Instance.new` on a class Roblox cannot create (`EditableMesh`, `BasePart`, `Light`, and the other abstract classes), a raw string assigned to a `Content` property such as `ImageContent`, and the deprecated `BasePart.CollisionGroupId`.
+- Added guidance for Roblox's built-in Studio skills: call `list_roblox_skills` once per session, load a matching `rbx-` skill before work in its area, and probe its claims, since one said `PlayerGui` cannot be read during Play when it can.
+- Added a Spacing section to the Luau layout rules (no blank line after a header, two before `FUNCTIONS` and `INITIALIZATION`, three-line guard clauses, a blank line between a description and its tags), and restyled every shipped snippet to match.
+
+### Changed
+
+- Changed the Rojo guidance to 7.7.1: a `MeshPart` or union whose mesh changes is resynced by deleting and recreating it, which breaks every `Ref` pointing at it; `syncback` only pulls nodes the project maps and should run with `--dry-run` first; and new project fields and file types are listed.
+- Changed the Azul guidance to 2.5.0: `azul build --destructive` wipes the whole Studio state, `deleteOrphansOnConnect` can delete local files, Rojo mode now reads `init.luau` and nested projects, and packages can carry an `azul.package.json`. Claims no official source supports were replaced with Azul's documented limits.
+- Changed `UIShadow` and the `UIGradient` `Type`, `Scale`, and `TileMode` upgrades from settled to [Verify]: they ship in 748, but Roblox's guide still marks them Beta.
+- Changed the text guidance to prefer `TextSize` from a type scale: `TextScaled` ignores the player's text-size setting.
+
+### Fixed
+
+- Fixed the Studio MCP guidance describing video as part of `screen_capture`. Video is the separate `video_capture` tool, which records the Client during a playtest and returns file paths, and the skill tools are now `list_roblox_skills` and `get_roblox_skill`.
+- Fixed the streaming guidance saying `Destroying` fires when an instance streams out. Streamed-out instances are parented to `nil`, so per-instance cleanup belongs on `GetInstanceRemovedSignal`, `AncestryChanged`, or `DescendantRemoving`.
+- Fixed the API currency baseline calling ten fidelity and lighting properties script-writable. The engine dump allows writes from plugins and Open Cloud; whether a running game can set them is unconfirmed.
+- Fixed the API currency baseline listing `StarterGui.ClipsDescendantsSupportsRotation` as current. The property is gone in 748, and rotated descendants always clip.
+
 ## [1.20.0] - 2026-11-21
 
 Claude Code is the first host with a profile of its own: its hooks state what the plugin carries instead of hedging for every host.
@@ -737,7 +763,8 @@ Upgrading: run `npx roblox-optimum install --global --force` to replace plugin c
 - Added the `ask`, `bal`, and `go` supervision levels.
 - Added `npx roblox-optimum install` for Claude Code, Cursor, Antigravity, GitHub Copilot, Codex, Windsurf, Cline, Kiro, Qoder, and Qwen Code.
 
-[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/andrian-syh/roblox-optimum/compare/v1.21.0...HEAD
+[1.21.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.1...v1.20.0
 [1.19.1]: https://github.com/andrian-syh/roblox-optimum/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/andrian-syh/roblox-optimum/compare/v1.18.1...v1.19.0

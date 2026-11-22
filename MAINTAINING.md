@@ -60,7 +60,7 @@ Edit only the source files below. Derived files are generated automatically, and
 | `scripts/lib/suppress.mjs` | `allow` and `allow-file` directives: parsing, scoping, and the findings for malformed or stale ones. |
 | `scripts/lib/report.mjs` | `--check --format json` and `--format sarif`. |
 | `scripts/lib/catalog.mjs` | Single source of truth for `DEPRECATED`, `HAZARDS`, `CONTEXT_ERRORS`, `EXPLANATIONS`, and the runtime overlay merger (`applyOverlay`, `overlayEntries`). |
-| `scripts/lib/checker.mjs` | Static analysis engine (`stripNonCode`, `inspect`, `yieldingUpdates`, `frozenLoops`, `checkFile`, `expandPaths`, `checkBatch`, `formatReport`). |
+| `scripts/lib/checker.mjs` | Static analysis engine (`stripNonCode`, `inspect`, `yieldingUpdates`, `frozenLoops`, `instanceFindings`, `checkFile`, `expandPaths`, `checkBatch`, `formatReport`). |
 | `scripts/lib/currency-sync.mjs` | Live currency fetcher and unambiguous API dump filter, with feed and cache validation (`extractUnambiguousDeprecations`, `syncCurrency`, `triggerBackgroundSyncIfStale`, `renderLiveCurrencyMarkdown`, `releaseVersion`, `writeAtomic`). |
 
 `scripts/roblox-optimum.mjs` re-exports the names other scripts import, so an import from it keeps working when code moves between modules.
@@ -111,7 +111,8 @@ Before changing how the installer writes files for an agent host, check the host
 | OpenCode | `opencode.ai/docs` |
 | GitHub Copilot | `docs.github.com/en/copilot` |
 | Agent Plugins spec | `agent-plugins.org` |
-| Roblox Studio MCP | `create.roblox.com/docs/studio/mcp`, `create.roblox.com/docs/assistant/`, `github.com/Roblox/roblox-studio-agent-plugin` |
+| Roblox Studio MCP | `create.roblox.com/docs/studio/mcp`, `create.roblox.com/docs/assistant/`, `github.com/Roblox/roblox-studio-agent-plugin`, and the live tool and skill lists (`list_roblox_skills`), which run ahead of the docs |
+| Sync tools | `rojo.space/docs/v7` with `github.com/rojo-rbx/rojo/releases`, `azul.ransomwave.games` with `github.com/Ransomwave/azul/releases`. Release notes run ahead of both docs sites |
 
 Host documentation can disagree with the host's behavior. Antigravity's pages, for example, describe plugin hooks and rules as CLI-only, while Antigravity 2.0 and the IDE load them. When the two differ, trust a probe in the host itself, and record the evidence in `INSTALL.md`. Antigravity ships built-in skills for its own customizations (under `~/.gemini/antigravity/builtin/skills/`), which make a reliable probe guide.
 

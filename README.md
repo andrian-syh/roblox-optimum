@@ -176,7 +176,7 @@ The MCP server (`2026-07-28` and `2025-11-25`) checks Luau scripts inside Roblox
 | Tool | `explain_finding` | Explains the rule behind a finding and links to its reference page. |
 | Tool | `get_standards` | Returns the Roblox Luau invariant standards card. |
 | Tool | `classify_open_cloud_call` | Classifies a planned `open_cloud_invoke` call as read, reversible write, irreversible, or denied, offline from its method and endpoint, plus optional `files` and `scopes`, which can only raise the tier. |
-| Resources | `roblox-optimum://references/*` | Serves the 44 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
+| Resources | `roblox-optimum://references/*` | Serves the 45 Markdown reference pages under `skills/best-practices/references/` plus `live-currency.md`. |
 
 See [Connect to Roblox Studio through MCP](INSTALL.md#connect-to-roblox-studio-through-mcp) for setup instructions.
 
