@@ -155,6 +155,47 @@ function yieldingUpdates(code) {
   return found;
 }
 
+const NOT_CREATABLE_INSTANCE =
+  /(?<![.:\w])Instance\.new\s*\(\s*["'`](EditableMesh|EditableImage|BasePart|Light|PVInstance|JointInstance|FaceInstance|TriangleMeshPart|BevelMesh)["'`]\s*(?:,|\))/g;
+
+const CONTENT_STRING_ASSIGN =
+  /\.(Mesh|Texture|Image|ColorMap|NormalMap|RoughnessMap|MetalnessMap|EmissiveMask)Content\s*=(?!=)\s*(?:["'`]|\[=*\[)/g;
+
+/**
+ * Reports static errors on non-script Instances: Instance.new() on NotCreatable classes and
+ * raw string assignments to Content-typed properties, matched only in unblanked code.
+ */
+function instanceFindings(raw, lines) {
+  const found = [];
+
+  for (let k = 0; k < raw.length; k++) {
+    const rawLine = raw[k];
+    const strippedLine = lines[k] ?? "";
+
+    for (const hit of rawLine.matchAll(NOT_CREATABLE_INSTANCE)) {
+      if (strippedLine[hit.index] !== rawLine[hit.index]) continue;
+      found.push({
+        line: k + 1,
+        text:
+          `Line ${k + 1}: NotCreatable Instance.new() ("${hit[1]}") fails at runtime: ` +
+          `use AssetService or a concrete subclass.`,
+      });
+    }
+
+    for (const hit of rawLine.matchAll(CONTENT_STRING_ASSIGN)) {
+      if (strippedLine[hit.index] !== rawLine[hit.index]) continue;
+      found.push({
+        line: k + 1,
+        text:
+          `Line ${k + 1}: Content property string assignment (.${hit[1]}Content) fails at runtime: ` +
+          `use Content.fromAssetId()/fromUri() or AssetService:CreateMeshPartAsync().`,
+      });
+    }
+  }
+
+  return found;
+}
+
 /**
  * Blanks the prose in a source file so that a rule named in a comment or a string is never
  * mistaken for a use of it. An interpolated string keeps the code inside its braces.
@@ -348,6 +389,7 @@ function findingsIn(source, path, runContext) {
     }
   }
 
+  deprecated.push(...instanceFindings(raw, lines));
   deprecated.sort((a, b) => a.line - b.line);
   problems.push(...deprecated.map((d) => d.text));
   problems.push(...yieldingUpdates(code));

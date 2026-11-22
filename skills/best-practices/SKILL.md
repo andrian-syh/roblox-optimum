@@ -116,6 +116,7 @@ Everything below expands these; nothing below overrides them.
 - [server-authority.md](references/server-authority.md): movement, physics, input, camera, animation timing, `BindToSimulation`, network ownership
 - [ui-crossplatform.md](references/ui-crossplatform.md): UI construction, cross-platform and accessibility, input devices
 - [ui-design.md](references/ui-design.md): building or restyling a screen: the token system, what makes UI read as generated, readability numbers, and the build and verify loop
+- [instances.md](references/instances.md): non-script Instances (Part, MeshPart, Model, decals, constraints, lights, audio), asset IDs, and Studio build/read-back
 - [genres.md](references/genres.md): simulator, FPS, obby, RPG, racing, horror, social, tower defense, battlegrounds
 
 **Process**

@@ -15,6 +15,8 @@
   { "query": "open_cloud_invoke keeps returning Scope not authorized, what now", "should_trigger": true },
   { "query": "which MCP Permissions level should the agent run with on my live game", "should_trigger": true },
   { "query": "pakai open cloud untuk ubah data pemain lewat agent, aman nggak?", "should_trigger": true },
+  { "query": "use execute_luau to spawn 500 welded parts in workspace and read back their count", "should_trigger": true },
+  { "query": "gunakan execute_luau untuk membuat Model dengan PointLight dan cek hasilnya pakai inspect_instance", "should_trigger": true },
 
   { "query": "write me a datastore module for saving coins and gems", "should_trigger": false },
   { "query": "review my PR #42 before i merge it", "should_trigger": false },
@@ -25,5 +27,6 @@
   { "query": "write a unit test for my damage calculation function", "should_trigger": false },
   { "query": "set up github actions to lint my luau on every push", "should_trigger": false },
   { "query": "my docker compose wont start the postgres container", "should_trigger": false },
-  { "query": "should i use StreamingEnabled for an open world game", "should_trigger": false }
+  { "query": "should i use StreamingEnabled for an open world game", "should_trigger": false },
+  { "query": "add a Decal and configure CollisionFidelity and CanQuery on decorative MeshParts in Luau", "should_trigger": false }
 ]

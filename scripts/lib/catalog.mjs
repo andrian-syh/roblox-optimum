@@ -462,6 +462,14 @@ const BUILTIN_DEPRECATED = [
     instead: "game.PrivateServerId and game.PrivateServerOwnerId.",
     read: "api-currency.md",
   },
+  {
+    pattern: /\.CollisionGroupId\b/,
+    name: "BasePart.CollisionGroupId",
+    replacement: "BasePart.CollisionGroup",
+    why: "Numeric collision group IDs are deprecated in the engine API dump in favor of named collision groups.",
+    instead: "BasePart.CollisionGroup set to the registered group name string.",
+    read: "instances.md",
+  },
   ...[
     ["FireCustomEvent", "AnalyticsService:LogCustomEvent()"],
     ["FireEvent", "AnalyticsService:LogCustomEvent(), LogEconomyEvent(), or LogProgressionEvent()"],
@@ -633,6 +641,21 @@ export const EXPLANATIONS = {
       "A task.wait() or another yielding call inside the loop, or a condition that breaks it. " +
       "Periodic work usually belongs on a signal or a timer rather than a spinning loop.",
     read: "style-rules.md",
+  },
+  "NotCreatable Instance.new()": {
+    why: "Abstract and NotCreatable Roblox classes throw at runtime when passed to Instance.new().",
+    instead:
+      "AssetService:CreateEditableMesh()/CreateEditableImage() or a concrete subclass (Part, MeshPart, PointLight, Model, WeldConstraint, Decal).",
+    read: "instances.md",
+  },
+  "Content property string assignment": {
+    why:
+      "A raw string is rejected on Content-typed properties; some *Content properties, such as " +
+      "MeshPart.MeshContent, cannot be written from scripts at all.",
+    instead:
+      "Content.fromAssetId(id), Content.fromUri(uri), or Content.none for writable Content properties, " +
+      "or AssetService:CreateMeshPartAsync() / a pre-made MeshPart for MeshPart geometry.",
+    read: "instances.md",
   },
   ...Object.fromEntries(
     CONTEXT_ERRORS.flatMap(({ side, members }) =>
