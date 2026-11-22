@@ -115,6 +115,7 @@ Everything below expands these; nothing below overrides them.
 - [growth-apis.md](references/growth-apis.md): AnalyticsService funnels and events, player segments, experiments, experience notifications, referrals
 - [server-authority.md](references/server-authority.md): movement, physics, input, camera, animation timing, `BindToSimulation`, network ownership
 - [ui-crossplatform.md](references/ui-crossplatform.md): UI construction, cross-platform and accessibility, input devices
+- [ui-design.md](references/ui-design.md): building or restyling a screen: the token system, what makes UI read as generated, readability numbers, and the build and verify loop
 - [genres.md](references/genres.md): simulator, FPS, obby, RPG, racing, horror, social, tower defense, battlegrounds
 
 **Process**
